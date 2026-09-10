@@ -10,7 +10,7 @@ Salidas en la raíz del repo:
 - civstats/          estadísticas de civs a partir de los volcados DIARIOS de partidas del companion:
     dias/AAAA-MM-DD.json.gz   resumen de un día: civs por modo×mapa×tramo, matchups 1v1 por tramo, mapas, contadores
     ventanas/vN.json.gz       suma de los últimos N días (7, 30, 90, 365) y vparche.json.gz = solo el parche actual
-    tendencias.json.gz        winrate y pick rate por mes y civ (últimos 13 meses)
+    tendencias.json.gz        winrate por mes y civ (últimos 13 meses), por mes y mapa (12 mapas más jugados por modo) y por semana (26 semanas)
     estado.json               días procesados y parches vistos
 Fuente: volcados diarios de aoe2companion (https://www.aoe2companion.com/more/api).
 Créditos: aoe2companion (Dennis Keil) · Age of Empires II © Microsoft.
@@ -19,7 +19,7 @@ import gzip, io, json, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-UA = "sfr-data/1.2.1 (+https://github.com/jguardiola-dev/aoe2radar)"
+UA = "sfr-data/1.3 (+https://github.com/jguardiola-dev/aoe2radar)"
 DUMP = "https://dump.cdn.aoe2companion.com/"
 BIN = 25
 LADDERS = ("rm_1v1", "rm_team", "ew_1v1", "ew_team")
@@ -37,6 +37,8 @@ DIAS_MAX_POR_EJECUCION = 400
 TIEMPO_MAX_S = 200 * 60         # presupuesto de tiempo para procesar días en una ejecución
 VENTANAS = (7, 30, 90, 365)
 MESES_TENDENCIAS = 13
+SEMANAS_TENDENCIAS = 26        # tendencias semanales (clave: lunes de cada semana)
+MAPAS_TENDENCIAS = 12          # tendencias por mapa solo para los mapas más jugados de cada modo
 TRAMOS = [(0, 800), (800, 1000), (1000, 1200), (1200, 1400), (1400, 1600), (1600, 1800), (1800, 2000), (2000, 99999)]
 MIN_DURACION_S = 120            # partidas más cortas = abandonos: fuera del winrate
 MODOS_FUENTE = {"rm_1v1", "rm_team", "ew_1v1", "ew_team", "dm_1v1", "dm_team"}
@@ -522,23 +524,46 @@ def ventanas_y_tendencias(estado):
         escribir_json(os.path.join(DIR_VENT, "vparche.json.gz"), v)
         log(f"civstats: parche actual {parche}: {v['dias']} días desde {sel[0]}")
         estado["parche_actual"] = parche
-    # tendencias por mes: modo × civ (sin mapa ni tramo), últimos 13 meses
+    # tendencias: modo × civ por mes (13 meses), modo × mapa × civ por mes (los 12 mapas más jugados de cada modo)
+    # y modo × civ por semana (26 semanas, clave = lunes de la semana)
     por_mes = defaultdict(lambda: [0, 0])
+    por_mes_mapa = defaultdict(lambda: [0, 0])
+    por_semana = defaultdict(lambda: [0, 0])
     partidas_mes = defaultdict(int)
-    meses = set()
+    partidas_mapa = defaultdict(int)
+    meses, semanas = set(), set()
     primer_mes = (ultimo_d.replace(day=1) - timedelta(days=31 * (MESES_TENDENCIAS - 1))).strftime("%Y-%m")
+    primera_semana = (ultimo_d - timedelta(days=ultimo_d.weekday()) - timedelta(weeks=SEMANAS_TENDENCIAS - 1)).isoformat()
     for r in cargar_dias([d for d in dias if d[:7] >= primer_mes]):
         mes = r["fecha"][:7]
         meses.add(mes)
+        fecha_d = date.fromisoformat(r["fecha"])
+        semana = (fecha_d - timedelta(days=fecha_d.weekday())).isoformat()
+        en_semana = semana >= primera_semana
+        if en_semana:
+            semanas.add(semana)
         for modo, c in r["modos"].items():
             partidas_mes[(modo, mes)] += c["partidas"]
         for modo, mapa, tramo, civ, n, w, d in r["civs"]:
             x = por_mes[(modo, civ, mes)]; x[0] += n; x[1] += w
-    t = {"generado": ahora(), "meses": sorted(meses), "hasta": ultimo,
+            y = por_mes_mapa[(modo, mapa, civ, mes)]; y[0] += n; y[1] += w
+            partidas_mapa[(modo, mapa)] += n
+            if en_semana:
+                z = por_semana[(modo, civ, semana)]; z[0] += n; z[1] += w
+    top_mapas = {}
+    for (modo, mapa), n in partidas_mapa.items():
+        top_mapas.setdefault(modo, []).append((n, mapa))
+    permitidos = set()
+    for modo, lista in top_mapas.items():
+        for n, mapa in sorted(lista, reverse=True)[:MAPAS_TENDENCIAS]:
+            permitidos.add((modo, mapa))
+    t = {"generado": ahora(), "meses": sorted(meses), "semanas": sorted(semanas), "hasta": ultimo,
          "partidas": [[modo, mes, n] for (modo, mes), n in sorted(partidas_mes.items())],
-         "filas": [[modo, civ, mes, n, w] for (modo, civ, mes), (n, w) in sorted(por_mes.items())]}
+         "filas": [[modo, civ, mes, n, w] for (modo, civ, mes), (n, w) in sorted(por_mes.items())],
+         "filas_mapa": [[modo, mapa, civ, mes, n, w] for (modo, mapa, civ, mes), (n, w) in sorted(por_mes_mapa.items()) if (modo, mapa) in permitidos],
+         "filas_semana": [[modo, civ, semana, n, w] for (modo, civ, semana), (n, w) in sorted(por_semana.items())]}
     escribir_json(os.path.join(DIR_CIV, "tendencias.json.gz"), t)
-    log(f"civstats: tendencias: {len(meses)} meses, {len(t['filas']):,} filas")
+    log(f"civstats: tendencias: {len(meses)} meses, {len(t['filas']):,} filas; por mapa {len(t['filas_mapa']):,}; {len(semanas)} semanas, {len(t['filas_semana']):,} filas")
 
 
 def civstats():
