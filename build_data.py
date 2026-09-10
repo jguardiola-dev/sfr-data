@@ -19,7 +19,7 @@ import gzip, io, json, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-UA = "sfr-data/1.2 (+https://github.com/jguardiola-dev/SpoilerFreeRecs)"
+UA = "sfr-data/1.2.1 (+https://github.com/jguardiola-dev/aoe2radar)"
 DUMP = "https://dump.cdn.aoe2companion.com/"
 BIN = 25
 LADDERS = ("rm_1v1", "rm_team", "ew_1v1", "ew_team")
@@ -42,6 +42,9 @@ MIN_DURACION_S = 120            # partidas más cortas = abandonos: fuera del wi
 MODOS_FUENTE = {"rm_1v1", "rm_team", "ew_1v1", "ew_team", "dm_1v1", "dm_team"}
 EQUIPOS_RM = {4: "rm_2v2", 6: "rm_3v3", 8: "rm_4v4"}
 NOMBRES_MAPA_FIJOS = {"megarandom": "MegaRandom", "kotd": "King of the Desert", "socotra": "Socotra", "mega-random": "MegaRandom"}
+API = "https://data.aoe2companion.com/api"
+MAPAS_PAGINAS = 4               # páginas de partidas recientes por ladder para aprender las imágenes de mapa (pocas llamadas al día)
+MAPAS_LADDERS = ("rm_1v1", "rm_team", "ew_1v1")
 
 
 # ----------------------------------------------------------------------------- utilidades
@@ -278,13 +281,47 @@ def tramo_de(rating):
 
 def nombre_mapa(clave):
     k = clave
-    for pref in ("rm_", "ew_", "dm_"):
+    for pref in ("rm_", "cm_", "ew_", "dm_"):
         if k.startswith(pref):
             k = k[len(pref):]
             break
     if k in NOMBRES_MAPA_FIJOS:
         return NOMBRES_MAPA_FIJOS[k]
     return " ".join(p.capitalize() for p in k.replace("_", "-").split("-"))
+
+
+# ----------------------------------------------------------------------------- mapas
+def mapas():
+    """mapas.json: imagen de cada mapa (URL del CDN del companion), aprendida de unas pocas páginas de partidas recientes.
+    Se acumula con lo ya publicado, así los mapas nuevos entran solos en cuanto se juegan."""
+    previo = leer_json("mapas.json", {}) or {}
+    conocidos = dict(previo.get("mapas", {}))
+    nuevos = 0
+    for lb in MAPAS_LADDERS:
+        for pag in range(1, MAPAS_PAGINAS + 1):
+            try:
+                raw = fetch(f"{API}/matches?leaderboard_ids={lb}&page={pag}&per_page=50", timeout=60)
+                if raw is None:
+                    break
+                partidas = json.loads(raw.decode("utf-8")).get("matches", [])
+            except Exception as ex:
+                log(f"mapas: {lb} página {pag}: {ex!r}")
+                break
+            for m in partidas:
+                url = m.get("mapImageUrl") or m.get("map_image_url")
+                if not isinstance(url, str) or not url.startswith("http"):
+                    continue
+                for clave in (m.get("map"), m.get("mapName") or m.get("map_name")):
+                    if isinstance(clave, str) and clave.strip():
+                        k = clave.strip().lower()
+                        if conocidos.get(k) != url:
+                            conocidos[k] = url
+                            nuevos += 1
+            if len(partidas) < 50:
+                break
+            time.sleep(1)
+    escribir_json("mapas.json", {"generado": ahora(), "mapas": dict(sorted(conocidos.items())), "credito": "aoe2companion.com (Dennis Keil) · Age of Empires II © Microsoft"})
+    log(f"mapas: {len(conocidos)} entradas ({nuevos} nuevas o cambiadas)")
 
 
 def resumir_dia(fecha, raw):
@@ -304,6 +341,7 @@ def resumir_dia(fecha, raw):
     if "status" in df.columns:
         df = df[df["status"].fillna("player") == "player"]
     df = df[df["leaderboard"].isin(MODOS_FUENTE)].copy()
+    df = df[df["civ"].fillna("unknown") != "unknown"]
     df["won"] = df["won"].astype("boolean").fillna(False).astype(bool)
     df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
     df.loc[df["rating"] <= 0, "rating"] = np.nan
@@ -520,7 +558,7 @@ def civstats():
 
 if __name__ == "__main__":
     ok = True
-    for nombre, fn in (("ladder", ladder), ("civstats", civstats)):
+    for nombre, fn in (("ladder", ladder), ("civstats", civstats), ("mapas", mapas)):
         try:
             fn()
         except Exception as ex:
