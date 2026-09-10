@@ -26,7 +26,7 @@ jobs:
       - name: datos previos (rama data)
         run: |
           if git fetch -q --depth=1 origin data:refs/remotes/origin/data 2>/dev/null; then
-            for p in civstats ladder.json clans.json.gz dispersion.json.gz; do
+            for p in civstats ladder.json clans.json.gz dispersion.json.gz mapas.json; do
               git checkout origin/data -- "$p" 2>/dev/null || true
             done
             echo "recuperados de la rama data: $(ls civstats/dias 2>/dev/null | wc -l) días"
@@ -42,7 +42,7 @@ jobs:
           git config user.email "bot@users.noreply.github.com"
           git checkout -q --orphan publicacion
           git rm -r -q -f --cached . 2>/dev/null || true
-          for f in ladder.json clans.json.gz dispersion.json.gz; do
+          for f in ladder.json clans.json.gz dispersion.json.gz mapas.json; do
             [ -f "$f" ] && git add -f "$f" || true
           done
           [ -d civstats ] && git add -f civstats || true
