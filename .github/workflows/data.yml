@@ -8,28 +8,44 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: datos
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: archivos del repo
-        run: ls -la
       - name: dependencias
-        run: pip install pandas pyarrow
+        run: pip install pandas pyarrow numpy
+      - name: datos previos (rama data)
+        run: |
+          if git fetch -q --depth=1 origin data:refs/remotes/origin/data 2>/dev/null; then
+            for p in civstats ladder.json clans.json.gz dispersion.json.gz; do
+              git checkout origin/data -- "$p" 2>/dev/null || true
+            done
+            echo "recuperados de la rama data: $(ls civstats/dias 2>/dev/null | wc -l) días"
+          else
+            echo "todavía no hay rama data (primera ejecución)"
+          fi
       - name: generar datos
         run: python build_data.py
-        continue-on-error: true    # civstats es best-effort: si falla, se publica lo que haya salido bien
-      - name: publicar
+        continue-on-error: true    # si una parte falla, se publica lo que haya salido bien y lo recuperado
+      - name: publicar (rama data, un solo commit)
         run: |
           git config user.name "sfr-data bot"
           git config user.email "bot@users.noreply.github.com"
-          for f in ladder.json clans.json.gz civstats.json; do
-            [ -f "$f" ] && git add "$f" || true
+          git checkout -q --orphan publicacion
+          git rm -r -q -f --cached . 2>/dev/null || true
+          for f in ladder.json clans.json.gz dispersion.json.gz; do
+            [ -f "$f" ] && git add -f "$f" || true
           done
-          git commit -m "datos $(date -u +%F)" || echo "sin cambios"
-          git push
+          [ -d civstats ] && git add -f civstats || true
+          git commit -q -m "datos $(date -u '+%F %H:%M UTC')" || { echo "nada que publicar"; exit 0; }
+          git push --force -q origin HEAD:data
+          echo "publicado en la rama data: $(git ls-files | wc -l) archivos"
