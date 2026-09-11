@@ -567,8 +567,10 @@ def civstats():
     estado = leer_json(os.path.join(DIR_CIV, "estado.json"), {}) or {}
     nuevos = procesar_dias(estado)
     podar(estado)
-    if nuevos or not os.path.exists(os.path.join(DIR_VENT, "v30.json.gz")):
+    version_estado = estado.get("motor")
+    if nuevos or version_estado != UA or not os.path.exists(os.path.join(DIR_VENT, "v30.json.gz")):   # también al cambiar de versión del motor: los resúmenes se regeneran
         ventanas_y_tendencias(estado)
+        estado["motor"] = UA
     estado["generado"] = ahora()
     estado["ultimo"] = estado["dias"][-1] if estado.get("dias") else None
     estado["activos_def"] = {"min_partidas": ACTIVO_MIN_PARTIDAS, "dias": ACTIVO_DIAS}
