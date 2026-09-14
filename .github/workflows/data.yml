@@ -41,9 +41,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view perfiles >/dev/null 2>&1 || gh release create perfiles --title "perfiles precalculados" --notes "Registro de partidas por jugador (último año, top 20.000 1v1 + top 10.000 equipos) para aoe2radar. Se regenera cada noche. No es una versión: es un almacén de datos." --latest=false
-          gh release upload perfiles perfiles/index.json perfiles/*.json.gz --clobber
-          # los snapshots diarios de ELO (elo-AAAA-MM-DD) solo hacen falta 9 días: se borran los viejos
+          gh release view perfiles >/dev/null 2>&1 || gh release create perfiles --title "perfiles precalculados" --notes "Registro de partidas por jugador (último año, todos los activos) para aoe2radar: base semanal + deltas diarios, formato compacto v2. Se regenera cada noche. No es una versión: es un almacén de datos." --latest=false
+          # borrar lo que el motor ha marcado (deltas ya fundidos en la base) y los paquetes del formato antiguo (shard-NNN de 3 cifras)
+          for m in perfiles/BORRAR-*; do [ -e "$m" ] || continue; a=$(basename "$m"); a=${a#BORRAR-}; gh release delete-asset perfiles "$a" -y || true; rm -f "$m"; done
+          for a in $(gh release view perfiles --json assets -q '.assets[].name' | grep -E '^shard-[0-9]{3}\.json\.gz$'); do gh release delete-asset perfiles "$a" -y || true; done
+          ls perfiles/*.json.gz | xargs -n 200 gh release upload perfiles --clobber
+          gh release upload perfiles perfiles/index.json --clobber
           limite=$(date -u -d "9 days ago" +%F)
           for a in $(gh release view perfiles --json assets -q '.assets[].name' | grep -E '^elo-[0-9]{4}-[0-9]{2}-[0-9]{2}\.json\.gz$'); do
             f=${a#elo-}; f=${f%.json.gz}
