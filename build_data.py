@@ -19,19 +19,31 @@ import gzip, io, json, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-UA = "sfr-data/1.3.1 (+https://github.com/jguardiola-dev/aoe2radar)"
+UA = "sfr-data/1.4.1 (+https://github.com/jguardiola-dev/aoe2radar)"
 DUMP = "https://dump.cdn.aoe2companion.com/"
 BIN = 25
 LADDERS = ("rm_1v1", "rm_team", "ew_1v1", "ew_team")
 LADDER_NUM = {"3": "rm_1v1", "4": "rm_team", "13": "ew_1v1", "14": "ew_team"}
 PAREJAS = {"rm": ("rm_1v1", "rm_team"), "ew": ("ew_1v1", "ew_team")}
-ACTIVO_MIN_PARTIDAS = 10
+ACTIVO_MIN_PARTIDAS = 1      # «activo» = al menos una partida en el ladder y una en los últimos 28 días (convención habitual en la comunidad; el companion no publica percentiles)
 ACTIVO_DIAS = 28
 
 DIR_CIV = "civstats"
 DIR_DIAS = os.path.join(DIR_CIV, "dias")
 DIR_VENT = os.path.join(DIR_CIV, "ventanas")
 DIAS_HISTORICO = 365            # cuántos días hacia atrás se rellenan
+# perfiles precalculados (release «perfiles» del repo): registro de partidas del último año por jugador, en 256 paquetes por pid
+PERFILES_SHARDS = 256
+PERFILES_DIAS = 365
+PERFILES_DIAS_POR_NOCHE = 15    # relleno hacia atrás: cada noche entran 15 días más hasta cubrir el año (y siempre el día nuevo)
+PERFILES_TOP_1V1 = 20000        # alcance: top 20.000 del ladder 1v1 (≈ 1450 ELO) + top 10.000 de equipos
+PERFILES_TOP_TEAM = 10000
+PERFILES_RELEASE = "perfiles"
+ELO_TOP_1V1 = 40000             # elo_ayer / índice de nombres: más amplio que los perfiles (barato): top 40.000 1v1 + top 20.000 equipos
+ELO_TOP_TEAM = 20000
+MUESTRA_POR_TRAMO = 300         # partidas 1v1 RM al azar por tramo de ELO del volcado de ayer (Al azar por ELO y Guess the ELO sin API)
+PERFILES_DIR = "perfiles"
+REPO = os.environ.get("GITHUB_REPOSITORY", "jguardiola-dev/sfr-data")
 DIAS_RETENCION = 400            # los resúmenes diarios más antiguos se borran
 DIAS_MAX_POR_EJECUCION = 400
 TIEMPO_MAX_S = 200 * 60         # presupuesto de tiempo para procesar días en una ejecución
@@ -578,9 +590,287 @@ def civstats():
     log(f"civstats: {len(estado.get('dias', []))} días en el repo, último {estado['ultimo']}, {nuevos} nuevos")
 
 
+# ============================================================================================
+# PERFILES PRECALCULADOS — registro de partidas por jugador (último año), publicado como assets de la
+# release «perfiles». La app abre un perfil bajando un paquete (~1 MB) en vez de 20 llamadas a la API.
+# Formato del paquete: {"generado", "hasta", "desde", "jugadores": {pid: {"n": nombre, "c": país,
+#   "m": [[matchId, inicio_s, fin_s, ladder, mapa, [[pid, nombre, civ, equipo, rating, diff, won], ...]], ...]}}}
+# ============================================================================================
+def perfiles_shard_de(pid):
+    return int(pid) % PERFILES_SHARDS
+
+
+def perfiles_url_asset(nombre):
+    return f"https://github.com/{REPO}/releases/download/{PERFILES_RELEASE}/{nombre}"
+
+
+def perfiles_cargar_shard(i):
+    ruta = os.path.join(PERFILES_DIR, f"shard-{i:03d}.json.gz")
+    if os.path.exists(ruta):
+        with gzip.open(ruta, "rt", encoding="utf-8") as f:
+            return json.load(f)
+    try:
+        raw = fetch(perfiles_url_asset(f"shard-{i:03d}.json.gz"), timeout=120, intentos=2)
+    except Exception as ex:
+        log(f"perfiles: shard {i}: {ex!r}")
+        raw = None
+    if raw is None:
+        return {"jugadores": {}}
+    return json.loads(gzip.decompress(raw).decode("utf-8"))
+
+
+def perfiles_escribir_shard(i, datos):
+    os.makedirs(PERFILES_DIR, exist_ok=True)
+    ruta = os.path.join(PERFILES_DIR, f"shard-{i:03d}.json.gz")
+    with gzip.open(ruta, "wt", encoding="utf-8", compresslevel=6) as f:
+        json.dump(datos, f, ensure_ascii=False, separators=(",", ":"))
+
+
+def perfiles_alcance():
+    """Los pids del top 20.000 1v1 y del top 10.000 de equipos (por rango en leaderboard.parquet)."""
+    import pandas as pd
+    pf = abrir_parquet(fetch(DUMP + "leaderboard.parquet"), "perfiles: leaderboard.parquet")
+    nombres = pf.schema.names
+    c_lb = columna(nombres, "leaderboard_id", "leaderboard", "leaderboardId")
+    c_pid = columna(nombres, "profile_id", "profileId")
+    c_rank = columna(nombres, "rank")
+    df = tabla_texto(pf.read(columns=[c_lb, c_pid, c_rank])).to_pandas()
+    alcance = set()
+    for lb, tope in (("rm_1v1", PERFILES_TOP_1V1), ("rm_team", PERFILES_TOP_TEAM)):
+        sub = df[(df[c_lb] == lb) & (pd.to_numeric(df[c_rank], errors="coerce") <= tope)]
+        alcance.update(int(x) for x in sub[c_pid].dropna())
+    log(f"perfiles: alcance {len(alcance):,} jugadores (top {PERFILES_TOP_1V1:,} 1v1 + top {PERFILES_TOP_TEAM:,} equipos)")
+    return alcance
+
+
+def perfiles_nombres(pids):
+    """pid → (nombre, país) desde profile.parquet, solo para los pids pedidos."""
+    import pandas as pd
+    pf = abrir_parquet(fetch(DUMP + "profile.parquet"), "perfiles: profile.parquet")
+    nombres = pf.schema.names
+    c_pid = columna(nombres, "profile_id", "profileId")
+    c_name = columna(nombres, "name")
+    c_country = columna(nombres, "country", "countryCode")
+    cols = [c for c in (c_pid, c_name, c_country) if c]
+    df = tabla_texto(pf.read(columns=cols)).to_pandas()
+    df = df[df[c_pid].isin(list(pids))]
+    out = {}
+    for pid, nombre, pais in zip(df[c_pid], df[c_name] if c_name else [""] * len(df), df[c_country] if c_country else [""] * len(df)):
+        out[int(pid)] = (str(nombre or ""), str(pais or "").lower())
+    return out
+
+
+def perfiles_dia(fecha, raw, alcance):
+    """Partidas del día en las que juega alguien del alcance, con todos sus jugadores. Devuelve {pid_del_alcance: [partida, ...]}."""
+    import pandas as pd, numpy as np
+    pf = abrir_parquet(raw, f"perfiles: match-{fecha}.parquet")
+    nombres = pf.schema.names
+    cols = [c for c in ("matchId", "started", "finished", "leaderboard", "map", "profileId", "rating", "ratingDiff", "team", "status", "won", "civ") if c in nombres]
+    df = tabla_texto(pf.read(columns=cols)).to_pandas()
+    if "status" in df.columns:
+        df = df[df["status"].fillna("player") == "player"]
+    df = df[df["leaderboard"].isin(MODOS_FUENTE)]
+    df["profileId"] = pd.to_numeric(df["profileId"], errors="coerce")
+    df = df[df["profileId"].notna()]
+    df["profileId"] = df["profileId"].astype("int64")
+    ids_partidas = set(df[df["profileId"].isin(list(alcance))]["matchId"])
+    df = df[df["matchId"].isin(list(ids_partidas))]
+    por_partida = {}
+    for r in df.itertuples(index=False):
+        d = r._asdict()
+        p = por_partida.setdefault(d["matchId"], {"ini": d["started"], "fin": d["finished"], "lb": d["leaderboard"], "mapa": d["map"], "j": []})
+        won = d.get("won")
+        won_i = -1 if won is None or (isinstance(won, float) and np.isnan(won)) else (1 if bool(won) else 0)
+        rating = d.get("rating"); rating = None if rating is None or (isinstance(rating, float) and np.isnan(rating)) else int(rating)
+        diff = d.get("ratingDiff"); diff = None if diff is None or (isinstance(diff, float) and np.isnan(diff)) else int(diff)
+        team = d.get("team"); team = 0 if team is None or (isinstance(team, float) and np.isnan(team)) else int(team)
+        p["j"].append([int(d["profileId"]), "", d.get("civ") or "", team, rating, diff, won_i])
+    def epoch(v):
+        try:
+            ts = pd.Timestamp(v)
+            if pd.isna(ts): return 0
+            return int(ts.timestamp())
+        except Exception:
+            return 0
+    salida = {}
+    for mid, p in por_partida.items():
+        fila = [int(mid), epoch(p["ini"]), epoch(p["fin"]), p["lb"], p["mapa"], p["j"]]
+        for j in p["j"]:
+            if j[0] in alcance:
+                salida.setdefault(j[0], []).append(fila)
+    return salida
+
+
+def perfiles_elo_ayer(fecha):
+    """elo_ayer.json.gz: pid → [elo 1v1, partidas 1v1, elo equipos, partidas equipos, nombre, país] para el top 40.000 / 20.000 (forma por resta e índice de nombres)."""
+    import pandas as pd
+    pf = abrir_parquet(fetch(DUMP + "leaderboard.parquet"), "perfiles: leaderboard.parquet (elo_ayer)")
+    nombres = pf.schema.names
+    c_lb = columna(nombres, "leaderboard_id", "leaderboard", "leaderboardId"); c_pid = columna(nombres, "profile_id", "profileId")
+    c_rank = columna(nombres, "rank"); c_rating = columna(nombres, "rating"); c_games = columna(nombres, "games"); c_name = columna(nombres, "name"); c_country = columna(nombres, "country", "countryCode")
+    cols = [c for c in (c_lb, c_pid, c_rank, c_rating, c_games, c_name, c_country) if c]
+    df = tabla_texto(pf.read(columns=cols)).to_pandas()
+    out = {}
+    for lb, tope, i_r, i_g in (("rm_1v1", ELO_TOP_1V1, 0, 1), ("rm_team", ELO_TOP_TEAM, 2, 3)):
+        sub = df[(df[c_lb] == lb) & (pd.to_numeric(df[c_rank], errors="coerce") <= tope)]
+        for r in sub.itertuples(index=False):
+            d = r._asdict(); pid = int(d[c_pid])
+            e = out.setdefault(pid, [0, 0, 0, 0, "", ""])
+            e[i_r] = int(d[c_rating]) if d.get(c_rating) is not None and not pd.isna(d[c_rating]) else 0
+            e[i_g] = int(d[c_games]) if c_games and d.get(c_games) is not None and not pd.isna(d[c_games]) else 0
+            if c_name and d.get(c_name): e[4] = str(d[c_name])
+            if c_country and d.get(c_country): e[5] = str(d[c_country]).lower()
+    datos = {"fecha": fecha, "generado": ahora(), "j": {str(k): v for k, v in out.items()}}
+    for nombre in ("elo_ayer.json.gz", f"elo-{fecha}.json.gz"):
+        with gzip.open(os.path.join(PERFILES_DIR, nombre), "wt", encoding="utf-8", compresslevel=6) as f:
+            json.dump(datos, f, ensure_ascii=False, separators=(",", ":"))
+    log(f"perfiles: elo_ayer: {len(out):,} jugadores")
+
+
+def perfiles_muestra(fecha, raw, nombres):
+    """muestra_ayer.json.gz: hasta 300 partidas 1v1 RM al azar por tramo de ELO (200 puntos) del volcado de ayer: mapa, civs, jugadores, ELO y resultado."""
+    import pandas as pd, random
+    pf = abrir_parquet(raw, f"perfiles: match-{fecha}.parquet (muestra)")
+    cols = [c for c in ("matchId", "started", "finished", "leaderboard", "map", "profileId", "rating", "team", "status", "won", "civ") if c in pf.schema.names]
+    df = tabla_texto(pf.read(columns=cols)).to_pandas()
+    if "status" in df.columns: df = df[df["status"].fillna("player") == "player"]
+    df = df[df["leaderboard"] == "rm_1v1"]
+    df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
+    g = df.groupby("matchId")
+    partidas = []
+    for mid, grp in g:
+        if len(grp) != 2 or grp["rating"].isna().any() or grp["won"].isna().any(): continue
+        media = grp["rating"].mean(); tramo = int(min(2400, max(0, media // 200 * 200)))
+        ini = pd.Timestamp(grp["started"].iloc[0]); fin = pd.Timestamp(grp["finished"].iloc[0])
+        if pd.isna(ini) or pd.isna(fin) or (fin - ini).total_seconds() < 300: continue
+        js = []
+        for r in grp.itertuples(index=False):
+            d = r._asdict(); pid = int(d["profileId"]); nn = nombres.get(pid, ("", ""))
+            js.append([pid, nn[0], d.get("civ") or "", int(d["rating"]), 1 if bool(d["won"]) else 0])
+        partidas.append((tramo, [int(mid), int(ini.timestamp()), int(fin.timestamp()), grp["map"].iloc[0], js]))
+    random.seed(fecha)
+    por_tramo = {}
+    for tramo, fila in partidas: por_tramo.setdefault(tramo, []).append(fila)
+    salida = {"fecha": fecha, "generado": ahora(), "tramos": {}}
+    for tramo, lista in por_tramo.items():
+        random.shuffle(lista); salida["tramos"][str(tramo)] = lista[:MUESTRA_POR_TRAMO]
+    with gzip.open(os.path.join(PERFILES_DIR, "muestra_ayer.json.gz"), "wt", encoding="utf-8", compresslevel=6) as f:
+        json.dump(salida, f, ensure_ascii=False, separators=(",", ":"))
+    log(f"perfiles: muestra de {fecha}: {sum(len(v) for v in salida['tramos'].values()):,} partidas en {len(salida['tramos'])} tramos")
+
+
+def perfiles():
+    os.makedirs(PERFILES_DIR, exist_ok=True)
+    estado = leer_json(os.path.join(PERFILES_DIR, "index.json"), {}) or {}
+    if not estado:
+        try:
+            raw = fetch(perfiles_url_asset("index.json"), timeout=60, intentos=2)
+            if raw: estado = json.loads(raw.decode("utf-8"))
+        except Exception:
+            estado = {}
+    hechos = set(estado.get("dias", []))
+    hoy = datetime.now(timezone.utc).date()
+    candidatos = [(hoy - timedelta(days=k)).isoformat() for k in range(1, PERFILES_DIAS + 1)]
+    pendientes = [d for d in candidatos if d not in hechos][:PERFILES_DIAS_POR_NOCHE]   # los más recientes primero
+    if not pendientes:
+        log("perfiles: sin días pendientes de partidas")
+    alcance = perfiles_alcance()
+    nuevos_por_shard = {}
+    dias_ok = []
+    raw_reciente = None
+    inicio = time.time()
+    for d in pendientes:
+        if time.time() - inicio > 90 * 60:
+            log("perfiles: tope de tiempo; el resto queda para mañana")
+            break
+        raw = fetch(DUMP + f"match-{d}.parquet", timeout=300)
+        if raw is None:
+            log(f"perfiles: match-{d}.parquet no existe")
+            hechos.add(d)   # no volverá a existir: no lo reintentamos cada noche
+            continue
+        try:
+            por_pid = perfiles_dia(d, raw, alcance)
+        except Exception as ex:
+            log(f"perfiles: {d}: ERROR {ex!r}")
+            continue
+        if raw_reciente is None: raw_reciente = (d, raw)   # el primer día que entra es el más reciente
+        for pid, partidas in por_pid.items():
+            nuevos_por_shard.setdefault(perfiles_shard_de(pid), {}).setdefault(pid, []).extend(partidas)
+        dias_ok.append(d)
+        log(f"perfiles: {d}: {sum(len(v) for v in por_pid.values()):,} filas de partida para {len(por_pid):,} jugadores")
+    try:
+        perfiles_elo_ayer((hoy - timedelta(days=1)).isoformat())
+    except Exception as ex:
+        log(f"perfiles: elo_ayer: ERROR {ex!r}")
+    # nombres y países de todos los pids que aparecen en las partidas nuevas (y en la muestra)
+    pids_vistos = set()
+    for shard in nuevos_por_shard.values():
+        for partidas in shard.values():
+            for fila in partidas:
+                for j in fila[5]:
+                    pids_vistos.add(j[0])
+    ayer = (hoy - timedelta(days=1)).isoformat()
+    if raw_reciente is None or raw_reciente[0] != ayer:   # la muestra es siempre del volcado de ayer, aunque esa noche toque relleno de días antiguos
+        raw_ayer = fetch(DUMP + f"match-{ayer}.parquet", timeout=300)
+        if raw_ayer is not None: raw_reciente = (ayer, raw_ayer)
+    if raw_reciente is not None:   # la muestra necesita los nombres de sus jugadores: se piden con los demás
+        try:
+            pf_m = abrir_parquet(raw_reciente[1], "perfiles: muestra (pids)")
+            df_m = tabla_texto(pf_m.read(columns=[c for c in ("leaderboard", "profileId") if c in pf_m.schema.names])).to_pandas()
+            pids_vistos.update(int(x) for x in df_m[df_m["leaderboard"] == "rm_1v1"]["profileId"].dropna())
+        except Exception as ex:
+            log(f"perfiles: muestra pids: {ex!r}")
+    nombres = perfiles_nombres(pids_vistos)
+    if raw_reciente is not None:
+        try:
+            perfiles_muestra(raw_reciente[0], raw_reciente[1], nombres)
+        except Exception as ex:
+            log(f"perfiles: muestra: ERROR {ex!r}")
+    if not dias_ok:
+        log("perfiles: sin días nuevos de partidas (elo_ayer y muestra actualizados)")
+        return
+    limite = int((datetime.now(timezone.utc) - timedelta(days=PERFILES_DIAS)).timestamp())
+    hasta = max(dias_ok + list(hechos)) if (dias_ok or hechos) else None
+    for i in range(PERFILES_SHARDS):
+        nuevos = nuevos_por_shard.get(i)
+        datos = perfiles_cargar_shard(i)
+        jug = datos.setdefault("jugadores", {})
+        if nuevos:
+            for pid, partidas in nuevos.items():
+                entrada = jug.setdefault(str(pid), {"n": "", "c": "", "m": []})
+                nn = nombres.get(pid)
+                if nn: entrada["n"], entrada["c"] = nn
+                vistos = {fila[0] for fila in entrada["m"]}
+                for fila in partidas:
+                    if fila[0] in vistos: continue
+                    for j in fila[5]:
+                        nj = nombres.get(j[0])
+                        if nj and not j[1]: j[1] = nj[0]
+                    entrada["m"].append(fila)
+        # poda: fuera del alcance, o partidas de hace más de un año
+        for pid in list(jug.keys()):
+            if int(pid) not in alcance:
+                del jug[pid]; continue
+            m = [fila for fila in jug[pid]["m"] if fila[1] >= limite]
+            m.sort(key=lambda f: -f[1])
+            jug[pid]["m"] = m
+            if not m: del jug[pid]
+        datos["generado"] = ahora(); datos["hasta"] = hasta; datos["dias"] = len(hechos | set(dias_ok))
+        perfiles_escribir_shard(i, datos)
+    estado["dias"] = sorted(hechos | set(dias_ok))
+    estado["hasta"] = hasta
+    estado["desde"] = min(estado["dias"])
+    estado["shards"] = PERFILES_SHARDS
+    estado["alcance"] = len(alcance)
+    estado["generado"] = ahora()
+    estado["motor"] = UA
+    escribir_json(os.path.join(PERFILES_DIR, "index.json"), estado)
+    log(f"perfiles: {len(dias_ok)} días añadidos; cobertura {estado['desde']} → {hasta} ({len(estado['dias'])} días); {len(alcance):,} jugadores")
+
+
 if __name__ == "__main__":
     ok = True
-    for nombre, fn in (("ladder", ladder), ("civstats", civstats), ("mapas", mapas)):
+    for nombre, fn in (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("perfiles", perfiles)):
         try:
             fn()
         except Exception as ex:

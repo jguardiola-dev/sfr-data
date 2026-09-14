@@ -1,0 +1,9 @@
+{
+  "tick_mult": 1.0,
+  "twitch_mult": 1.0,
+  "live_mult": 1.0,
+  "sondeo": true,
+  "live_now": true,
+  "mensaje": "",
+  "perfiles_base": "https://github.com/jguardiola-dev/sfr-data/releases/download/perfiles/"
+}
