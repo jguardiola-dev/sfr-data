@@ -19,7 +19,7 @@ import gzip, io, json, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-UA = "sfr-data/1.4.2 (+https://github.com/jguardiola-dev/aoe2radar)"
+UA = "sfr-data/1.5 (+https://github.com/jguardiola-dev/aoe2radar)"
 DUMP = "https://dump.cdn.aoe2companion.com/"
 BIN = 25
 LADDERS = ("rm_1v1", "rm_team", "ew_1v1", "ew_team")
@@ -33,12 +33,16 @@ DIR_DIAS = os.path.join(DIR_CIV, "dias")
 DIR_VENT = os.path.join(DIR_CIV, "ventanas")
 DIAS_HISTORICO = 365            # cuántos días hacia atrás se rellenan
 # perfiles precalculados (release «perfiles» del repo): registro de partidas del último año por jugador, en 256 paquetes por pid
-PERFILES_SHARDS = 256
+PERFILES_SHARDS = 1024          # paquetes por jugador (pid % 1024): ~1–2 MB cada uno con el año de todos
+PERFILES_GRUPOS = 16            # los deltas diarios van por grupo de paquetes (shard % 16): 16 archivos pequeños por día
+PERFILES_CONSOLIDAR_DIAS = 7    # los paquetes base se reescriben cuando hay 7 deltas (una vez por semana); entre medias, solo deltas
+LADDERS_IDX = ["rm_1v1", "rm_team", "ew_1v1", "ew_team", "dm_1v1", "dm_team"]
 PERFILES_DIAS = 365
 PERFILES_DIAS_POR_NOCHE = 45    # relleno hacia atrás: cada ejecución entran 45 días más hasta cubrir el año (y siempre el día nuevo)
 PERFILES_ACTIVO_DIAS = 28       # alcance: todo jugador con partida en los últimos 28 días en cualquier ladder (≈100.000); por debajo de eso nadie lo busca
-PERFILES_TOP_1V1 = 40000        # respaldo si el volcado no trae lastMatchTime: top 40.000 1v1 + top 20.000 equipos
+PERFILES_TOP_1V1 = 40000        # nivel 1 (año completo): top 40.000 1v1 + top 20.000 equipos; el resto de activos, 90 días (PERFILES_DIAS_RESTO)
 PERFILES_TOP_TEAM = 20000
+PERFILES_DIAS_RESTO = 365       # formato compacto + deltas: el año completo para todos los activos
 PERFILES_RELEASE = "perfiles"
 ELO_TOP_1V1 = 40000             # elo_ayer / índice de nombres: más amplio que los perfiles (barato): top 40.000 1v1 + top 20.000 equipos
 ELO_TOP_TEAM = 20000
@@ -597,6 +601,10 @@ def civstats():
 # Formato del paquete: {"generado", "hasta", "desde", "jugadores": {pid: {"n": nombre, "c": país,
 #   "m": [[matchId, inicio_s, fin_s, ladder, mapa, [[pid, nombre, civ, equipo, rating, diff, won], ...]], ...]}}}
 # ============================================================================================
+PERFILES_NIVEL1 = set()
+perfiles_alcance_cache = set()
+
+
 def perfiles_shard_de(pid):
     return int(pid) % PERFILES_SHARDS
 
@@ -640,12 +648,18 @@ def perfiles_alcance():
     cols = [c for c in (c_lb, c_pid, c_rank, c_last) if c]
     df = tabla_texto(pf.read(columns=cols)).to_pandas()
     alcance = set()
+    nivel1 = set()
+    for lb, tope in (("rm_1v1", PERFILES_TOP_1V1), ("rm_team", PERFILES_TOP_TEAM)):
+        sub = df[(df[c_lb] == lb) & (pd.to_numeric(df[c_rank], errors="coerce") <= tope)]
+        nivel1.update(int(x) for x in sub[c_pid].dropna())
+    PERFILES_NIVEL1.clear(); PERFILES_NIVEL1.update(nivel1)
     if c_last:
         limite = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=PERFILES_ACTIVO_DIAS)
         ultima = a_fecha_utc(df[c_last])
         sub = df[ultima >= limite]
         alcance.update(int(x) for x in sub[c_pid].dropna())
-        log(f"perfiles: alcance {len(alcance):,} jugadores activos (partida en los últimos {PERFILES_ACTIVO_DIAS} días, cualquier ladder)")
+        alcance.update(nivel1)
+        log(f"perfiles: alcance {len(alcance):,} jugadores activos (partida en los últimos {PERFILES_ACTIVO_DIAS} días, cualquier ladder); nivel 1 (año completo): {len(nivel1):,}; el resto, {PERFILES_DIAS_RESTO} días")
     else:
         for lb, tope in (("rm_1v1", PERFILES_TOP_1V1), ("rm_team", PERFILES_TOP_TEAM)):
             sub = df[(df[c_lb] == lb) & (pd.to_numeric(df[c_rank], errors="coerce") <= tope)]
@@ -692,10 +706,10 @@ def perfiles_dia(fecha, raw, alcance):
         p = por_partida.setdefault(d["matchId"], {"ini": d["started"], "fin": d["finished"], "lb": d["leaderboard"], "mapa": d["map"], "j": []})
         won = d.get("won")
         won_i = -1 if won is None or (isinstance(won, float) and np.isnan(won)) else (1 if bool(won) else 0)
-        rating = d.get("rating"); rating = None if rating is None or (isinstance(rating, float) and np.isnan(rating)) else int(rating)
-        diff = d.get("ratingDiff"); diff = None if diff is None or (isinstance(diff, float) and np.isnan(diff)) else int(diff)
+        rating = d.get("rating"); rating = 0 if rating is None or (isinstance(rating, float) and np.isnan(rating)) else int(rating)
+        diff = d.get("ratingDiff"); diff = 0 if diff is None or (isinstance(diff, float) and np.isnan(diff)) else int(diff)
         team = d.get("team"); team = 0 if team is None or (isinstance(team, float) and np.isnan(team)) else int(team)
-        p["j"].append([int(d["profileId"]), "", d.get("civ") or "", team, rating, diff, won_i])
+        p["j"].append([int(d["profileId"]), civ_idx(d.get("civ") or ""), team, rating, diff, won_i])
     def epoch(v):
         try:
             ts = pd.Timestamp(v)
@@ -705,11 +719,22 @@ def perfiles_dia(fecha, raw, alcance):
             return 0
     salida = {}
     for mid, p in por_partida.items():
-        fila = [int(mid), epoch(p["ini"]), epoch(p["fin"]), p["lb"], p["mapa"], p["j"]]
+        lb = LADDERS_IDX.index(p["lb"]) if p["lb"] in LADDERS_IDX else -1
+        fila = [int(mid), epoch(p["ini"]), epoch(p["fin"]), lb, mapa_idx(p["mapa"] or ""), p["j"]]
         for j in p["j"]:
             if j[0] in alcance:
                 salida.setdefault(j[0], []).append(fila)
     return salida
+
+
+# diccionarios globales de civs y mapas (índices estables dentro de una publicación; se escriben en index.json)
+CIVS_DIC, MAPAS_DIC = [], []
+def civ_idx(c):
+    if c not in CIVS_DIC: CIVS_DIC.append(c)
+    return CIVS_DIC.index(c)
+def mapa_idx(m):
+    if m not in MAPAS_DIC: MAPAS_DIC.append(m)
+    return MAPAS_DIC.index(m)
 
 
 def perfiles_elo_ayer(fecha):
@@ -722,8 +747,11 @@ def perfiles_elo_ayer(fecha):
     cols = [c for c in (c_lb, c_pid, c_rank, c_rating, c_games, c_name, c_country) if c]
     df = tabla_texto(pf.read(columns=cols)).to_pandas()
     out = {}
+    activos = perfiles_alcance_cache if perfiles_alcance_cache else None
     for lb, tope, i_r, i_g in (("rm_1v1", ELO_TOP_1V1, 0, 1), ("rm_team", ELO_TOP_TEAM, 2, 3)):
-        sub = df[(df[c_lb] == lb) & (pd.to_numeric(df[c_rank], errors="coerce") <= tope)]
+        sub = df[df[c_lb] == lb]
+        if activos is not None: sub = sub[sub[c_pid].isin(list(activos)) | (pd.to_numeric(sub[c_rank], errors="coerce") <= tope)]   # todos los activos (nombres para la app) + el top
+        else: sub = sub[pd.to_numeric(sub[c_rank], errors="coerce") <= tope]
         for r in sub.itertuples(index=False):
             d = r._asdict(); pid = int(d[c_pid])
             e = out.setdefault(pid, [0, 0, 0, 0, "", ""])
@@ -770,7 +798,31 @@ def perfiles_muestra(fecha, raw, nombres):
     log(f"perfiles: muestra de {fecha}: {sum(len(v) for v in salida['tramos'].values()):,} partidas en {len(salida['tramos'])} tramos")
 
 
+def perfiles_escribir_gz(ruta, datos):
+    with gzip.open(ruta, "wt", encoding="utf-8", compresslevel=6) as f:
+        json.dump(datos, f, ensure_ascii=False, separators=(",", ":"))
+
+
+def perfiles_leer_gz(nombre):
+    """Lee un archivo de la carpeta local o de la release. None si no existe."""
+    ruta = os.path.join(PERFILES_DIR, nombre)
+    if os.path.exists(ruta):
+        with gzip.open(ruta, "rt", encoding="utf-8") as f:
+            return json.load(f)
+    try:
+        raw = fetch(perfiles_url_asset(nombre), timeout=120, intentos=2)
+    except Exception as ex:
+        log(f"perfiles: {nombre}: {ex!r}"); raw = None
+    if raw is None: return None
+    return json.loads(gzip.decompress(raw).decode("utf-8"))
+
+
 def perfiles():
+    """Base semanal + deltas diarios, formato compacto (v2).
+    index.json: {"v":2, "shards", "grupos", "base_hasta", "deltas":[fechas], "dias":[...], "desde", "civs":[...], "mapas":[...], ...}
+    Paquete base:  shard-NNNN.json.gz = {"j": {pid: [partida, ...]}}; delta: delta-AAAA-MM-DD-gG.json.gz = {"j": {pid: [partida, ...]}} (shard % grupos == G)
+    Partida: [matchId, inicio_s, fin_s, ladderIdx, mapaIdx, [[pid, civIdx, equipo, rating, diff, won], ...]]"""
+    global perfiles_alcance_cache
     os.makedirs(PERFILES_DIR, exist_ok=True)
     estado = leer_json(os.path.join(PERFILES_DIR, "index.json"), {}) or {}
     if not estado:
@@ -779,104 +831,103 @@ def perfiles():
             if raw: estado = json.loads(raw.decode("utf-8"))
         except Exception:
             estado = {}
+    if estado.get("v") != 2:   # formato antiguo o nada: la base se construye de cero
+        estado = {"v": 2, "dias": [], "deltas": [], "civs": [], "mapas": []}
+    CIVS_DIC[:] = list(estado.get("civs", [])); MAPAS_DIC[:] = list(estado.get("mapas", []))
     hechos = set(estado.get("dias", []))
+    deltas = list(estado.get("deltas", []))
     hoy = datetime.now(timezone.utc).date()
+    ayer = (hoy - timedelta(days=1)).isoformat()
     candidatos = [(hoy - timedelta(days=k)).isoformat() for k in range(1, PERFILES_DIAS + 1)]
-    pendientes = [d for d in candidatos if d not in hechos][:PERFILES_DIAS_POR_NOCHE]   # los más recientes primero
-    if not pendientes:
-        log("perfiles: sin días pendientes de partidas")
-    alcance = perfiles_alcance()
-    nuevos_por_shard = {}
-    dias_ok = []
-    raw_reciente = None
-    inicio = time.time()
-    for d in pendientes:
-        if time.time() - inicio > 90 * 60:
-            log("perfiles: tope de tiempo; el resto queda para mañana")
-            break
-        raw = fetch(DUMP + f"match-{d}.parquet", timeout=300)
-        if raw is None:
-            log(f"perfiles: match-{d}.parquet no existe")
-            hechos.add(d)   # no volverá a existir: no lo reintentamos cada noche
-            continue
-        try:
-            por_pid = perfiles_dia(d, raw, alcance)
-        except Exception as ex:
-            log(f"perfiles: {d}: ERROR {ex!r}")
-            continue
-        if raw_reciente is None: raw_reciente = (d, raw)   # el primer día que entra es el más reciente
-        for pid, partidas in por_pid.items():
-            nuevos_por_shard.setdefault(perfiles_shard_de(pid), {}).setdefault(pid, []).extend(partidas)
-        dias_ok.append(d)
-        log(f"perfiles: {d}: {sum(len(v) for v in por_pid.values()):,} filas de partida para {len(por_pid):,} jugadores")
+    pendientes = [d for d in candidatos if d not in hechos]
+    nuevos_recientes = [d for d in pendientes if d > (estado.get("base_hasta") or "")][:PERFILES_DIAS_POR_NOCHE]   # días posteriores a la base (van a deltas o, si son muchos, a la base)
+    relleno = [] if nuevos_recientes else [d for d in pendientes][:PERFILES_DIAS_POR_NOCHE]   # relleno hacia atrás (reescribe la base); una cosa por ejecución para acotar memoria
+    alcance = perfiles_alcance(); perfiles_alcance_cache = alcance
     try:
-        perfiles_elo_ayer((hoy - timedelta(days=1)).isoformat())
+        perfiles_elo_ayer(ayer)
     except Exception as ex:
         log(f"perfiles: elo_ayer: ERROR {ex!r}")
-    # nombres y países de todos los pids que aparecen en las partidas nuevas (y en la muestra)
-    pids_vistos = set()
-    for shard in nuevos_por_shard.values():
-        for partidas in shard.values():
-            for fila in partidas:
-                for j in fila[5]:
-                    pids_vistos.add(j[0])
-    ayer = (hoy - timedelta(days=1)).isoformat()
-    if raw_reciente is None or raw_reciente[0] != ayer:   # la muestra es siempre del volcado de ayer, aunque esa noche toque relleno de días antiguos
+    consolidar = bool(relleno) or (len(deltas) + len(nuevos_recientes) >= PERFILES_CONSOLIDAR_DIAS) or not estado.get("base_hasta")
+    log(f"perfiles: pendientes {len(pendientes)} (recientes {len(nuevos_recientes)}, relleno {len(relleno)}); deltas previos {len(deltas)}; consolidar={consolidar}")
+    # 1) leer los volcados que tocan
+    por_dia = {}   # fecha → {pid: [partida...]}
+    raw_reciente = None
+    inicio = time.time()
+    for d in (nuevos_recientes + relleno):
+        if time.time() - inicio > 90 * 60:
+            log("perfiles: tope de tiempo; el resto queda para la siguiente ejecución"); break
+        raw = fetch(DUMP + f"match-{d}.parquet", timeout=300)
+        if raw is None:
+            log(f"perfiles: match-{d}.parquet no existe"); hechos.add(d); continue
+        try:
+            por_dia[d] = perfiles_dia(d, raw, alcance)
+        except Exception as ex:
+            log(f"perfiles: {d}: ERROR {ex!r}"); continue
+        if d == ayer: raw_reciente = (d, raw)
+        log(f"perfiles: {d}: {sum(len(v) for v in por_dia[d].values()):,} filas para {len(por_dia[d]):,} jugadores")
+    # muestra de ayer (siempre del volcado de ayer)
+    if raw_reciente is None:
         raw_ayer = fetch(DUMP + f"match-{ayer}.parquet", timeout=300)
         if raw_ayer is not None: raw_reciente = (ayer, raw_ayer)
-    if raw_reciente is not None:   # la muestra necesita los nombres de sus jugadores: se piden con los demás
+    if raw_reciente is not None:
         try:
             pf_m = abrir_parquet(raw_reciente[1], "perfiles: muestra (pids)")
             df_m = tabla_texto(pf_m.read(columns=[c for c in ("leaderboard", "profileId") if c in pf_m.schema.names])).to_pandas()
-            pids_vistos.update(int(x) for x in df_m[df_m["leaderboard"] == "rm_1v1"]["profileId"].dropna())
-        except Exception as ex:
-            log(f"perfiles: muestra pids: {ex!r}")
-    nombres = perfiles_nombres(pids_vistos)
-    if raw_reciente is not None:
-        try:
-            perfiles_muestra(raw_reciente[0], raw_reciente[1], nombres)
+            pids_m = set(int(x) for x in df_m[df_m["leaderboard"] == "rm_1v1"]["profileId"].dropna())
+            perfiles_muestra(raw_reciente[0], raw_reciente[1], perfiles_nombres(pids_m))
         except Exception as ex:
             log(f"perfiles: muestra: ERROR {ex!r}")
-    if not dias_ok:
-        log("perfiles: sin días nuevos de partidas (elo_ayer y muestra actualizados)")
-        return
+    if not por_dia:
+        log("perfiles: sin días nuevos"); return
     limite = int((datetime.now(timezone.utc) - timedelta(days=PERFILES_DIAS)).timestamp())
-    hasta = max(dias_ok + list(hechos)) if (dias_ok or hechos) else None
-    for i in range(PERFILES_SHARDS):
-        nuevos = nuevos_por_shard.get(i)
-        datos = perfiles_cargar_shard(i)
-        jug = datos.setdefault("jugadores", {})
-        if nuevos:
-            for pid, partidas in nuevos.items():
-                entrada = jug.setdefault(str(pid), {"n": "", "c": "", "m": []})
-                nn = nombres.get(pid)
-                if nn: entrada["n"], entrada["c"] = nn
-                vistos = {fila[0] for fila in entrada["m"]}
-                for fila in partidas:
-                    if fila[0] in vistos: continue
-                    for j in fila[5]:
-                        nj = nombres.get(j[0])
-                        if nj and not j[1]: j[1] = nj[0]
-                    entrada["m"].append(fila)
-        # poda: fuera del alcance, o partidas de hace más de un año
-        for pid in list(jug.keys()):
-            if int(pid) not in alcance:
-                del jug[pid]; continue
-            m = [fila for fila in jug[pid]["m"] if fila[1] >= limite]
-            m.sort(key=lambda f: -f[1])
-            jug[pid]["m"] = m
-            if not m: del jug[pid]
-        datos["generado"] = ahora(); datos["hasta"] = hasta; datos["dias"] = len(hechos | set(dias_ok))
-        perfiles_escribir_shard(i, datos)
-    estado["dias"] = sorted(hechos | set(dias_ok))
-    estado["hasta"] = hasta
-    estado["desde"] = min(estado["dias"])
-    estado["shards"] = PERFILES_SHARDS
-    estado["alcance"] = len(alcance)
-    estado["generado"] = ahora()
-    estado["motor"] = UA
+    def shard_de(pid): return int(pid) % PERFILES_SHARDS
+    if consolidar:
+        # 2a) reescribir la base: base anterior + deltas previos + días leídos, por paquete
+        nuevos = {}   # shard → {pid: [partidas]}
+        for d, por_pid in por_dia.items():
+            for pid, partidas in por_pid.items():
+                nuevos.setdefault(shard_de(pid), {}).setdefault(str(pid), []).extend(partidas)
+        for fecha in deltas:   # los deltas se funden en la base y desaparecen
+            for g in range(PERFILES_GRUPOS):
+                dj = perfiles_leer_gz(f"delta-{fecha}-g{g}.json.gz")
+                if not dj: continue
+                for pid, partidas in dj.get("j", {}).items():
+                    nuevos.setdefault(shard_de(pid), {}).setdefault(pid, []).extend(partidas)
+        for i in range(PERFILES_SHARDS):
+            base = perfiles_leer_gz(f"shard-{i:04d}.json.gz") or {"j": {}}
+            jug = base.setdefault("j", {})
+            for pid, partidas in nuevos.get(i, {}).items():
+                entrada = jug.setdefault(pid, [])
+                vistos = {f[0] for f in entrada}
+                for f in partidas:
+                    if f[0] not in vistos: entrada.append(f); vistos.add(f[0])
+            for pid in list(jug.keys()):
+                if int(pid) not in alcance: del jug[pid]; continue
+                m = [f for f in jug[pid] if f[1] >= limite]; m.sort(key=lambda f: -f[1]); jug[pid] = m
+                if not m: del jug[pid]
+            perfiles_escribir_gz(os.path.join(PERFILES_DIR, f"shard-{i:04d}.json.gz"), {"v": 2, "j": jug})
+        for fecha in deltas:   # marcar los deltas viejos para borrarlos de la release
+            for g in range(PERFILES_GRUPOS):
+                open(os.path.join(PERFILES_DIR, f"BORRAR-delta-{fecha}-g{g}.json.gz"), "w").close()
+        deltas = []
+        estado["base_hasta"] = max(hechos | set(por_dia.keys()))
+        log(f"perfiles: base consolidada ({PERFILES_SHARDS} paquetes)")
+    else:
+        # 2b) solo deltas: un archivo por grupo y día
+        for d, por_pid in por_dia.items():
+            grupos = {}
+            for pid, partidas in por_pid.items():
+                grupos.setdefault(shard_de(pid) % PERFILES_GRUPOS, {})[str(pid)] = partidas
+            for g in range(PERFILES_GRUPOS):
+                perfiles_escribir_gz(os.path.join(PERFILES_DIR, f"delta-{d}-g{g}.json.gz"), {"v": 2, "j": grupos.get(g, {})})
+            deltas.append(d)
+        log(f"perfiles: deltas escritos: {sorted(por_dia.keys())}")
+    hechos |= set(por_dia.keys())
+    estado.update({"v": 2, "shards": PERFILES_SHARDS, "grupos": PERFILES_GRUPOS, "dias": sorted(hechos), "deltas": sorted(deltas),
+                   "hasta": max(hechos), "desde": min(hechos), "alcance": len(alcance), "generado": ahora(), "motor": UA,
+                   "civs": CIVS_DIC, "mapas": MAPAS_DIC})
     escribir_json(os.path.join(PERFILES_DIR, "index.json"), estado)
-    log(f"perfiles: {len(dias_ok)} días añadidos; cobertura {estado['desde']} → {hasta} ({len(estado['dias'])} días); {len(alcance):,} jugadores")
+    log(f"perfiles: cobertura {estado['desde']} → {estado['hasta']} ({len(hechos)} días); base hasta {estado.get('base_hasta')}; deltas {len(deltas)}; {len(alcance):,} jugadores")
 
 
 if __name__ == "__main__":
