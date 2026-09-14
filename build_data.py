@@ -19,7 +19,7 @@ import gzip, io, json, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-UA = "sfr-data/1.5.2 (+https://github.com/jguardiola-dev/aoe2radar)"
+UA = "sfr-data/1.5.3 (+https://github.com/jguardiola-dev/aoe2radar)"
 DUMP = "https://dump.cdn.aoe2companion.com/"
 BIN = 25
 LADDERS = ("rm_1v1", "rm_team", "ew_1v1", "ew_team")
@@ -730,10 +730,17 @@ def perfiles_dia(fecha, raw, alcance):
 
 # diccionarios globales de civs y mapas (índices estables dentro de una publicación; se escriben en index.json)
 CIVS_DIC, MAPAS_DIC = [], []
+def _txt(v):
+    """Texto limpio para los diccionarios: un NaN o un None (columna vacía) se convierte en «», nunca en NaN (JSON inválido)."""
+    if v is None: return ""
+    if isinstance(v, float): return ""
+    return str(v)
 def civ_idx(c):
+    c = _txt(c)
     if c not in CIVS_DIC: CIVS_DIC.append(c)
     return CIVS_DIC.index(c)
 def mapa_idx(m):
+    m = _txt(m)
     if m not in MAPAS_DIC: MAPAS_DIC.append(m)
     return MAPAS_DIC.index(m)
 
@@ -838,7 +845,7 @@ def perfiles():
             estado = {}
     if estado.get("v") != 2:   # formato antiguo o nada: la base se construye de cero
         estado = {"v": 2, "dias": [], "deltas": [], "civs": [], "mapas": []}
-    CIVS_DIC[:] = list(estado.get("civs", [])); MAPAS_DIC[:] = list(estado.get("mapas", []))
+    CIVS_DIC[:] = [_txt(x) for x in estado.get("civs", [])]; MAPAS_DIC[:] = [_txt(x) for x in estado.get("mapas", [])]   # sanea un NaN heredado sin mover los índices
     global PERFILES_BASE_TAG
     PERFILES_BASE_TAG = estado.get("base_release")
     hechos = set(estado.get("dias", []))
