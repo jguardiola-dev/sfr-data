@@ -19,7 +19,7 @@ import gzip, io, json, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-UA = "sfr-data/1.4.1 (+https://github.com/jguardiola-dev/aoe2radar)"
+UA = "sfr-data/1.4.2 (+https://github.com/jguardiola-dev/aoe2radar)"
 DUMP = "https://dump.cdn.aoe2companion.com/"
 BIN = 25
 LADDERS = ("rm_1v1", "rm_team", "ew_1v1", "ew_team")
@@ -35,9 +35,10 @@ DIAS_HISTORICO = 365            # cuántos días hacia atrás se rellenan
 # perfiles precalculados (release «perfiles» del repo): registro de partidas del último año por jugador, en 256 paquetes por pid
 PERFILES_SHARDS = 256
 PERFILES_DIAS = 365
-PERFILES_DIAS_POR_NOCHE = 15    # relleno hacia atrás: cada noche entran 15 días más hasta cubrir el año (y siempre el día nuevo)
-PERFILES_TOP_1V1 = 20000        # alcance: top 20.000 del ladder 1v1 (≈ 1450 ELO) + top 10.000 de equipos
-PERFILES_TOP_TEAM = 10000
+PERFILES_DIAS_POR_NOCHE = 45    # relleno hacia atrás: cada ejecución entran 45 días más hasta cubrir el año (y siempre el día nuevo)
+PERFILES_ACTIVO_DIAS = 28       # alcance: todo jugador con partida en los últimos 28 días en cualquier ladder (≈100.000); por debajo de eso nadie lo busca
+PERFILES_TOP_1V1 = 40000        # respaldo si el volcado no trae lastMatchTime: top 40.000 1v1 + top 20.000 equipos
+PERFILES_TOP_TEAM = 20000
 PERFILES_RELEASE = "perfiles"
 ELO_TOP_1V1 = 40000             # elo_ayer / índice de nombres: más amplio que los perfiles (barato): top 40.000 1v1 + top 20.000 equipos
 ELO_TOP_TEAM = 20000
@@ -627,19 +628,29 @@ def perfiles_escribir_shard(i, datos):
 
 
 def perfiles_alcance():
-    """Los pids del top 20.000 1v1 y del top 10.000 de equipos (por rango en leaderboard.parquet)."""
+    """Los pids con partida en los últimos PERFILES_ACTIVO_DIAS días en cualquier ladder (leaderboard.parquet, lastMatchTime).
+    Si el volcado no trae la fecha, respaldo por rango: top 40.000 1v1 + top 20.000 equipos."""
     import pandas as pd
     pf = abrir_parquet(fetch(DUMP + "leaderboard.parquet"), "perfiles: leaderboard.parquet")
     nombres = pf.schema.names
     c_lb = columna(nombres, "leaderboard_id", "leaderboard", "leaderboardId")
     c_pid = columna(nombres, "profile_id", "profileId")
     c_rank = columna(nombres, "rank")
-    df = tabla_texto(pf.read(columns=[c_lb, c_pid, c_rank])).to_pandas()
+    c_last = columna(nombres, "lastMatchTime", "last_match_time", "lastMatch")
+    cols = [c for c in (c_lb, c_pid, c_rank, c_last) if c]
+    df = tabla_texto(pf.read(columns=cols)).to_pandas()
     alcance = set()
-    for lb, tope in (("rm_1v1", PERFILES_TOP_1V1), ("rm_team", PERFILES_TOP_TEAM)):
-        sub = df[(df[c_lb] == lb) & (pd.to_numeric(df[c_rank], errors="coerce") <= tope)]
+    if c_last:
+        limite = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=PERFILES_ACTIVO_DIAS)
+        ultima = a_fecha_utc(df[c_last])
+        sub = df[ultima >= limite]
         alcance.update(int(x) for x in sub[c_pid].dropna())
-    log(f"perfiles: alcance {len(alcance):,} jugadores (top {PERFILES_TOP_1V1:,} 1v1 + top {PERFILES_TOP_TEAM:,} equipos)")
+        log(f"perfiles: alcance {len(alcance):,} jugadores activos (partida en los últimos {PERFILES_ACTIVO_DIAS} días, cualquier ladder)")
+    else:
+        for lb, tope in (("rm_1v1", PERFILES_TOP_1V1), ("rm_team", PERFILES_TOP_TEAM)):
+            sub = df[(df[c_lb] == lb) & (pd.to_numeric(df[c_rank], errors="coerce") <= tope)]
+            alcance.update(int(x) for x in sub[c_pid].dropna())
+        log(f"perfiles: alcance {len(alcance):,} jugadores (sin lastMatchTime: top {PERFILES_TOP_1V1:,} 1v1 + top {PERFILES_TOP_TEAM:,} equipos)")
     return alcance
 
 
