@@ -19,7 +19,7 @@ import gzip, io, json, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-UA = "sfr-data/1.5 (+https://github.com/jguardiola-dev/aoe2radar)"
+UA = "sfr-data/1.5.2 (+https://github.com/jguardiola-dev/aoe2radar)"
 DUMP = "https://dump.cdn.aoe2companion.com/"
 BIN = 25
 LADDERS = ("rm_1v1", "rm_team", "ew_1v1", "ew_team")
@@ -33,7 +33,7 @@ DIR_DIAS = os.path.join(DIR_CIV, "dias")
 DIR_VENT = os.path.join(DIR_CIV, "ventanas")
 DIAS_HISTORICO = 365            # cuántos días hacia atrás se rellenan
 # perfiles precalculados (release «perfiles» del repo): registro de partidas del último año por jugador, en 256 paquetes por pid
-PERFILES_SHARDS = 1024          # paquetes por jugador (pid % 1024): ~1–2 MB cada uno con el año de todos
+PERFILES_SHARDS = 256           # paquetes por jugador (pid % 256): GitHub limita a ~500 subidas por hora, así que 256 paquetes (≈5 MB al año) es el máximo práctico por consolidación
 PERFILES_GRUPOS = 16            # los deltas diarios van por grupo de paquetes (shard % 16): 16 archivos pequeños por día
 PERFILES_CONSOLIDAR_DIAS = 7    # los paquetes base se reescriben cuando hay 7 deltas (una vez por semana); entre medias, solo deltas
 LADDERS_IDX = ["rm_1v1", "rm_team", "ew_1v1", "ew_team", "dm_1v1", "dm_team"]
@@ -690,7 +690,7 @@ def perfiles_dia(fecha, raw, alcance):
     import pandas as pd, numpy as np
     pf = abrir_parquet(raw, f"perfiles: match-{fecha}.parquet")
     nombres = pf.schema.names
-    cols = [c for c in ("matchId", "started", "finished", "leaderboard", "map", "profileId", "rating", "ratingDiff", "team", "status", "won", "civ") if c in nombres]
+    cols = [c for c in ("matchId", "started", "finished", "leaderboard", "map", "profileId", "rating", "ratingDiff", "team", "status", "won", "civ", "slot", "color") if c in nombres]
     df = tabla_texto(pf.read(columns=cols)).to_pandas()
     if "status" in df.columns:
         df = df[df["status"].fillna("player") == "player"]
@@ -709,7 +709,8 @@ def perfiles_dia(fecha, raw, alcance):
         rating = d.get("rating"); rating = 0 if rating is None or (isinstance(rating, float) and np.isnan(rating)) else int(rating)
         diff = d.get("ratingDiff"); diff = 0 if diff is None or (isinstance(diff, float) and np.isnan(diff)) else int(diff)
         team = d.get("team"); team = 0 if team is None or (isinstance(team, float) and np.isnan(team)) else int(team)
-        p["j"].append([int(d["profileId"]), civ_idx(d.get("civ") or ""), team, rating, diff, won_i])
+        slot = d.get("color", d.get("slot")); slot = 0 if slot is None or (isinstance(slot, float) and np.isnan(slot)) else int(slot)   # color si el volcado lo trae; si no, slot (en ranked coinciden)
+        p["j"].append([int(d["profileId"]), civ_idx(d.get("civ") or ""), team, rating, diff, won_i, slot])
     def epoch(v):
         try:
             ts = pd.Timestamp(v)
@@ -803,14 +804,18 @@ def perfiles_escribir_gz(ruta, datos):
         json.dump(datos, f, ensure_ascii=False, separators=(",", ":"))
 
 
+PERFILES_BASE_TAG = None   # release de la base actual (del índice), para leer los paquetes al consolidar
+
+
 def perfiles_leer_gz(nombre):
-    """Lee un archivo de la carpeta local o de la release. None si no existe."""
-    ruta = os.path.join(PERFILES_DIR, nombre)
-    if os.path.exists(ruta):
-        with gzip.open(ruta, "rt", encoding="utf-8") as f:
-            return json.load(f)
+    """Lee un archivo de la carpeta local o de la release (los paquetes base, de su release propia). None si no existe."""
+    for ruta in (os.path.join(PERFILES_DIR, "base", nombre), os.path.join(PERFILES_DIR, nombre)):
+        if os.path.exists(ruta):
+            with gzip.open(ruta, "rt", encoding="utf-8") as f:
+                return json.load(f)
+    tag = PERFILES_BASE_TAG if nombre.startswith("shard-") and PERFILES_BASE_TAG else PERFILES_RELEASE
     try:
-        raw = fetch(perfiles_url_asset(nombre), timeout=120, intentos=2)
+        raw = fetch(f"https://github.com/{REPO}/releases/download/{tag}/{nombre}", timeout=120, intentos=2)
     except Exception as ex:
         log(f"perfiles: {nombre}: {ex!r}"); raw = None
     if raw is None: return None
@@ -821,7 +826,7 @@ def perfiles():
     """Base semanal + deltas diarios, formato compacto (v2).
     index.json: {"v":2, "shards", "grupos", "base_hasta", "deltas":[fechas], "dias":[...], "desde", "civs":[...], "mapas":[...], ...}
     Paquete base:  shard-NNNN.json.gz = {"j": {pid: [partida, ...]}}; delta: delta-AAAA-MM-DD-gG.json.gz = {"j": {pid: [partida, ...]}} (shard % grupos == G)
-    Partida: [matchId, inicio_s, fin_s, ladderIdx, mapaIdx, [[pid, civIdx, equipo, rating, diff, won], ...]]"""
+    Partida: [matchId, inicio_s, fin_s, ladderIdx, mapaIdx, [[pid, civIdx, equipo, rating, diff, won, slot/color], ...]]"""
     global perfiles_alcance_cache
     os.makedirs(PERFILES_DIR, exist_ok=True)
     estado = leer_json(os.path.join(PERFILES_DIR, "index.json"), {}) or {}
@@ -834,6 +839,8 @@ def perfiles():
     if estado.get("v") != 2:   # formato antiguo o nada: la base se construye de cero
         estado = {"v": 2, "dias": [], "deltas": [], "civs": [], "mapas": []}
     CIVS_DIC[:] = list(estado.get("civs", [])); MAPAS_DIC[:] = list(estado.get("mapas", []))
+    global PERFILES_BASE_TAG
+    PERFILES_BASE_TAG = estado.get("base_release")
     hechos = set(estado.get("dias", []))
     deltas = list(estado.get("deltas", []))
     hoy = datetime.now(timezone.utc).date()
@@ -911,7 +918,13 @@ def perfiles():
                 open(os.path.join(PERFILES_DIR, f"BORRAR-delta-{fecha}-g{g}.json.gz"), "w").close()
         deltas = []
         estado["base_hasta"] = max(hechos | set(por_dia.keys()))
-        log(f"perfiles: base consolidada ({PERFILES_SHARDS} paquetes)")
+        estado["base_release_anterior"] = estado.get("base_release")
+        estado["base_release"] = "perfiles-base-" + estado["base_hasta"] + "-" + datetime.now(timezone.utc).strftime("%H%M")
+        os.makedirs(os.path.join(PERFILES_DIR, "base"), exist_ok=True)
+        for f in os.listdir(PERFILES_DIR):
+            if f.startswith("shard-") and f.endswith(".json.gz"): os.replace(os.path.join(PERFILES_DIR, f), os.path.join(PERFILES_DIR, "base", f))
+        with open(os.path.join(PERFILES_DIR, "BASE_TAG"), "w") as f: f.write(estado["base_release"])
+        log(f"perfiles: base consolidada ({PERFILES_SHARDS} paquetes) → release {estado['base_release']}")
     else:
         # 2b) solo deltas: un archivo por grupo y día
         for d, por_pid in por_dia.items():
