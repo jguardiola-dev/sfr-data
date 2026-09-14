@@ -36,6 +36,20 @@ jobs:
       - name: generar datos
         run: python build_data.py
         continue-on-error: true    # si una parte falla, se publica lo que haya salido bien y lo recuperado
+      - name: publicar perfiles (release «perfiles», assets)
+        if: hashFiles('perfiles/index.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view perfiles >/dev/null 2>&1 || gh release create perfiles --title "perfiles precalculados" --notes "Registro de partidas por jugador (último año, top 20.000 1v1 + top 10.000 equipos) para aoe2radar. Se regenera cada noche. No es una versión: es un almacén de datos." --latest=false
+          gh release upload perfiles perfiles/index.json perfiles/*.json.gz --clobber
+          # los snapshots diarios de ELO (elo-AAAA-MM-DD) solo hacen falta 9 días: se borran los viejos
+          limite=$(date -u -d "9 days ago" +%F)
+          for a in $(gh release view perfiles --json assets -q '.assets[].name' | grep -E '^elo-[0-9]{4}-[0-9]{2}-[0-9]{2}\.json\.gz$'); do
+            f=${a#elo-}; f=${f%.json.gz}
+            if [[ "$f" < "$limite" ]]; then gh release delete-asset perfiles "$a" -y || true; fi
+          done
+          echo "perfiles publicados: $(ls perfiles | wc -l) archivos"
       - name: publicar (rama data, un solo commit)
         run: |
           git config user.name "sfr-data bot"
