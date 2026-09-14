@@ -5,5 +5,12 @@
   "sondeo": true,
   "live_now": true,
   "mensaje": "",
-  "perfiles_base": "https://github.com/jguardiola-dev/sfr-data/releases/download/perfiles/"
+  "perfiles_base": "https://github.com/jguardiola-dev/sfr-data/releases/download/perfiles/",
+  "mapas_sin_posicion": [
+    "nomad",
+    "pilgrims",
+    "african_clearing",
+    "coastal_forest",
+    "land_nomad"
+  ]
 }
