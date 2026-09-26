@@ -477,9 +477,11 @@ def procesar_dias(estado):
 
 def rellenar_matchups_mapa(estado, inicio):
     """Los días resumidos antes de la 1.5.4 no traen «matchups_mapa»: se vuelven a resumir poco a poco (MM_RELLENO_POR_NOCHE
-    por ejecución, del más reciente al más viejo, dentro del mismo presupuesto de tiempo). Solo se reescribe el resumen del
-    día; los parches ya contados no se tocan. Una ventana publica matchups por mapa solo cuando todos sus días los tienen
-    (ver sumar). Días cuyo volcado ya no existe: se anotan en «dias_mm_sin_volcado» y no se reintentan."""
+    por ejecución, del más reciente al más viejo, dentro del mismo presupuesto de tiempo). Al resumen publicado del día solo
+    se le AÑADE la clave «matchups_mapa»: el resto (modos, mapas, civs, matchups, parche) queda tal cual, aunque el volcado
+    de hoy dé cifras algo distintas (el companion lo retoca); los parches ya contados no se tocan. Una ventana publica
+    matchups por mapa cuando todos sus días los tienen o ya no tienen volcado (ver sumar). Días cuyo volcado ya no existe:
+    se anotan en «dias_mm_sin_volcado» y no se reintentan. Un error de red corta el relleno (sigue la noche siguiente)."""
     con = set(estado.get("dias_mm", []))
     sin_volcado = set(estado.get("dias_mm_sin_volcado", []))
     faltan = sorted(set(estado.get("dias", [])) - con - sin_volcado, reverse=True)
@@ -491,7 +493,11 @@ def rellenar_matchups_mapa(estado, inicio):
         if time.time() - inicio > TIEMPO_MAX_S:
             log("civstats: tope de tiempo alcanzado en el relleno; el resto queda para la siguiente")
             break
-        raw = fetch(DUMP + f"match-{d}.parquet", timeout=300)
+        try:
+            raw = fetch(DUMP + f"match-{d}.parquet", timeout=300)
+        except Exception as ex:   # sin esto, un fallo de red tras los reintentos mataba civstats() antes de podar/ventanas/estado
+            log(f"civstats: relleno {d}: ERROR de descarga {ex!r}; el resto queda para la siguiente ejecución")
+            break
         if raw is None:
             log(f"civstats: relleno: match-{d}.parquet ya no existe; ese día se queda sin matchups por mapa")
             sin_volcado.add(d)
@@ -502,7 +508,14 @@ def rellenar_matchups_mapa(estado, inicio):
         except Exception as ex:
             log(f"civstats: relleno {d}: ERROR {ex!r}")
             continue
-        escribir_json(ruta_dia(d), res)
+        viejo = leer_json(ruta_dia(d))
+        if not viejo:
+            log(f"civstats: relleno {d}: no se pudo leer el resumen publicado; no se toca")
+            continue
+        if res["matchups"] != viejo.get("matchups"):
+            log(f"civstats: relleno {d}: el volcado de hoy da otros matchups que el resumen publicado; se deja el publicado")
+        viejo["matchups_mapa"] = res["matchups_mapa"]
+        escribir_json(ruta_dia(d), viejo)
         con.add(d)
         estado["dias_mm"] = sorted(con)
         hechos += 1
@@ -532,7 +545,7 @@ def cargar_dias(fechas):
             yield r
 
 
-def sumar(resumenes, etiqueta, desde, hasta, parche=None):
+def sumar(resumenes, etiqueta, desde, hasta, parche=None, sin_volcado_mm=frozenset()):
     modos = defaultdict(lambda: {"partidas": 0, "abandonos": 0, "espejos": 0, "sin_resultado": 0})
     mapas = defaultdict(int)
     civs = defaultdict(lambda: [0, 0, 0])
@@ -551,9 +564,9 @@ def sumar(resumenes, etiqueta, desde, hasta, parche=None):
             x = civs[(modo, mapa, tramo, civ)]; x[0] += n; x[1] += w; x[2] += d
         for modo, tramo, ca, cb, n, wa in r["matchups"]:
             x = matchups[(modo, tramo, ca, cb)]; x[0] += n; x[1] += wa
-        if "matchups_mapa" in r:
+        if "matchups_mapa" in r or r.get("fecha") in sin_volcado_mm:
             dias_mm += 1
-            for modo, mapa, tramo, ca, cb, n, wa in r["matchups_mapa"]:
+            for modo, mapa, tramo, ca, cb, n, wa in r.get("matchups_mapa", []):
                 x = matchups_mapa[(modo, mapa, tramo, ca, cb)]; x[0] += n; x[1] += wa
     claves_mapa = sorted({mapa for _, mapa in mapas})
     out = {
@@ -568,7 +581,9 @@ def sumar(resumenes, etiqueta, desde, hasta, parche=None):
         "credito": "Datos: aoe2companion.com (Dennis Keil) · Age of Empires II © Microsoft",
     }
     # por mapa: solo si TODOS los días de la ventana los traen (si no, la matriz de un mapa sería de menos días que el
-    # resto de la ventana; la app usa entonces el agregado y lo dice); solo 1v1 y mapas con >= MIN_PARTIDAS_CIV partidas
+    # resto de la ventana; la app usa entonces el agregado y lo dice); solo 1v1 y mapas con >= MIN_PARTIDAS_CIV partidas.
+    # Excepción (decisión de Opus): los días cuyo volcado ya no existe (sin_volcado_mm) cuentan como cubiertos: mejor una
+    # matriz por mapa con algún día de menos que ninguna durante un año (v365 no se completaría nunca).
     if dias and dias_mm == dias:
         out["matchups_mapa"] = [[modo, mapa, tramo, ca, cb, n, wa] for (modo, mapa, tramo, ca, cb), (n, wa) in sorted(matchups_mapa.items())
                                 if modo.endswith("_1v1") and mapas[(modo, mapa)] >= MIN_PARTIDAS_CIV]
@@ -584,16 +599,17 @@ def ventanas_y_tendencias(estado):
         return
     ultimo = dias[-1]
     ultimo_d = date.fromisoformat(ultimo)
+    sin_mm = frozenset(estado.get("dias_mm_sin_volcado", []))
     for n in VENTANAS:
         desde = (ultimo_d - timedelta(days=n - 1)).isoformat()
         sel = [d for d in dias if d >= desde]
-        v = sumar(cargar_dias(sel), str(n), sel[0], ultimo)
+        v = sumar(cargar_dias(sel), str(n), sel[0], ultimo, sin_volcado_mm=sin_mm)
         escribir_json(os.path.join(DIR_VENT, f"v{n}.json.gz"), v)
         log(f"civstats: ventana {n}: {v['dias']} días, {sum(x['partidas'] for x in v['modos'].values()):,} partidas, {len(v['civs']):,} filas civ")
     # parche actual: los últimos días consecutivos con el mismo parche
     parche = None
     sel = []
-    for r in reversed(list(cargar_dias(dias[-DIAS_HISTORICO:]))):
+    for r in cargar_dias(reversed(dias[-DIAS_HISTORICO:])):   # de uno en uno, del más nuevo hacia atrás: sin cargar el año entero en memoria
         if parche is None:
             parche = r["parche"]
         if r["parche"] != parche:
@@ -601,7 +617,7 @@ def ventanas_y_tendencias(estado):
         sel.append(r["fecha"])
     sel.sort()
     if sel:
-        v = sumar(cargar_dias(sel), "parche", sel[0], sel[-1], parche)
+        v = sumar(cargar_dias(sel), "parche", sel[0], sel[-1], parche, sin_volcado_mm=sin_mm)
         escribir_json(os.path.join(DIR_VENT, "vparche.json.gz"), v)
         log(f"civstats: parche actual {parche}: {v['dias']} días desde {sel[0]}")
         estado["parche_actual"] = parche
