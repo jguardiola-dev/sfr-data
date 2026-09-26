@@ -8,8 +8,9 @@ Salidas en la raíz del repo:
 - clans.json.gz      clanes con >= 2 miembros en 1v1 RM: [pid, nombre, rating, rango, país]. Clan y país de profile.parquet.
 - dispersion.json.gz rejilla rating 1v1 × rating equipos (parejas RM y EW), para todos y para activos, con recta y correlación.
 - civstats/          estadísticas de civs a partir de los volcados DIARIOS de partidas del companion:
-    dias/AAAA-MM-DD.json.gz   resumen de un día: civs por modo×mapa×tramo, matchups 1v1 por tramo, mapas, contadores
-    ventanas/vN.json.gz       suma de los últimos N días (7, 30, 90, 365) y vparche.json.gz = solo el parche actual
+    dias/AAAA-MM-DD.json.gz   resumen de un día: civs por modo×mapa×tramo, matchups 1v1 por tramo (y por mapa×tramo), mapas, contadores
+    ventanas/vN.json.gz       suma de los últimos N días (7, 30, 90, 365) y vparche.json.gz = solo el parche actual;
+                              «matchups» = todos los mapas; «matchups_mapa» = por mapa (1v1, mapas con >= MIN_PARTIDAS_CIV)
     tendencias.json.gz        winrate por mes y civ (13 meses); por mapa (12 mapas más jugados por modo); por tramo de ELO; por mapa×tramo (modos 1v1)
     estado.json               días procesados y parches vistos
 Fuente: volcados diarios de aoe2companion (https://www.aoe2companion.com/more/api).
@@ -19,7 +20,7 @@ import gzip, io, json, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-UA = "sfr-data/1.5.3 (+https://github.com/jguardiola-dev/aoe2radar)"
+UA = "sfr-data/1.5.4 (+https://github.com/jguardiola-dev/aoe2radar)"
 DUMP = "https://dump.cdn.aoe2companion.com/"
 BIN = 25
 LADDERS = ("rm_1v1", "rm_team", "ew_1v1", "ew_team")
@@ -57,6 +58,8 @@ MESES_TENDENCIAS = 13
 MAPAS_TENDENCIAS = 12          # tendencias por mapa solo para los mapas más jugados de cada modo
 TRAMOS = [(0, 800), (800, 1000), (1000, 1200), (1200, 1400), (1400, 1600), (1600, 1800), (1800, 2000), (2000, 99999)]
 MIN_DURACION_S = 120            # partidas más cortas = abandonos: fuera del winrate
+MIN_PARTIDAS_CIV = 20           # matchups por mapa solo de los mapas con al menos estas partidas en la ventana (el mismo umbral que el combo de mapas de la app: CalculoStats.MIN_PARTIDAS_CIV)
+MM_RELLENO_POR_NOCHE = 30       # días antiguos (sin matchups por mapa) que se vuelven a resumir cada ejecución, del más reciente al más viejo
 MODOS_FUENTE = {"rm_1v1", "rm_team", "ew_1v1", "ew_team", "dm_1v1", "dm_team"}
 EQUIPOS_RM = {4: "rm_2v2", 6: "rm_3v3", 8: "rm_4v4"}
 NOMBRES_MAPA_FIJOS = {"megarandom": "MegaRandom", "kotd": "King of the Desert", "socotra": "Socotra", "mega-random": "MegaRandom"}
@@ -405,17 +408,27 @@ def resumir_dia(fecha, raw):
     civs = [[modo, mapa, tramo, civ, int(n), int(w), int(d)] for (modo, mapa, tramo, civ), n, w, d in
             zip(agg.index, agg["n"], agg["w"], agg["d"])]
 
+    matchups, matchups_mapa = matchups_de(filas)
+
+    total = sum(x["partidas"] for x in modos.values())
+    log(f"civstats: {fecha}: parche {parche}, {total:,} partidas válidas, {len(civs):,} filas civ, {len(matchups):,} matchups ({len(matchups_mapa):,} por mapa), modos {sorted(modos)}")
+    return {"fecha": fecha, "parche": parche, "modos": modos, "mapas": mapas, "civs": civs, "matchups": matchups, "matchups_mapa": matchups_mapa}
+
+
+def matchups_de(filas):
+    """Matchups 1v1 de las filas válidas de un día (una por jugador y partida, con modo, mapa y tramo de la partida):
+    [modo, tramo, civA, civB, n, winsA] con todos los mapas y [modo, mapa, tramo, civA, civB, n, winsA] por mapa
+    (aquí sin umbral: el de MIN_PARTIDAS_CIV se aplica al sumar la ventana, que es donde se sabe cuánto se jugó el mapa)."""
     uno = filas[filas["modo"].str.endswith("_1v1")].sort_values(["matchId", "civ"])
     uno = uno.assign(pos=uno.groupby("matchId").cumcount())
-    a = uno[uno["pos"] == 0][["matchId", "modo", "tramo", "civ", "won"]].rename(columns={"civ": "ca", "won": "wa"})
+    a = uno[uno["pos"] == 0][["matchId", "modo", "mapa", "tramo", "civ", "won"]].rename(columns={"civ": "ca", "won": "wa"})
     b = uno[uno["pos"] == 1][["matchId", "civ"]].rename(columns={"civ": "cb"})
     par = a.merge(b, on="matchId")
     mu = par.groupby(["modo", "tramo", "ca", "cb"]).agg(n=("wa", "size"), wa=("wa", "sum"))
     matchups = [[modo, tramo, ca, cb, int(n), int(wa)] for (modo, tramo, ca, cb), n, wa in zip(mu.index, mu["n"], mu["wa"])]
-
-    total = sum(x["partidas"] for x in modos.values())
-    log(f"civstats: {fecha}: parche {parche}, {total:,} partidas válidas, {len(civs):,} filas civ, {len(matchups):,} matchups, modos {sorted(modos)}")
-    return {"fecha": fecha, "parche": parche, "modos": modos, "mapas": mapas, "civs": civs, "matchups": matchups}
+    mm = par.groupby(["modo", "mapa", "tramo", "ca", "cb"]).agg(n=("wa", "size"), wa=("wa", "sum"))
+    matchups_mapa = [[modo, mapa, tramo, ca, cb, int(n), int(wa)] for (modo, mapa, tramo, ca, cb), n, wa in zip(mm.index, mm["n"], mm["wa"])]
+    return matchups, matchups_mapa
 
 
 def ruta_dia(fecha):
@@ -431,12 +444,12 @@ def procesar_dias(estado):
         d = (hoy - timedelta(days=k)).isoformat()
         if d not in hechos:
             pendientes.append(d)
-    if not pendientes:
-        log("civstats: sin días pendientes")
-        return 0
-    log(f"civstats: {len(pendientes)} días pendientes ({pendientes[0]} → {pendientes[-1]})")
     inicio = time.time()
     nuevos = 0
+    if not pendientes:
+        log("civstats: sin días pendientes")
+    else:
+        log(f"civstats: {len(pendientes)} días pendientes ({pendientes[0]} → {pendientes[-1]})")
     for d in pendientes:
         if nuevos >= DIAS_MAX_POR_EJECUCION or time.time() - inicio > TIEMPO_MAX_S:
             log("civstats: tope de esta ejecución alcanzado; el resto queda para la siguiente")
@@ -453,12 +466,47 @@ def procesar_dias(estado):
         escribir_json(ruta_dia(d), res)
         hechos.add(d)
         estado["dias"] = sorted(hechos)
+        estado["dias_mm"] = sorted(set(estado.get("dias_mm", [])) | {d})
         parches = estado.setdefault("parches", {})
         if res["parche"] is not None:
             p = parches.setdefault(str(res["parche"]), {"desde": d, "hasta": d, "dias": 0})
             p["desde"] = min(p["desde"], d); p["hasta"] = max(p["hasta"], d); p["dias"] += 1
         nuevos += 1
-    return nuevos
+    return nuevos + rellenar_matchups_mapa(estado, inicio)
+
+
+def rellenar_matchups_mapa(estado, inicio):
+    """Los días resumidos antes de la 1.5.4 no traen «matchups_mapa»: se vuelven a resumir poco a poco (MM_RELLENO_POR_NOCHE
+    por ejecución, del más reciente al más viejo, dentro del mismo presupuesto de tiempo). Solo se reescribe el resumen del
+    día; los parches ya contados no se tocan. Una ventana publica matchups por mapa solo cuando todos sus días los tienen
+    (ver sumar). Días cuyo volcado ya no existe: se anotan en «dias_mm_sin_volcado» y no se reintentan."""
+    con = set(estado.get("dias_mm", []))
+    sin_volcado = set(estado.get("dias_mm_sin_volcado", []))
+    faltan = sorted(set(estado.get("dias", [])) - con - sin_volcado, reverse=True)
+    if not faltan:
+        return 0
+    log(f"civstats: {len(faltan)} días sin matchups por mapa; se rellenan hasta {MM_RELLENO_POR_NOCHE} en esta ejecución")
+    hechos = 0
+    for d in faltan[:MM_RELLENO_POR_NOCHE]:
+        if time.time() - inicio > TIEMPO_MAX_S:
+            log("civstats: tope de tiempo alcanzado en el relleno; el resto queda para la siguiente")
+            break
+        raw = fetch(DUMP + f"match-{d}.parquet", timeout=300)
+        if raw is None:
+            log(f"civstats: relleno: match-{d}.parquet ya no existe; ese día se queda sin matchups por mapa")
+            sin_volcado.add(d)
+            estado["dias_mm_sin_volcado"] = sorted(sin_volcado)
+            continue
+        try:
+            res = resumir_dia(d, raw)
+        except Exception as ex:
+            log(f"civstats: relleno {d}: ERROR {ex!r}")
+            continue
+        escribir_json(ruta_dia(d), res)
+        con.add(d)
+        estado["dias_mm"] = sorted(con)
+        hechos += 1
+    return hechos
 
 
 def podar(estado):
@@ -471,6 +519,9 @@ def podar(estado):
             pass
     if viejos:
         estado["dias"] = [d for d in estado["dias"] if d >= limite]
+        for k in ("dias_mm", "dias_mm_sin_volcado"):
+            if k in estado:
+                estado[k] = [d for d in estado[k] if d >= limite]
         log(f"civstats: podados {len(viejos)} días anteriores a {limite}")
 
 
@@ -486,7 +537,9 @@ def sumar(resumenes, etiqueta, desde, hasta, parche=None):
     mapas = defaultdict(int)
     civs = defaultdict(lambda: [0, 0, 0])
     matchups = defaultdict(lambda: [0, 0])
+    matchups_mapa = defaultdict(lambda: [0, 0])
     dias = 0
+    dias_mm = 0
     for r in resumenes:
         dias += 1
         for modo, c in r["modos"].items():
@@ -498,8 +551,12 @@ def sumar(resumenes, etiqueta, desde, hasta, parche=None):
             x = civs[(modo, mapa, tramo, civ)]; x[0] += n; x[1] += w; x[2] += d
         for modo, tramo, ca, cb, n, wa in r["matchups"]:
             x = matchups[(modo, tramo, ca, cb)]; x[0] += n; x[1] += wa
+        if "matchups_mapa" in r:
+            dias_mm += 1
+            for modo, mapa, tramo, ca, cb, n, wa in r["matchups_mapa"]:
+                x = matchups_mapa[(modo, mapa, tramo, ca, cb)]; x[0] += n; x[1] += wa
     claves_mapa = sorted({mapa for _, mapa in mapas})
-    return {
+    out = {
         "ventana": etiqueta, "desde": desde, "hasta": hasta, "dias": dias, "parche": parche, "generado": ahora(),
         "tramos": [f"{lo}-{hi}" if hi < 99999 else f"{lo}+" for lo, hi in TRAMOS],
         "min_duracion_s": MIN_DURACION_S,
@@ -510,6 +567,14 @@ def sumar(resumenes, etiqueta, desde, hasta, parche=None):
         "matchups": [[modo, tramo, ca, cb, n, wa] for (modo, tramo, ca, cb), (n, wa) in sorted(matchups.items())],
         "credito": "Datos: aoe2companion.com (Dennis Keil) · Age of Empires II © Microsoft",
     }
+    # por mapa: solo si TODOS los días de la ventana los traen (si no, la matriz de un mapa sería de menos días que el
+    # resto de la ventana; la app usa entonces el agregado y lo dice); solo 1v1 y mapas con >= MIN_PARTIDAS_CIV partidas
+    if dias and dias_mm == dias:
+        out["matchups_mapa"] = [[modo, mapa, tramo, ca, cb, n, wa] for (modo, mapa, tramo, ca, cb), (n, wa) in sorted(matchups_mapa.items())
+                                if modo.endswith("_1v1") and mapas[(modo, mapa)] >= MIN_PARTIDAS_CIV]
+    elif dias_mm:
+        log(f"civstats: ventana {etiqueta}: {dias_mm}/{dias} días con matchups por mapa; aún no se publican")
+    return out
 
 
 def ventanas_y_tendencias(estado):
