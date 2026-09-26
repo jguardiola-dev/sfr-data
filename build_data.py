@@ -508,7 +508,11 @@ def rellenar_matchups_mapa(estado, inicio):
         except Exception as ex:
             log(f"civstats: relleno {d}: ERROR {ex!r}")
             continue
-        viejo = leer_json(ruta_dia(d))
+        try:
+            viejo = leer_json(ruta_dia(d))
+        except Exception as ex:   # un .gz dañado no debe parar el relleno ni la noche
+            log(f"civstats: relleno {d}: resumen publicado ilegible ({ex!r}); no se toca")
+            continue
         if not viejo:
             log(f"civstats: relleno {d}: no se pudo leer el resumen publicado; no se toca")
             continue
