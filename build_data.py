@@ -793,8 +793,8 @@ def perfiles_muestra(fecha, raw, nombres):
         js = []
         for r in grp.itertuples(index=False):
             d = r._asdict(); pid = int(d["profileId"]); nn = nombres.get(pid, ("", ""))
-            js.append([pid, nn[0], d.get("civ") or "", int(d["rating"]), 1 if bool(d["won"]) else 0])
-        partidas.append((tramo, [int(mid), int(ini.timestamp()), int(fin.timestamp()), grp["map"].iloc[0], js]))
+            js.append([pid, nn[0], _txt(d.get("civ")), int(d["rating"]), 1 if bool(d["won"]) else 0])   # _txt: un NaN de pandas es «verdadero» y colaba NaN en el JSON
+        partidas.append((tramo, [int(mid), int(ini.timestamp()), int(fin.timestamp()), _txt(grp["map"].iloc[0]), js]))
     random.seed(fecha)
     por_tramo = {}
     for tramo, fila in partidas: por_tramo.setdefault(tramo, []).append(fila)
@@ -802,7 +802,7 @@ def perfiles_muestra(fecha, raw, nombres):
     for tramo, lista in por_tramo.items():
         random.shuffle(lista); salida["tramos"][str(tramo)] = lista[:MUESTRA_POR_TRAMO]
     with gzip.open(os.path.join(PERFILES_DIR, "muestra_ayer.json.gz"), "wt", encoding="utf-8", compresslevel=6) as f:
-        json.dump(salida, f, ensure_ascii=False, separators=(",", ":"))
+        json.dump(salida, f, ensure_ascii=False, separators=(",", ":"), allow_nan=False)   # un NaN sería JSON inválido: mejor fallar con log
     log(f"perfiles: muestra de {fecha}: {sum(len(v) for v in salida['tramos'].values()):,} partidas en {len(salida['tramos'])} tramos")
 
 
