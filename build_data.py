@@ -1030,9 +1030,13 @@ def chispas_escribir(ratings, fecha, completo, alcance):
         f"{os.path.getsize(os.path.join(PERFILES_DIR, CHISPAS_ARCHIVO)) / 1e6:.2f} MB")
 
 
-def chispas_incremental(por_dia, deltas, alcance):
-    """Noche sin consolidación: la publicada + los días nuevos. Sin publicada: se siembra con los deltas previos + los días leídos."""
+def chispas_incremental(por_dia, deltas, alcance, hechos=()):
+    """Noche sin consolidación: la publicada + los días nuevos. Sin publicada: se siembra con los deltas previos + los días leídos.
+    hechos: días ya procesados por el motor; si alguno posterior a la publicada no está en por_dia (una noche publicó el índice pero
+    no las chispas), a la chispa le falta ese día: deja de ser «completo» hasta la próxima consolidación."""
     previas, hasta, completo = chispas_previas()   # una parcial sigue parcial hasta que la reescriba una consolidación
+    if previas is not None and completo and any(d > (hasta or "") and d not in por_dia for d in hechos):
+        log("perfiles: chispas: a la publicada le falta algún día; pasa a parcial hasta la próxima consolidación"); completo = False
     if previas is None:
         completo = False; previas = {}; hasta = ""
         sembrados = {}
@@ -1188,7 +1192,7 @@ def perfiles():
     hechos |= set(por_dia.keys())
     try:   # chispas.json.gz: un fallo aquí no debe impedir publicar el índice (la app sigue con la de la noche anterior o la API)
         if consolidar: chispas_escribir(chispas_base, max(hechos), True, alcance)
-        else: chispas_incremental(por_dia, deltas_previos, alcance)
+        else: chispas_incremental(por_dia, deltas_previos, alcance, hechos)
     except Exception as ex:
         log(f"perfiles: chispas: ERROR {ex!r}")
     estado.update({"v": 2, "shards": PERFILES_SHARDS, "grupos": PERFILES_GRUPOS, "dias": sorted(hechos), "deltas": sorted(deltas),
