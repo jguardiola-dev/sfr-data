@@ -13,6 +13,8 @@ Salidas en la raíz del repo:
                               «matchups» = todos los mapas; «matchups_mapa» = por mapa (1v1, mapas con >= MIN_PARTIDAS_CIV)
     tendencias.json.gz        winrate por mes y civ (13 meses); por mapa (12 mapas más jugados por modo); por tramo de ELO; por mapa×tramo (modos 1v1)
     estado.json               días procesados y parches vistos
+En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_ayer.json.gz / elo-AAAA-MM-DD.json.gz (v2: + rango y
+última partida 1v1), muestra_ayer.json.gz (v2: 1.000 por tramo + «tramos_anteayer») y chispas.json.gz (1.6: últimos ratings 1v1).
 Fuente: volcados diarios de aoe2companion (https://www.aoe2companion.com/more/api).
 Créditos: aoe2companion (Dennis Keil) · Age of Empires II © Microsoft.
 """
@@ -20,7 +22,7 @@ import gzip, io, json, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
-UA = "sfr-data/1.5.4 (+https://github.com/jguardiola-dev/aoe2radar)"
+UA = "sfr-data/1.6.0 (+https://github.com/jguardiola-dev/aoe2radar)"
 DUMP = "https://dump.cdn.aoe2companion.com/"
 BIN = 25
 LADDERS = ("rm_1v1", "rm_team", "ew_1v1", "ew_team")
@@ -47,7 +49,7 @@ PERFILES_DIAS_RESTO = 365       # formato compacto + deltas: el año completo pa
 PERFILES_RELEASE = "perfiles"
 ELO_TOP_1V1 = 40000             # elo_ayer / índice de nombres: más amplio que los perfiles (barato): top 40.000 1v1 + top 20.000 equipos
 ELO_TOP_TEAM = 20000
-MUESTRA_POR_TRAMO = 300         # partidas 1v1 RM al azar por tramo de ELO del volcado de ayer (Al azar por ELO y Guess the ELO sin API)
+MUESTRA_POR_TRAMO = 1000        # partidas 1v1 RM al azar por tramo de ELO del volcado de ayer (Al azar por ELO y Guess the ELO sin API); 300 hasta la 1.3
 PERFILES_DIR = "perfiles"
 REPO = os.environ.get("GITHUB_REPOSITORY", "jguardiola-dev/sfr-data")
 DIAS_RETENCION = 400            # los resúmenes diarios más antiguos se borran
@@ -830,14 +832,27 @@ def mapa_idx(m):
     return MAPAS_DIC.index(m)
 
 
+ELO_AYER_CAMPOS = ["elo_1v1", "partidas_1v1", "elo_eq", "partidas_eq", "nombre", "pais", "rango_1v1", "ultima_1v1_s"]
+
+
 def perfiles_elo_ayer(fecha):
-    """elo_ayer.json.gz: pid → [elo 1v1, partidas 1v1, elo equipos, partidas equipos, nombre, país] para el top 40.000 / 20.000 (forma por resta e índice de nombres)."""
+    """elo_ayer.json.gz: pid → [elo 1v1, partidas 1v1, elo equipos, partidas equipos, nombre, país, rango 1v1, última partida 1v1]
+    para el top 40.000 / 20.000 y todos los activos (forma por resta, índice de nombres, «Al azar» y Guess the ELO sin el ladder en vivo).
+    v2 (1.4): las posiciones 6 (rango en rm_1v1, 0 si no tiene) y 7 (última partida en rm_1v1, epoch en segundos, 0 si no se sabe) se
+    AÑADEN al final: la app 1.3 lee solo las seis primeras y no mira la longitud, así que sigue leyendo lo mismo."""
     import pandas as pd
     pf = abrir_parquet(fetch(DUMP + "leaderboard.parquet"), "perfiles: leaderboard.parquet (elo_ayer)")
     nombres = pf.schema.names
     c_lb = columna(nombres, "leaderboard_id", "leaderboard", "leaderboardId"); c_pid = columna(nombres, "profile_id", "profileId")
     c_rank = columna(nombres, "rank"); c_rating = columna(nombres, "rating"); c_games = columna(nombres, "games"); c_name = columna(nombres, "name"); c_country = columna(nombres, "country", "countryCode")
-    cols = [c for c in (c_lb, c_pid, c_rank, c_rating, c_games, c_name, c_country) if c]
+    c_last = columna(nombres, "lastMatchTime", "last_match_time", "lastMatch")
+    if not c_last: log("perfiles: elo_ayer: AVISO sin columna de última partida; «ultima_1v1_s» saldrá a 0")
+    # para la tarjeta del hover (chispas.json.gz, «x»): pico, ganadas y perdidas en rm_1v1, si el volcado las trae
+    c_max = columna(nombres, "maxRating", "max_rating", "highestRating", "ratingMax", "peakRating")
+    c_wins = columna(nombres, "wins", "win", "totalWins"); c_losses = columna(nombres, "losses", "loss", "totalLosses")
+    log(f"perfiles: elo_ayer: columnas para la tarjeta: pico={c_max} ganadas={c_wins} perdidas={c_losses}")
+    CHISPAS_EXTRA.clear()
+    cols = [c for c in (c_lb, c_pid, c_rank, c_rating, c_games, c_name, c_country, c_last, c_max, c_wins, c_losses) if c]
     df = tabla_texto(pf.read(columns=cols)).to_pandas()
     out = {}
     activos = perfiles_alcance_cache if perfiles_alcance_cache else None
@@ -845,14 +860,24 @@ def perfiles_elo_ayer(fecha):
         sub = df[df[c_lb] == lb]
         if activos is not None: sub = sub[sub[c_pid].isin(list(activos)) | (pd.to_numeric(sub[c_rank], errors="coerce") <= tope)]   # todos los activos (nombres para la app) + el top
         else: sub = sub[pd.to_numeric(sub[c_rank], errors="coerce") <= tope]
-        for r in sub.itertuples(index=False):
+        es_1v1 = lb == "rm_1v1"
+        rangos = pd.to_numeric(sub[c_rank], errors="coerce").fillna(0).astype("int64").tolist() if (es_1v1 and c_rank) else None
+        ultimas = None
+        if es_1v1 and c_last:
+            u = a_fecha_utc(sub[c_last])
+            ultimas = [0 if pd.isna(x) else int(x.timestamp()) for x in u]
+        for k, r in enumerate(sub.itertuples(index=False)):
             d = r._asdict(); pid = int(d[c_pid])
-            e = out.setdefault(pid, [0, 0, 0, 0, "", ""])
+            e = out.setdefault(pid, [0, 0, 0, 0, "", "", 0, 0])
             e[i_r] = int(d[c_rating]) if d.get(c_rating) is not None and not pd.isna(d[c_rating]) else 0
             e[i_g] = int(d[c_games]) if c_games and d.get(c_games) is not None and not pd.isna(d[c_games]) else 0
             if c_name and d.get(c_name): e[4] = str(d[c_name])
             if c_country and d.get(c_country): e[5] = str(d[c_country]).lower()
-    datos = {"fecha": fecha, "generado": ahora(), "j": {str(k): v for k, v in out.items()}}
+            if rangos is not None: e[6] = max(0, int(rangos[k]))
+            if ultimas is not None: e[7] = max(0, ultimas[k])
+            if es_1v1 and (c_max or c_wins or c_losses):
+                CHISPAS_EXTRA[pid] = [_entero(d.get(c_max)) if c_max else -1, _entero(d.get(c_wins)) if c_wins else -1, _entero(d.get(c_losses)) if c_losses else -1]
+    datos = {"v": 2, "campos": ELO_AYER_CAMPOS, "fecha": fecha, "generado": ahora(), "j": {str(k): v for k, v in out.items()}}
     for nombre in ("elo_ayer.json.gz", f"elo-{fecha}.json.gz"):
         with gzip.open(os.path.join(PERFILES_DIR, nombre), "wt", encoding="utf-8", compresslevel=6) as f:
             json.dump(datos, f, ensure_ascii=False, separators=(",", ":"))
@@ -860,7 +885,8 @@ def perfiles_elo_ayer(fecha):
 
 
 def perfiles_muestra(fecha, raw, nombres):
-    """muestra_ayer.json.gz: hasta 300 partidas 1v1 RM al azar por tramo de ELO (200 puntos) del volcado de ayer: mapa, civs, jugadores, ELO y resultado."""
+    """muestra_ayer.json.gz: hasta MUESTRA_POR_TRAMO partidas 1v1 RM al azar por tramo de ELO (200 puntos) del volcado de ayer: mapa, civs, jugadores, ELO y resultado.
+    Más la de anteayer en una clave aparte (ver anteayer_muestra)."""
     import pandas as pd, random
     pf = abrir_parquet(raw, f"perfiles: match-{fecha}.parquet (muestra)")
     cols = [c for c in ("matchId", "started", "finished", "leaderboard", "map", "profileId", "rating", "team", "status", "won", "civ") if c in pf.schema.names]
@@ -883,17 +909,145 @@ def perfiles_muestra(fecha, raw, nombres):
     random.seed(fecha)
     por_tramo = {}
     for tramo, fila in partidas: por_tramo.setdefault(tramo, []).append(fila)
-    salida = {"fecha": fecha, "generado": ahora(), "tramos": {}}
+    salida = {"v": 2, "fecha": fecha, "generado": ahora(), "tramos": {}}
     for tramo, lista in por_tramo.items():
         random.shuffle(lista); salida["tramos"][str(tramo)] = lista[:MUESTRA_POR_TRAMO]
+    anteayer_muestra(salida)
     with gzip.open(os.path.join(PERFILES_DIR, "muestra_ayer.json.gz"), "wt", encoding="utf-8", compresslevel=6) as f:
         json.dump(salida, f, ensure_ascii=False, separators=(",", ":"), allow_nan=False)   # un NaN sería JSON inválido: mejor fallar con log
-    log(f"perfiles: muestra de {fecha}: {sum(len(v) for v in salida['tramos'].values()):,} partidas en {len(salida['tramos'])} tramos")
+    log(f"perfiles: muestra de {fecha}: {sum(len(v) for v in salida['tramos'].values()):,} partidas en {len(salida['tramos'])} tramos"
+        + (f"; anteayer ({salida['fecha_anteayer']}): {sum(len(v) for v in salida['tramos_anteayer'].values()):,}" if "tramos_anteayer" in salida else "; sin anteayer"))
+
+
+def anteayer_muestra(salida):
+    """v2 (1.4): la muestra de anteayer va en «tramos_anteayer» (+ «fecha_anteayer»), sacada de la muestra publicada la noche
+    anterior (su «tramos», o su «tramos_anteayer» si esta es una repetición del mismo día): ni un volcado ni una llamada más.
+    «tramos» sigue siendo solo ayer: la app 1.3 lee solo esa clave y sigue viendo «partidas de ayer». Si falta una noche, la
+    clave no sale (la app nueva se queda con ayer)."""
+    fecha = salida["fecha"]
+    anteayer = (date.fromisoformat(fecha) - timedelta(days=1)).isoformat()
+    try:
+        previa = perfiles_leer_gz("muestra_ayer.json.gz")
+    except Exception as ex:   # una copia ilegible no debe tumbar la muestra de ayer
+        log(f"perfiles: muestra de anteayer: la publicada no se lee ({ex!r})"); previa = None
+    if not isinstance(previa, dict): return
+    if previa.get("fecha") == anteayer: tramos = previa.get("tramos")
+    elif previa.get("fecha") == fecha and previa.get("fecha_anteayer") == anteayer: tramos = previa.get("tramos_anteayer")
+    else:
+        log(f"perfiles: muestra de anteayer: la publicada es de {previa.get('fecha')}, no de {anteayer}; sin anteayer"); return
+    if not isinstance(tramos, dict): return
+    de_ayer = {f[0] for lista in salida["tramos"].values() for f in lista}   # una partida que cruza la medianoche no sale dos veces
+    salida["fecha_anteayer"] = anteayer
+    salida["tramos_anteayer"] = {str(k): [f for f in lista if f[0] not in de_ayer][:MUESTRA_POR_TRAMO] for k, lista in tramos.items()}
 
 
 def perfiles_escribir_gz(ruta, datos):
     with gzip.open(ruta, "wt", encoding="utf-8", compresslevel=6) as f:
         json.dump(datos, f, ensure_ascii=False, separators=(",", ":"))
+
+
+# ----------------------------------------------------------------------------- chispas (tarjeta del hover sin API)
+# chispas.json.gz (release «perfiles», 1.4): los últimos CHISPAS_N ratings 1v1 RM de cada jugador del alcance, del más viejo al
+# más nuevo, para la mini gráfica de la tarjeta del hover de la app (que hoy pide /profiles y dos páginas de /matches por tarjeta).
+#   {"v": 1, "fecha": último día incluido, "generado", "n": CHISPAS_N, "completo": bool,
+#    "j": {pid: [rating más viejo, dif, dif, ...]},          (codificado por diferencias: r[i] = r[i-1] + dif; comprime mucho mejor)
+#    "x": {pid: [pico, ganadas, perdidas]}}                   (rm_1v1 del leaderboard; -1 si el volcado no trae esa columna; solo si trae alguna)
+# «completo» = sale de la base entera (noches de consolidación): una chispa corta es de verdad «pocos 1v1». Entre medias, la de la
+# noche anterior + los días nuevos; si no hay anterior (primera noche), se siembra con los deltas y sale completo=false (la app
+# entonces tira de la API como hoy para quien tenga menos puntos de los que necesita). Sin volcados ni llamadas extra.
+CHISPAS_N = 25                  # la tarjeta quita las 10 más recientes (sin spoilers) y pinta si le quedan 4 o más
+CHISPAS_ARCHIVO = "chispas.json.gz"
+CHISPAS_EXTRA = {}              # pid → [pico, ganadas, perdidas] de rm_1v1 (lo rellena perfiles_elo_ayer)
+
+
+def _entero(v):
+    try:
+        if v is None or v != v: return -1   # None o NaN
+        return int(v)
+    except Exception:
+        return -1
+
+
+def chispa_puntos(pid, partidas):
+    """(inicio_s, matchId, rating) de las partidas 1v1 RM (dos jugadores) de pid con rating conocido."""
+    pid = int(pid); out = []
+    for f in partidas:
+        if f[3] != 0 or len(f[5]) != 2: continue   # ladderIdx 0 = rm_1v1 (LADDERS_IDX)
+        for j in f[5]:
+            if j[0] == pid and j[3] > 0: out.append((f[1], f[0], j[3])); break
+    return out
+
+
+def chispa_codificar(ratings):
+    return [ratings[0]] + [b - a for a, b in zip(ratings, ratings[1:])] if ratings else []
+
+
+def chispa_decodificar(cod):
+    out = []
+    for i, v in enumerate(cod): out.append(v if i == 0 else out[-1] + v)
+    return out
+
+
+def chispas_de_base(jug):
+    """{pid: [ratings, del más viejo al más nuevo]} desde los paquetes base ya fundidos (partidas de cada pid, de la más nueva a la más vieja)."""
+    out = {}
+    for pid, partidas in jug.items():
+        pts = sorted(chispa_puntos(pid, partidas))[-CHISPAS_N:]
+        if pts: out[str(pid)] = [r for _, _, r in pts]
+    return out
+
+
+def chispas_sumar(previas, por_dia, dias):
+    """Añade a {pid: [ratings]} las partidas de los días dados (en orden) y recorta a CHISPAS_N."""
+    for d in sorted(dias):
+        for pid, partidas in por_dia[d].items():
+            pts = sorted(chispa_puntos(pid, partidas))
+            if not pts: continue
+            lista = previas.setdefault(str(pid), [])
+            lista.extend(r for _, _, r in pts)
+            del lista[:-CHISPAS_N]
+    return previas
+
+
+def chispas_previas():
+    """(ratings por pid, último día incluido, completo) de la chispas.json.gz publicada, o (None, None, False) si no hay o no se entiende."""
+    try:
+        previa = perfiles_leer_gz(CHISPAS_ARCHIVO)
+    except Exception as ex:
+        log(f"perfiles: chispas: la publicada no se lee ({ex!r})"); return None, None, False
+    if not isinstance(previa, dict) or previa.get("v") != 1 or not isinstance(previa.get("j"), dict): return None, None, False
+    return {pid: chispa_decodificar(c) for pid, c in previa["j"].items()}, previa.get("fecha"), bool(previa.get("completo"))
+
+
+def chispas_escribir(ratings, fecha, completo, alcance):
+    j = {pid: chispa_codificar(r) for pid, r in ratings.items() if r and int(pid) in alcance}
+    datos = {"v": 1, "fecha": fecha, "generado": ahora(), "n": CHISPAS_N, "completo": bool(completo), "j": j}
+    if CHISPAS_EXTRA:
+        datos["x"] = {str(pid): x for pid, x in CHISPAS_EXTRA.items() if str(pid) in j}
+    perfiles_escribir_gz(os.path.join(PERFILES_DIR, CHISPAS_ARCHIVO), datos)
+    log(f"perfiles: chispas hasta {fecha}: {len(j):,} jugadores ({'completo' if completo else 'parcial'}), "
+        f"{sum(len(v) for v in j.values()):,} puntos, extra {len(datos.get('x', {})):,}; "
+        f"{os.path.getsize(os.path.join(PERFILES_DIR, CHISPAS_ARCHIVO)) / 1e6:.2f} MB")
+
+
+def chispas_incremental(por_dia, deltas, alcance):
+    """Noche sin consolidación: la publicada + los días nuevos. Sin publicada: se siembra con los deltas previos + los días leídos."""
+    previas, hasta, completo = chispas_previas()   # una parcial sigue parcial hasta que la reescriba una consolidación
+    if previas is None:
+        completo = False; previas = {}; hasta = ""
+        sembrados = {}
+        for fecha in sorted(deltas):
+            dia = {}
+            for g in range(PERFILES_GRUPOS):
+                dj = perfiles_leer_gz(f"delta-{fecha}-g{g}.json.gz")
+                if dj: dia.update(dj.get("j", {}))
+            sembrados[fecha] = dia
+        chispas_sumar(previas, sembrados, sembrados.keys())
+        log(f"perfiles: chispas: sin publicada; sembradas con {len(sembrados)} deltas (parcial hasta la próxima consolidación)")
+    nuevos = [d for d in por_dia if d > (hasta or "")]
+    chispas_sumar(previas, por_dia, nuevos)
+    fecha = max([hasta or ""] + nuevos) or None
+    chispas_escribir(previas, fecha, completo, alcance)
 
 
 PERFILES_BASE_TAG = None   # release de la base actual (del índice), para leer los paquetes al consolidar
@@ -980,6 +1134,8 @@ def perfiles():
         log("perfiles: sin días nuevos"); return
     limite = int((datetime.now(timezone.utc) - timedelta(days=PERFILES_DIAS)).timestamp())
     def shard_de(pid): return int(pid) % PERFILES_SHARDS
+    deltas_previos = list(deltas)
+    chispas_base = {}   # consolidación: la chispa de cada jugador sale de su año entero
     if consolidar:
         # 2a) reescribir la base: base anterior + deltas previos + días leídos, por paquete
         nuevos = {}   # shard → {pid: [partidas]}
@@ -1004,6 +1160,8 @@ def perfiles():
                 if int(pid) not in alcance: del jug[pid]; continue
                 m = [f for f in jug[pid] if f[1] >= limite]; m.sort(key=lambda f: -f[1]); jug[pid] = m
                 if not m: del jug[pid]
+            try: chispas_base.update(chispas_de_base(jug))
+            except Exception as ex: log(f"perfiles: chispas del paquete {i}: ERROR {ex!r}")
             perfiles_escribir_gz(os.path.join(PERFILES_DIR, f"shard-{i:04d}.json.gz"), {"v": 2, "j": jug})
         for fecha in deltas:   # marcar los deltas viejos para borrarlos de la release
             for g in range(PERFILES_GRUPOS):
@@ -1028,6 +1186,11 @@ def perfiles():
             deltas.append(d)
         log(f"perfiles: deltas escritos: {sorted(por_dia.keys())}")
     hechos |= set(por_dia.keys())
+    try:   # chispas.json.gz: un fallo aquí no debe impedir publicar el índice (la app sigue con la de la noche anterior o la API)
+        if consolidar: chispas_escribir(chispas_base, max(hechos), True, alcance)
+        else: chispas_incremental(por_dia, deltas_previos, alcance)
+    except Exception as ex:
+        log(f"perfiles: chispas: ERROR {ex!r}")
     estado.update({"v": 2, "shards": PERFILES_SHARDS, "grupos": PERFILES_GRUPOS, "dias": sorted(hechos), "deltas": sorted(deltas),
                    "hasta": max(hechos), "desde": min(hechos), "alcance": len(alcance), "generado": ahora(), "motor": UA,
                    "civs": CIVS_DIC, "mapas": MAPAS_DIC})
