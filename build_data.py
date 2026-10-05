@@ -66,7 +66,8 @@ MODOS_FUENTE = {"rm_1v1", "rm_team", "ew_1v1", "ew_team", "dm_1v1", "dm_team"}
 EQUIPOS_RM = {4: "rm_2v2", 6: "rm_3v3", 8: "rm_4v4"}
 NOMBRES_MAPA_FIJOS = {"megarandom": "MegaRandom", "kotd": "King of the Desert", "socotra": "Socotra", "mega-random": "MegaRandom"}
 API = "https://data.aoe2companion.com/api"
-MAPAS_PAGINAS = 4               # páginas de partidas recientes por ladder para aprender las imágenes de mapa (pocas llamadas al día)
+MAPAS_JUGADORES = 40            # jugadores más recientes por ladder cuyas partidas enseñan las imágenes de mapa (lotes de 10: 4 llamadas por ladder)
+MAPAS_LOTE = 10                 # profile_ids por llamada a /matches (desde 2026-09-28 el companion exige profile_ids: 422 sin ellos)
 MAPAS_LADDERS = ("rm_1v1", "rm_team", "ew_1v1")
 
 
@@ -314,35 +315,68 @@ def nombre_mapa(clave):
 
 
 # ----------------------------------------------------------------------------- mapas
+def mapas_jugadores():
+    """Por ladder de MAPAS_LADDERS, los MAPAS_JUGADORES con la partida más reciente (leaderboard.parquet, lastMatchTime);
+    sin esa columna, los mejores por rango. Son los que juegan ahora: sus partidas traen los mapas en rotación."""
+    import pandas as pd
+    pf = abrir_parquet(fetch(DUMP + "leaderboard.parquet"), "mapas: leaderboard.parquet")
+    nombres = pf.schema.names
+    c_lb = columna(nombres, "leaderboard_id", "leaderboard", "leaderboardId")
+    c_pid = columna(nombres, "profile_id", "profileId")
+    c_rank = columna(nombres, "rank")
+    c_last = columna(nombres, "lastMatchTime", "last_match_time", "lastMatch")
+    df = tabla_texto(pf.read(columns=[c for c in (c_lb, c_pid, c_rank, c_last) if c])).to_pandas()
+    out = {}
+    for lb in MAPAS_LADDERS:
+        sub = df[df[c_lb] == lb].dropna(subset=[c_pid])
+        if c_last:
+            sub = sub.assign(_u=a_fecha_utc(sub[c_last])).sort_values("_u", ascending=False)
+        elif c_rank:
+            sub = sub.assign(_r=pd.to_numeric(sub[c_rank], errors="coerce")).sort_values("_r")
+        out[lb] = sorted(int(x) for x in sub[c_pid].head(MAPAS_JUGADORES))
+    return out
+
+
 def mapas():
-    """mapas.json: imagen de cada mapa (URL del CDN del companion), aprendida de unas pocas páginas de partidas recientes.
-    Se acumula con lo ya publicado, así los mapas nuevos entran solos en cuanto se juegan."""
+    """mapas.json: imagen de cada mapa (URL del CDN del companion), aprendida de las partidas de unos pocos jugadores
+    activos por ladder (/matches?profile_ids=<lote>). Se acumula con lo ya publicado, así los mapas nuevos entran solos en
+    cuanto se juegan. Se escribe siempre (la publicación borra de la rama data lo que no se escribe); si no sale ninguna
+    llamada, aviso en el resumen de la ejecución: el paso no rompe el job (continue-on-error) y antes fallaba en silencio."""
     previo = leer_json("mapas.json", {}) or {}
     conocidos = dict(previo.get("mapas", {}))
-    nuevos = 0
-    for lb in MAPAS_LADDERS:
-        for pag in range(1, MAPAS_PAGINAS + 1):
+    nuevos = llamadas = buenas = 0
+    try:
+        por_ladder = mapas_jugadores()
+    except Exception as ex:
+        log(f"mapas: no se pudo elegir jugadores: {ex!r}")
+        por_ladder = {}
+    for lb, pids in por_ladder.items():
+        for k in range(0, len(pids), MAPAS_LOTE):
+            lote = ",".join(str(p) for p in pids[k:k + MAPAS_LOTE])
+            if llamadas:
+                time.sleep(1)
+            llamadas += 1
             try:
-                raw = fetch(f"{API}/matches?leaderboard_ids={lb}&page={pag}&per_page=50", timeout=60)
+                raw = fetch(f"{API}/matches?profile_ids={lote}&per_page=100", timeout=60)
                 if raw is None:
-                    break
+                    continue
                 partidas = json.loads(raw.decode("utf-8")).get("matches", [])
+                buenas += 1
             except Exception as ex:
-                log(f"mapas: {lb} página {pag}: {ex!r}")
-                break
+                log(f"mapas: {lb} lote {k // MAPAS_LOTE + 1}: {ex!r}")
+                continue
             for m in partidas:
                 url = m.get("mapImageUrl") or m.get("map_image_url")
                 if not isinstance(url, str) or not url.startswith("http"):
                     continue
                 for clave in (m.get("map"), m.get("mapName") or m.get("map_name")):
                     if isinstance(clave, str) and clave.strip():
-                        k = clave.strip().lower()
-                        if conocidos.get(k) != url:
-                            conocidos[k] = url
+                        k2 = clave.strip().lower()
+                        if conocidos.get(k2) != url:
+                            conocidos[k2] = url
                             nuevos += 1
-            if len(partidas) < 50:
-                break
-            time.sleep(1)
+    if buenas == 0:
+        print(f"::warning title=mapas::ninguna llamada a /matches salió bien ({llamadas} intentos): mapas.json se publica con lo ya conocido", flush=True)
     escribir_json("mapas.json", {"generado": ahora(), "mapas": dict(sorted(conocidos.items())), "credito": "aoe2companion.com (Dennis Keil) · Age of Empires II © Microsoft"})
     log(f"mapas: {len(conocidos)} entradas ({nuevos} nuevas o cambiadas)")
 
