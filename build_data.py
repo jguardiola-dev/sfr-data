@@ -28,8 +28,16 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      con « & ». Orden: en_curso (por fin), proximo (por inicio), terminado (el más reciente primero).
                      Si Liquipedia falla o no sale ningún torneo, se conserva el torneos.json anterior (rama data).
                      Prueba sin red: python build_data.py --probar (muestra en pruebas/). Solo este paso: python build_data.py torneos
+- noticias.json      titulares recientes de AoE II de la web oficial (API REST pública de ageofempires.com, juegos AoE II DE/HD).
+                     Solo titular, fecha, fuente, enlace, categoría y miniatura; nunca el cuerpo. Ver noticias(). Esquema (v1):
+                     {"v":1, "generado":ISO, "fuentes":[{"nombre","url"}],
+                      "noticias":[{"titulo", "fecha":"AAAA-MM-DDTHH:MM:SSZ", "fuente", "url", ["categoria"], ["imagen"]}]}
+                     Como mucho NOTICIAS_MAX, la más reciente primero. «imagen» = URL de la miniatura 288x162 del CDN de la web.
+                     Si la web falla o no sale ninguna noticia, se conserva el noticias.json anterior (rama data).
+                     Prueba sin red: python build_data.py --probar [noticias]. Solo este paso: python build_data.py noticias
 Fuente: volcados diarios de aoe2companion (https://www.aoe2companion.com/more/api).
 Torneos: Liquipedia (https://liquipedia.net/ageofempires/), CC BY-SA 3.0; torneos.json se publica con la misma licencia.
+Noticias: titulares y enlaces de https://www.ageofempires.com/news/ (World's Edge / Microsoft); los artículos no se copian.
 Créditos: aoe2companion (Dennis Keil) · Liquipedia · Age of Empires II © Microsoft.
 """
 import gzip, io, json, os, sys, time, urllib.error, urllib.request
@@ -1762,10 +1770,238 @@ def torneos_probar():
     return not fallos
 
 
+# ----------------------------------------------------------------------------- noticias (ageofempires.com)
+# Fuente: la API REST pública de WordPress de https://www.ageofempires.com (la misma que anuncia la web con
+# <link rel="https://api.w.org/">). Se prefiere al RSS (/news/feed/) porque el RSS solo trae 5 entradas de todos los juegos,
+# va con retraso y lleva el cuerpo entero de cada artículo, que aquí no se quiere. robots.txt no existe (404) y los términos
+# de la web (Microsoft Services Agreement) no impiden enlazar titulares; solo se guardan titular, fecha, categoría, enlace y
+# la URL de la miniatura (288x162 del CDN de la web), nunca el texto. Filtro por la taxonomía «game» de la web:
+# 218 = «Age of Empires II DE», 29 = «Age of Empires II HD». Por noche: 3 peticiones (entradas, categorías, miniaturas),
+# una conexión, gzip, User-Agent con contacto y 2,5 s entre peticiones.
+# Liquipedia no se usa aquí: la wiki de AoE no tiene noticias y «Recent changes» es ruido de ediciones; los torneos ya van
+# en torneos.json.
+AOE_HOST = "www.ageofempires.com"
+AOE_API = "/wp-json/wp/v2/"
+AOE_ESPERA_S = 2.5
+AOE_GAMES_AOE2 = (218, 29)
+AOE_HOSTS_OK = {"www.ageofempires.com", "ageofempires.com"}
+AOE_HOSTS_IMG = {"cdn.ageofempires.com", "www.ageofempires.com"}
+NOTICIAS_MAX = 30
+NOTICIAS_MUESTRA = os.path.join("pruebas", "noticias_muestra.json")
+NOTICIAS_FUENTE = {"nombre": "Age of Empires (web oficial)", "url": "https://www.ageofempires.com/news/"}
+
+
+class WebAoE:
+    """Cliente mínimo de la API REST de ageofempires.com: conexión HTTPS reutilizada, gzip y espera entre peticiones."""
+
+    def __init__(self):
+        import http.client
+        self._hc = http.client
+        self.con = None
+        self.ultima = 0.0
+        self.peticiones = 0
+
+    def get(self, ruta, params, intentos=2):
+        import urllib.parse
+        url = AOE_API + ruta + "?" + urllib.parse.urlencode(params)
+        for i in range(intentos):
+            if self.peticiones:
+                espera = self.ultima + AOE_ESPERA_S - time.monotonic()
+                if espera > 0:
+                    time.sleep(espera)
+            self.ultima = time.monotonic()
+            self.peticiones += 1
+            try:
+                if self.con is None:
+                    self.con = self._hc.HTTPSConnection(AOE_HOST, timeout=60)
+                self.con.request("GET", url, headers={"User-Agent": LQ_UA, "Accept-Encoding": "gzip", "Accept": "application/json"})
+                r = self.con.getresponse()
+                raw = r.read()
+                if (r.getheader("Content-Encoding") or "").lower() == "gzip":
+                    raw = gzip.decompress(raw)
+                if r.status != 200:
+                    raise RuntimeError(f"HTTP {r.status}")
+                return json.loads(raw.decode("utf-8"))
+            except Exception as ex:
+                log(f"noticias: petición {ruta} {i + 1}/{intentos}: {ex!r}")
+                try:
+                    self.con.close()
+                except Exception:
+                    pass
+                self.con = None
+                if i == intentos - 1:
+                    raise
+                time.sleep(5)
+
+    def cerrar(self):
+        if self.con is not None:
+            self.con.close()
+
+
+def noticias_texto(v):
+    """HTML de WordPress → texto plano: entidades (&#8211;), etiquetas fuera y espacios raros (NBSP, \\u202f) normalizados."""
+    import html, re
+    v = re.sub(r"<[^>]+>", "", v or "")
+    v = html.unescape(v)
+    return " ".join(v.replace(" ", " ").replace("\xa0", " ").split()).strip()
+
+
+def noticias_url_ok(url, hosts):
+    import urllib.parse
+    try:
+        u = urllib.parse.urlsplit(url or "")
+    except ValueError:
+        return False
+    return u.scheme == "https" and u.hostname in hosts
+
+
+def noticias_imagen(media):
+    """Miniatura pequeña de un adjunto: «medium» (288x162) → «thumbnail» (150x150) → «medium_large»; nunca el original."""
+    tam = (media.get("media_details") or {}).get("sizes") or {}
+    for k in ("medium", "thumbnail", "medium_large"):
+        url = (tam.get(k) or {}).get("source_url")
+        if noticias_url_ok(url, AOE_HOSTS_IMG):
+            return url
+    return None
+
+
+def noticias_componer(posts, categorias, medios, previo=None):
+    """Entradas de la API → lista de noticias (más reciente primero, sin duplicados, máx. NOTICIAS_MAX).
+    categorias: {id: nombre}; medios: {id: url miniatura}. Si no hay categorías o miniaturas (petición caída: dict vacío),
+    se toman las del noticias.json anterior con la misma URL."""
+    previos = {n.get("url"): n for n in (previo or {}).get("noticias", []) if n.get("url")}
+    out, vistos = [], set()
+    for p in posts:
+        try:
+            if p.get("status", "publish") != "publish":
+                continue
+            if p.get("game") is not None and not set(p["game"]) & set(AOE_GAMES_AOE2):
+                continue
+            titulo = noticias_texto((p.get("title") or {}).get("rendered"))
+            url = p.get("link")
+            fecha = datetime.fromisoformat(p["date_gmt"]).replace(tzinfo=timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+            if not titulo or not noticias_url_ok(url, AOE_HOSTS_OK) or url in vistos:
+                continue
+            vistos.add(url)
+            n = {"titulo": titulo, "fecha": fecha, "fuente": NOTICIAS_FUENTE["nombre"], "url": url}
+            noms = [categorias[c] for c in p.get("categories") or [] if categorias.get(c)]
+            cat = next((c for c in noms if c.lower() != "general"), noms[0] if noms else None)
+            img = medios.get(p.get("featured_media")) if p.get("featured_media") else None
+            ant = previos.get(url, {})
+            if not categorias:
+                cat = ant.get("categoria")
+            if not medios:
+                img = ant.get("imagen")
+            if cat:
+                n["categoria"] = cat
+            if img:
+                n["imagen"] = img
+            out.append(n)
+        except Exception as ex:
+            log(f"noticias: entrada ilegible ({p.get('id')}): {ex!r}")
+    out.sort(key=lambda n: n["fecha"], reverse=True)
+    return out[:NOTICIAS_MAX]
+
+
+def noticias_salida(lista, fuentes):
+    return {"v": 1, "generado": ahora(), "fuentes": fuentes, "noticias": lista}
+
+
+def noticias():
+    """noticias.json: titulares de AoE II de la web oficial (esquema en la cabecera, normas arriba). Si la fuente falla o no da
+    ninguna noticia, no se escribe: se queda el anterior (recuperado de la rama data) con aviso ::warning::. Si solo fallan
+    categorías o miniaturas, se publica igual y esos campos salen del noticias.json anterior (misma URL) o se omiten."""
+    previo = leer_json("noticias.json", None)
+    web = WebAoE()
+    categorias, medios = {}, {}
+    try:
+        posts = web.get("posts", {"game": ",".join(map(str, AOE_GAMES_AOE2)), "per_page": NOTICIAS_MAX, "orderby": "date",
+                                  "order": "desc", "_fields": "id,date_gmt,link,title,categories,featured_media,game,status"})
+        if not isinstance(posts, list) or not posts:
+            raise RuntimeError("la API no devolvió ninguna entrada")
+        try:
+            ids = sorted({c for p in posts for c in p.get("categories") or []})
+            if ids:
+                d = web.get("categories", {"include": ",".join(map(str, ids)), "per_page": 100, "_fields": "id,name"})
+                categorias = {c["id"]: noticias_texto(c.get("name")) for c in d}
+        except Exception as ex:
+            print(f"::warning title=noticias::sin categorías ({ex!r}): se toman del noticias.json anterior", flush=True)
+        try:
+            ids = sorted({p["featured_media"] for p in posts if p.get("featured_media")})
+            if ids:
+                d = web.get("media", {"include": ",".join(map(str, ids)), "per_page": 100, "_fields": "id,media_details"})
+                medios = {m["id"]: noticias_imagen(m) for m in d if noticias_imagen(m)}
+        except Exception as ex:
+            print(f"::warning title=noticias::sin miniaturas ({ex!r}): se toman del noticias.json anterior", flush=True)
+        lista = noticias_componer(posts, categorias, medios, previo)
+        if not lista:
+            raise RuntimeError(f"{len(posts)} entradas pero ninguna válida")
+    except Exception as ex:
+        print(f"::warning title=noticias::ageofempires.com no respondió bien ({ex!r}): se conserva el noticias.json anterior", flush=True)
+        return
+    finally:
+        web.cerrar()
+    escribir_json("noticias.json", noticias_salida(lista, [NOTICIAS_FUENTE]))
+    log(f"noticias: {len(lista)} noticias (la más reciente {lista[0]['fecha'][:10]}); "
+        f"{sum('imagen' in n for n in lista)} con imagen; {web.peticiones} peticiones a ageofempires.com")
+
+
+def noticias_probar():
+    """Prueba sin red: respuestas guardadas de la API (sin cuerpos) y casos límite."""
+    m = leer_json(NOTICIAS_MUESTRA)
+    categorias = {c["id"]: noticias_texto(c["name"]) for c in m["categorias"]}
+    medios = {x["id"]: noticias_imagen(x) for x in m["medios"] if noticias_imagen(x)}
+    lista = noticias_componer(m["posts"], categorias, medios)
+    fallos = []
+    for esperado in m["esperado"]:
+        n = next((x for x in lista if x["url"] == esperado["url"]), None)
+        if n is None:
+            fallos.append(f"falta {esperado['url']}")
+            continue
+        for k, v in esperado.items():
+            if n.get(k) != v:
+                fallos.append(f"{esperado['url']}: {k} = {n.get(k)!r}, se esperaba {v!r}")
+        for k in ("categoria", "imagen"):
+            if k not in esperado and k in n:
+                fallos.append(f"{esperado['url']}: {k} no debería estar")
+    for url in m.get("fuera", []):
+        if any(x["url"] == url for x in lista):
+            fallos.append(f"{url} no debería salir")
+    if len(lista) != m["total"]:
+        fallos.append(f"{len(lista)} noticias, se esperaban {m['total']}")
+    if [n["fecha"] for n in lista] != sorted((n["fecha"] for n in lista), reverse=True):
+        fallos.append("orden: no va de la más reciente a la más antigua")
+    if len({n["url"] for n in lista}) != len(lista):
+        fallos.append("hay URLs duplicadas")
+    if any(set(n) - {"titulo", "fecha", "fuente", "url", "categoria", "imagen"} for n in lista):
+        fallos.append("campos de más en alguna noticia")
+    # categorías y miniaturas caídas: se heredan del noticias.json anterior por URL
+    previo = noticias_salida(lista, [NOTICIAS_FUENTE])
+    sin = noticias_componer(m["posts"], {}, {}, previo)
+    if [(n.get("categoria"), n.get("imagen")) for n in sin] != [(n.get("categoria"), n.get("imagen")) for n in lista]:
+        fallos.append("sin categorías/miniaturas no se heredan del noticias.json anterior")
+    if noticias_componer([], categorias, medios) != []:
+        fallos.append("sin entradas debería dar [] (y noticias() no escribe)")
+    for txt, esp in {"Update&nbsp;185872 &#8211; Notes": "Update 185872 – Notes", "Celebrating Age <em>2026</em>": "Celebrating Age 2026",
+                     "  ": "", None: ""}.items():
+        if noticias_texto(txt) != esp:
+            fallos.append(f"texto {txt!r} → {noticias_texto(txt)!r}, se esperaba {esp!r}")
+    for n in lista:
+        log(f"  {n['fecha'][:10]}  {n.get('categoria') or '-':40.40} {n['titulo']}")
+    for f in fallos:
+        log("FALLO", f)
+    log(f"noticias --probar: {len(lista)} noticias, {len(fallos)} fallos")
+    return not fallos
+
+
 if __name__ == "__main__":
-    if "--probar" in sys.argv:
-        sys.exit(0 if torneos_probar() else 1)
-    pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("perfiles", perfiles))
+    if "--probar" in sys.argv:          # sin red: torneos y noticias (o solo los nombrados: --probar noticias)
+        pruebas = {"torneos": torneos_probar, "noticias": noticias_probar}
+        pedidas = [a for a in sys.argv[1:] if a in pruebas] or list(pruebas)
+        resultados = [pruebas[a]() for a in pedidas]
+        sys.exit(0 if all(resultados) else 1)
+    pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("noticias", noticias),
+             ("perfiles", perfiles))
     pedidos = [a for a in sys.argv[1:] if not a.startswith("-")]     # sin argumentos, todos (el build nocturno)
     ok = True
     for nombre, fn in pasos:
