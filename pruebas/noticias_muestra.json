@@ -1,0 +1,562 @@
+{
+ "_nota": "Muestra para «python build_data.py --probar»: respuestas de la API REST de www.ageofempires.com (wp-json/wp/v2) del 2026-10-19, solo con los campos que se piden (titular, fecha, enlace, categorías, miniatura; sin cuerpos), recortadas a 10 entradas de AoE II, más 6 inventadas (ids 1-6) y un duplicado (id 7) para los casos límite.",
+ "posts": [
+  {
+   "id": 1,
+   "date_gmt": "2026-10-01T10:00:00",
+   "link": "https://www.ageofempires.com/news/inventada-aoe4/",
+   "title": {
+    "rendered": "Solo AoE IV"
+   },
+   "categories": [
+    236
+   ],
+   "featured_media": 0,
+   "game": [
+    164
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 2,
+   "date_gmt": "2026-10-02T10:00:00",
+   "link": "https://evil.example.com/news/x/",
+   "title": {
+    "rendered": "Enlace de otra web"
+   },
+   "categories": [
+    236
+   ],
+   "featured_media": 0,
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 3,
+   "date_gmt": "2026-10-03T09:30:00",
+   "link": "https://www.ageofempires.com/news/inventada-torneo/",
+   "title": {
+    "rendered": "Red&nbsp;Bull Wololo <em>Legacy</em> &#8211; Finals"
+   },
+   "categories": [
+    1,
+    232
+   ],
+   "featured_media": 0,
+   "game": [
+    218,
+    164
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 137613,
+   "date_gmt": "2026-09-22T17:17:05",
+   "link": "https://www.ageofempires.com/news/the-viking-sagas-available-now-for-age-of-empires-ii-definitive-edition/",
+   "title": {
+    "rendered": "The Viking Sagas Available Now For Age of Empires II: Definitive Edition!"
+   },
+   "featured_media": 138099,
+   "categories": [
+    36
+   ],
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 137850,
+   "date_gmt": "2026-09-22T17:16:33",
+   "link": "https://www.ageofempires.com/news/age-of-empires-ii-definitive-edition-update-185872/",
+   "title": {
+    "rendered": "Age of Empires II: Definitive Edition &#8211; Update 185872"
+   },
+   "featured_media": 138076,
+   "categories": [
+    36
+   ],
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 137186,
+   "date_gmt": "2026-09-17T19:25:02",
+   "link": "https://www.ageofempires.com/news/the-warriors-of-the-viking-sagas/",
+   "title": {
+    "rendered": "The Warriors of The Viking Sagas"
+   },
+   "featured_media": 137195,
+   "categories": [
+    36
+   ],
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 137135,
+   "date_gmt": "2026-09-11T19:08:31",
+   "link": "https://www.ageofempires.com/news/the-viking-sagas-campaign-preview/",
+   "title": {
+    "rendered": "The Viking Sagas Campaign Preview"
+   },
+   "featured_media": 137145,
+   "categories": [
+    36
+   ],
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 137089,
+   "date_gmt": "2026-09-04T17:09:25",
+   "link": "https://www.ageofempires.com/news/varangians-civilization-deep-dive/",
+   "title": {
+    "rendered": "Varangians Civilization Deep Dive"
+   },
+   "featured_media": 137099,
+   "categories": [
+    36
+   ],
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 7,
+   "date_gmt": "2026-09-22T17:17:05",
+   "link": "https://www.ageofempires.com/news/the-viking-sagas-available-now-for-age-of-empires-ii-definitive-edition/",
+   "title": {
+    "rendered": "The Viking Sagas Available Now For Age of Empires II: Definitive Edition!"
+   },
+   "featured_media": 138099,
+   "categories": [
+    36
+   ],
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 4,
+   "date_gmt": "2026-10-04T09:30:00",
+   "link": "https://www.ageofempires.com/news/inventada-borrador/",
+   "title": {
+    "rendered": "Borrador"
+   },
+   "categories": [
+    1
+   ],
+   "featured_media": 0,
+   "game": [
+    218
+   ],
+   "status": "draft"
+  },
+  {
+   "id": 5,
+   "date_gmt": "2026-10-05T09:30:00",
+   "link": "https://www.ageofempires.com/news/inventada-sin-titulo/",
+   "title": {
+    "rendered": "  "
+   },
+   "categories": [
+    1
+   ],
+   "featured_media": 0,
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 6,
+   "date_gmt": "2026-10-06T09:30:00",
+   "link": "https://www.ageofempires.com/news/inventada-general/",
+   "title": {
+    "rendered": "Solo General"
+   },
+   "categories": [
+    1
+   ],
+   "featured_media": 999,
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 137066,
+   "date_gmt": "2026-08-31T17:15:00",
+   "link": "https://www.ageofempires.com/news/saxons-civilization-deep-dive/",
+   "title": {
+    "rendered": "Saxons Civilization Deep Dive"
+   },
+   "featured_media": 137070,
+   "categories": [
+    36
+   ],
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 136990,
+   "date_gmt": "2026-08-28T17:01:42",
+   "link": "https://www.ageofempires.com/news/danes-civilization-deep-dive/",
+   "title": {
+    "rendered": "Danes Civilization Deep Dive"
+   },
+   "featured_media": 136991,
+   "categories": [
+    36
+   ],
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 136882,
+   "date_gmt": "2026-08-27T18:05:04",
+   "link": "https://www.ageofempires.com/news/faq-the-viking-sagas/",
+   "title": {
+    "rendered": "FAQ &#8211; The Viking Sagas"
+   },
+   "featured_media": 136660,
+   "categories": [
+    36
+   ],
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 136945,
+   "date_gmt": "2026-08-27T17:03:25",
+   "link": "https://www.ageofempires.com/news/pre-order-age-of-empires-ii-definitive-edition-the-viking-sagas/",
+   "title": {
+    "rendered": "Pre-Order Age of Empires II: Definitive Edition &#8211; The Viking Sagas"
+   },
+   "featured_media": 137485,
+   "categories": [
+    36
+   ],
+   "game": [
+    218
+   ],
+   "status": "publish"
+  },
+  {
+   "id": 136651,
+   "date_gmt": "2026-07-30T17:08:13",
+   "link": "https://www.ageofempires.com/news/celebrating-age-in-2026-where-were-at-and-where-were-going/",
+   "title": {
+    "rendered": "Celebrating Age in 2026 – Where We’re At, and Where We’re Going"
+   },
+   "featured_media": 136723,
+   "categories": [
+    36
+   ],
+   "game": [
+    218,
+    275,
+    164,
+    331,
+    314
+   ],
+   "status": "publish"
+  }
+ ],
+ "categorias": [
+  {
+   "id": 36,
+   "name": "Patches, Updates &amp; Content Releases"
+  },
+  {
+   "id": 236,
+   "name": "Announcement"
+  },
+  {
+   "id": 1,
+   "name": "General"
+  },
+  {
+   "id": 232,
+   "name": "Esports &amp; Tournaments"
+  },
+  {
+   "id": 33,
+   "name": "Guest Blog"
+  }
+ ],
+ "medios": [
+  {
+   "id": 138099,
+   "media_details": {
+    "sizes": {
+     "medium": {
+      "width": 288,
+      "height": 162,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/09/ALL-LOGOS-The-Viking-Sagas-Available-Now-288x162.webp"
+     },
+     "large": {
+      "width": 1080,
+      "height": 608,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/09/ALL-LOGOS-The-Viking-Sagas-Available-Now-1080x608.webp"
+     },
+     "thumbnail": {
+      "width": 150,
+      "height": 150,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/09/ALL-LOGOS-The-Viking-Sagas-Available-Now-150x150.webp"
+     }
+    }
+   }
+  },
+  {
+   "id": 138076,
+   "media_details": {
+    "sizes": {
+     "medium": {
+      "width": 288,
+      "height": 162,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/09/AgeIIDE-Update-16x9-Harald-288x162.webp"
+     },
+     "large": {
+      "width": 1080,
+      "height": 608,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/09/AgeIIDE-Update-16x9-Harald-1080x608.webp"
+     },
+     "thumbnail": {
+      "width": 150,
+      "height": 150,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/09/AgeIIDE-Update-16x9-Harald-150x150.webp"
+     }
+    }
+   }
+  },
+  {
+   "id": 137485,
+   "media_details": {
+    "sizes": {
+     "medium": {
+      "width": 288,
+      "height": 162,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/ALL-PLATFORMS-The-Viking-Sagas-Pre-Order-1920x1080-1-288x162.webp"
+     },
+     "large": {
+      "width": 1080,
+      "height": 608,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/ALL-PLATFORMS-The-Viking-Sagas-Pre-Order-1920x1080-1-1080x608.webp"
+     },
+     "thumbnail": {
+      "width": 150,
+      "height": 150,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/ALL-PLATFORMS-The-Viking-Sagas-Pre-Order-1920x1080-1-150x150.webp"
+     }
+    }
+   }
+  },
+  {
+   "id": 137195,
+   "media_details": {
+    "sizes": {
+     "medium": {
+      "width": 288,
+      "height": 162,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/897864_The_Viking_Sagas_New_Units_Deep_Dive_1920x1080-288x162.webp"
+     },
+     "large": {
+      "width": 1080,
+      "height": 608,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/897864_The_Viking_Sagas_New_Units_Deep_Dive_1920x1080-1080x608.webp"
+     },
+     "thumbnail": {
+      "width": 150,
+      "height": 150,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/897864_The_Viking_Sagas_New_Units_Deep_Dive_1920x1080-150x150.webp"
+     }
+    }
+   }
+  },
+  {
+   "id": 137145,
+   "media_details": {
+    "sizes": {
+     "medium": {
+      "width": 288,
+      "height": 162,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/The_Viking_Sagas_Campaign_Preview_1920x1080-288x162.webp"
+     },
+     "large": {
+      "width": 1080,
+      "height": 608,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/The_Viking_Sagas_Campaign_Preview_1920x1080-1080x608.webp"
+     },
+     "thumbnail": {
+      "width": 150,
+      "height": 150,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/The_Viking_Sagas_Campaign_Preview_1920x1080-150x150.webp"
+     }
+    }
+   }
+  },
+  {
+   "id": 137099,
+   "media_details": {
+    "sizes": {
+     "medium": {
+      "width": 288,
+      "height": 162,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/1567468_Varangians_Civlization_Highlight_1920x1080-288x162.webp"
+     },
+     "large": {
+      "width": 1080,
+      "height": 608,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/1567468_Varangians_Civlization_Highlight_1920x1080-1080x608.webp"
+     },
+     "thumbnail": {
+      "width": 150,
+      "height": 150,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/1567468_Varangians_Civlization_Highlight_1920x1080-150x150.webp"
+     }
+    }
+   }
+  },
+  {
+   "id": 137070,
+   "media_details": {
+    "sizes": {
+     "medium": {
+      "width": 288,
+      "height": 162,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/6546841_Saxons_Civlization_Highlight_1920x1080-288x162.webp"
+     },
+     "large": {
+      "width": 1080,
+      "height": 608,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/6546841_Saxons_Civlization_Highlight_1920x1080-1080x608.webp"
+     },
+     "thumbnail": {
+      "width": 150,
+      "height": 150,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/6546841_Saxons_Civlization_Highlight_1920x1080-150x150.webp"
+     }
+    }
+   }
+  },
+  {
+   "id": 136991,
+   "media_details": {
+    "sizes": {
+     "medium": {
+      "width": 288,
+      "height": 162,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/265874_Danes_Civlization_Highlight_1920x1080-288x162.webp"
+     },
+     "large": {
+      "width": 1080,
+      "height": 608,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/265874_Danes_Civlization_Highlight_1920x1080-1080x608.webp"
+     },
+     "thumbnail": {
+      "width": 150,
+      "height": 150,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/08/265874_Danes_Civlization_Highlight_1920x1080-150x150.webp"
+     }
+    }
+   }
+  },
+  {
+   "id": 136723,
+   "media_details": {
+    "sizes": {
+     "medium": {
+      "width": 288,
+      "height": 162,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/07/156151_2026-Part-II-3x3-Grid-16x9-1-288x162.webp"
+     },
+     "large": {
+      "width": 1080,
+      "height": 608,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/07/156151_2026-Part-II-3x3-Grid-16x9-1-1080x608.webp"
+     },
+     "thumbnail": {
+      "width": 150,
+      "height": 150,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/07/156151_2026-Part-II-3x3-Grid-16x9-1-150x150.webp"
+     }
+    }
+   }
+  },
+  {
+   "id": 136660,
+   "media_details": {
+    "sizes": {
+     "medium": {
+      "width": 288,
+      "height": 162,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/07/877584984894The_Vikings_Sagas_Key_Art_AgeII_1920x1080-288x162.webp"
+     },
+     "large": {
+      "width": 1080,
+      "height": 608,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/07/877584984894The_Vikings_Sagas_Key_Art_AgeII_1920x1080-1080x608.webp"
+     },
+     "thumbnail": {
+      "width": 150,
+      "height": 150,
+      "source_url": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/07/877584984894The_Vikings_Sagas_Key_Art_AgeII_1920x1080-150x150.webp"
+     }
+    }
+   }
+  }
+ ],
+ "esperado": [
+  {
+   "url": "https://www.ageofempires.com/news/the-viking-sagas-available-now-for-age-of-empires-ii-definitive-edition/",
+   "titulo": "The Viking Sagas Available Now For Age of Empires II: Definitive Edition!",
+   "fecha": "2026-09-22T17:17:05Z",
+   "fuente": "Age of Empires (web oficial)",
+   "categoria": "Patches, Updates & Content Releases",
+   "imagen": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/09/ALL-LOGOS-The-Viking-Sagas-Available-Now-288x162.webp"
+  },
+  {
+   "url": "https://www.ageofempires.com/news/age-of-empires-ii-definitive-edition-update-185872/",
+   "titulo": "Age of Empires II: Definitive Edition – Update 185872",
+   "fecha": "2026-09-22T17:16:33Z",
+   "categoria": "Patches, Updates & Content Releases",
+   "imagen": "https://cdn.ageofempires.com/aoe/wp-content/uploads/2026/09/AgeIIDE-Update-16x9-Harald-288x162.webp"
+  },
+  {
+   "url": "https://www.ageofempires.com/news/inventada-torneo/",
+   "titulo": "Red Bull Wololo Legacy – Finals",
+   "fecha": "2026-10-03T09:30:00Z",
+   "categoria": "Esports & Tournaments"
+  },
+  {
+   "url": "https://www.ageofempires.com/news/inventada-general/",
+   "titulo": "Solo General",
+   "categoria": "General"
+  }
+ ],
+ "fuera": [
+  "https://www.ageofempires.com/news/inventada-aoe4/",
+  "https://evil.example.com/news/x/",
+  "https://www.ageofempires.com/news/inventada-borrador/",
+  "https://www.ageofempires.com/news/inventada-sin-titulo/"
+ ],
+ "total": 12
+}
