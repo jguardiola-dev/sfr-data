@@ -15,8 +15,22 @@ Salidas en la raíz del repo:
     estado.json               días procesados y parches vistos
 En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_ayer.json.gz / elo-AAAA-MM-DD.json.gz (v2: + rango y
 última partida 1v1), muestra_ayer.json.gz (v2: 1.000 por tramo + «tramos_anteayer») y chispas.json.gz (1.6: últimos ratings 1v1).
+- torneos.json       torneos de AoE II de Liquipedia: en curso, próximos (hasta TORNEOS_DIAS_FUTURO días) y terminados
+                     (últimos TORNEOS_DIAS_PASADO días). Ver torneos(). Esquema (v1):
+                     {"v":1, "generado":ISO, "hoy":"AAAA-MM-DD", "ventana":{"desde","hasta"},
+                      "fuente":{"nombre":"Liquipedia","url","licencia":"CC BY-SA 3.0","licencia_url","atribucion","generado"},
+                      "torneos":[{"nombre", "tier":"S|A|B|C|Misc|null", "tipo":"Qualifier|Weekly|Monthly|Showmatch|FFA|null",
+                                  "inicio":"AAAA-MM-DD", "fin":"AAAA-MM-DD", "estado":"en_curso|proximo|terminado",
+                                  "bolsa":número|null, "moneda":"USD"|null, ["bolsa_local", "moneda_local"],
+                                  "formato":"1v1|2v2|3v3|4v4|mixto|FFA|equipos|null", "formato_texto", "organizador", "lugar",
+                                  "participantes", "url", ["ganador", "finalista"]}]}
+                     ganador/finalista solo si Liquipedia los da (la app los esconde: sin spoilers); varios jugadores se unen
+                     con « & ». Orden: en_curso (por fin), proximo (por inicio), terminado (el más reciente primero).
+                     Si Liquipedia falla o no sale ningún torneo, se conserva el torneos.json anterior (rama data).
+                     Prueba sin red: python build_data.py --probar (muestra en pruebas/). Solo este paso: python build_data.py torneos
 Fuente: volcados diarios de aoe2companion (https://www.aoe2companion.com/more/api).
-Créditos: aoe2companion (Dennis Keil) · Age of Empires II © Microsoft.
+Torneos: Liquipedia (https://liquipedia.net/ageofempires/), CC BY-SA 3.0; torneos.json se publica con la misma licencia.
+Créditos: aoe2companion (Dennis Keil) · Liquipedia · Age of Empires II © Microsoft.
 """
 import gzip, io, json, os, sys, time, urllib.error, urllib.request
 from collections import defaultdict
@@ -1236,9 +1250,527 @@ def perfiles():
     log(f"perfiles: cobertura {estado['desde']} → {estado['hasta']} ({len(hechos)} días); base hasta {estado.get('base_hasta')}; deltas {len(deltas)}; {len(alcance):,} jugadores")
 
 
+# ----------------------------------------------------------------------------- torneos (Liquipedia)
+# Normas de la API de Liquipedia (https://liquipedia.net/api-terms-of-use): solo la API MediaWiki (sin clave; LiquipediaDB la
+# exige y no se usa), nada de HTML de páginas fuera de la API, User-Agent propio con contacto, gzip, una conexión reutilizada,
+# action=parse como mucho 1 cada 30 s y el resto 1 cada 2 s. Por noche: 1 action=parse de {{TournamentsList|game=Age of
+# Empires II|year=…}} (la misma plantilla de la página «Age_of_Empires_II/Tournaments/AAAA-AA»), que ya trae tier, fechas,
+# bolsa en USD, lugar, participantes, ganador y finalista, y 1 o 2 action=query (50 títulos cada una) con el wikitexto de los
+# torneos de la ventana para sacar del infobox organizador, formato y moneda local. Contenido CC BY-SA 3.0.
+LQ_HOST = "liquipedia.net"
+LQ_API = "/ageofempires/api.php"
+LQ_BASE = "https://liquipedia.net"
+LQ_UA = "aoe2radar-sfr-data (https://github.com/jguardiola-dev/aoe2radar)"
+LQ_ESPERA_PARSE_S = 31          # action=parse: <= 1 cada 30 s
+LQ_ESPERA_S = 2.5               # resto de peticiones: <= 1 cada 2 s
+LQ_TITULOS_POR_QUERY = 50       # máximo de la API para usuarios anónimos
+TORNEOS_DIAS_PASADO = 30
+TORNEOS_DIAS_FUTURO = 60
+TORNEOS_MUESTRA = os.path.join("pruebas", "torneos_muestra.json")
+MESES_EN = {m: i + 1 for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"))}
+TIPOS_TIER = {"qualifier": "Qualifier", "weekly": "Weekly", "monthly": "Monthly", "showmatch": "Showmatch", "ffa": "FFA",
+              "biweekly": "Biweekly", "charity": "Charity"}
+
+
+class Liquipedia:
+    """Cliente mínimo de la API MediaWiki de Liquipedia: conexión HTTPS reutilizada, gzip y esperas entre peticiones."""
+
+    def __init__(self):
+        import http.client
+        self._hc = http.client
+        self.con = None
+        self.ultima = 0.0
+        self.ultima_parse = 0.0
+        self.peticiones = 0
+
+    def _esperar(self, parse):
+        if not self.peticiones:
+            return
+        t = time.monotonic()
+        espera = max(self.ultima + LQ_ESPERA_S - t, (self.ultima_parse + LQ_ESPERA_PARSE_S - t) if parse and self.ultima_parse else 0, 0)
+        if espera > 0:
+            time.sleep(espera)
+
+    def get(self, params, intentos=2):
+        import urllib.parse
+        parse = params.get("action") == "parse"
+        ruta = LQ_API + "?" + urllib.parse.urlencode(dict(params, format="json", formatversion="2"))
+        for i in range(intentos):
+            self._esperar(parse)
+            self.ultima = time.monotonic()
+            if parse:
+                self.ultima_parse = self.ultima
+            self.peticiones += 1
+            try:
+                if self.con is None:
+                    self.con = self._hc.HTTPSConnection(LQ_HOST, timeout=60)
+                self.con.request("GET", ruta, headers={"User-Agent": LQ_UA, "Accept-Encoding": "gzip", "Accept": "application/json"})
+                r = self.con.getresponse()
+                raw = r.read()
+                if (r.getheader("Content-Encoding") or "").lower() == "gzip":
+                    raw = gzip.decompress(raw)
+                if r.status != 200:
+                    raise RuntimeError(f"HTTP {r.status}")
+                d = json.loads(raw.decode("utf-8"))
+                if "error" in d:
+                    err = d["error"]
+                    if err.get("code") == "missingtitle":
+                        return d          # página inexistente: no se reintenta
+                    raise RuntimeError(f"API: {err.get('code')}: {err.get('info')}")
+                return d
+            except Exception as ex:
+                log(f"torneos: petición {params.get('action')} {i + 1}/{intentos}: {ex!r}")
+                try:
+                    self.con.close()
+                except Exception:
+                    pass
+                self.con = None
+                if i == intentos - 1:
+                    raise
+
+    def cerrar(self):
+        if self.con is not None:
+            self.con.close()
+
+
+def torneos_anios(hoy):
+    """Años que pedir a {{TournamentsList|year=}}, que filtra por el año de la fecha de FIN: los de la ventana y siempre el
+    siguiente (una liga en curso que acaba el año que viene solo sale ahí)."""
+    a0 = (hoy - timedelta(days=TORNEOS_DIAS_PASADO)).year
+    a1 = (hoy + timedelta(days=TORNEOS_DIAS_FUTURO)).year
+    return list(range(a0, max(a1, hoy.year + 1) + 1))
+
+
+def torneos_wikitexto(hoy):
+    """Lo mismo que la página «Age_of_Empires_II/Tournaments/AAAA-AA», pero con los años justos y en un solo action=parse."""
+    return "\n".join(f"{{{{TournamentsList|onlyTierTypeIfBoth=false|game=Age of Empires II|year={a}}}}}" for a in torneos_anios(hoy))
+
+
+def _fecha_partes(txt):
+    """«Nov 30, 2026» / «Nov 30» / «30, 2026» / «30» → (mes|None, día|None, año|None); None si no se entiende."""
+    import re
+    m = re.match(r"^\s*(?:([A-Za-z]{3})[a-z]*\.?\s+)?(\d{1,2})?\s*,?\s*(\d{4})?\s*$", txt)
+    if not m or not (m.group(1) or m.group(2) or m.group(3)):
+        return None
+    mes = MESES_EN.get(m.group(1).lower()[:3]) if m.group(1) else None
+    if m.group(1) and mes is None:
+        return None
+    return mes, int(m.group(2)) if m.group(2) else None, int(m.group(3)) if m.group(3) else None
+
+
+def torneos_fechas(txt):
+    """Columna Date de Liquipedia → (inicio, fin) en ISO, o (None, None). Formatos vistos: «Oct 17, 2026»,
+    «Nov 30 – Dec 20, 2026», «Oct 05–31, 2026», «Nov 28, 2025 – Jan 01, 2026». Lo que no entiende (TBA, «Oct 2026») da None."""
+    import re
+    txt = (txt or "").replace("\xa0", " ").strip()
+    trozos = [t for t in re.split(r"\s*[–—\-]\s*", txt) if t.strip()]
+    if not trozos or len(trozos) > 2:
+        return None, None
+    a = _fecha_partes(trozos[0])
+    b = _fecha_partes(trozos[1]) if len(trozos) == 2 else a
+    if not a or not b:
+        return None, None
+    m1, d1, y1 = a
+    m2, d2, y2 = b
+    y2 = y2 or y1
+    m2 = m2 or m1
+    y1 = y1 or y2
+    m1 = m1 or m2
+    if not (y1 and m1 and d1 and y2 and m2 and d2):
+        return None, None
+    try:
+        ini, fin = date(y1, m1, d1), date(y2, m2, d2)
+        if fin < ini and not a[2]:
+            ini = date(y1 - 1, m1, d1)      # «Dec 28 – Jan 03, 2027»: el inicio es del año anterior
+    except ValueError:
+        return None, None
+    return ini.isoformat(), fin.isoformat()
+
+
+def torneos_tier(txt):
+    """«S-Tier» → ("S", None); «Qualifier (A)» → ("A", "Qualifier"); «Weekly (M.)» / «Misc» → ("Misc", …)."""
+    import re
+    txt = " ".join((txt or "").replace("\xa0", " ").split())
+    if not txt:
+        return None, None
+    m = re.match(r"^(.*?)\s*\((.*?)\)$", txt)
+    tipo_txt, letra = (m.group(1), m.group(2)) if m else ("", txt)
+    tipo = TIPOS_TIER.get(tipo_txt.strip().lower(), tipo_txt.strip() or None)
+    letra = letra.strip().rstrip(".")
+    tier = "Misc" if letra.lower().startswith("m") else (letra.split("-")[0].strip().upper() or None)
+    return tier, tipo
+
+
+def torneos_dinero(txt):
+    import re
+    s = re.sub(r"[^\d.]", "", (txt or "").replace(",", ""))
+    try:
+        v = float(s) if s else None
+    except ValueError:
+        return None
+    if v is None or v <= 0:
+        return None
+    return int(v) if v == int(v) else round(v, 2)
+
+
+def torneos_tabla(html_txt):
+    """Filas de la tabla «tournaments-listing» (HTML de action=parse). Tolerante: busca las columnas por su clase
+    (column__tournament, column__placement) y no por posición fija; una fila ilegible se salta."""
+    import urllib.parse
+    from html.parser import HTMLParser
+
+    class P(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.filas, self.fila, self.celda = [], None, None
+            self.pila = []          # etiquetas abiertas dentro de la celda: (tag, es_nombre)
+
+        def handle_starttag(self, tag, attrs):
+            a = dict(attrs)
+            cls = a.get("class") or ""
+            if tag == "tr":
+                self.fila = [] if "row--body" in cls else None
+            elif tag == "td" and self.fila is not None:
+                self.celda = {"texto": "", "trozos": [], "enlaces": [], "nombres": [], "cls": cls}
+                self.pila = []
+            elif self.celda is not None and tag not in ("img", "br", "wbr", "hr", "input", "meta"):
+                es_nombre = tag == "span" and "name" in cls.split()
+                self.pila.append(es_nombre)
+                if es_nombre:
+                    self.celda["nombres"].append("")
+                if tag == "a" and a.get("href"):
+                    self.celda["enlaces"].append(a["href"])
+
+        def handle_endtag(self, tag):
+            if tag == "td" and self.celda is not None and self.fila is not None:
+                self.fila.append(self.celda)
+                self.celda = None
+            elif tag == "tr" and self.fila is not None:
+                if self.fila:
+                    self.filas.append(self.fila)
+                self.fila = None
+            elif self.celda is not None and self.pila and tag not in ("img", "br", "wbr", "hr", "input", "meta"):
+                self.pila.pop()
+
+        def handle_data(self, data):
+            if self.celda is not None:
+                self.celda["texto"] += data
+                self.celda["trozos"].append(data)
+                if any(self.pila) and self.celda["nombres"]:
+                    self.celda["nombres"][-1] += data
+
+    p = P()
+    p.feed(html_txt or "")
+    out = []
+    for celdas in p.filas:
+        try:
+            t = [" ".join(c["texto"].replace("\xa0", " ").split()) for c in celdas]
+            i_t = next((i for i, c in enumerate(celdas) if "column__tournament" in c["cls"]), None)
+            if i_t is None or len(celdas) < i_t + 3:
+                continue
+            href = next((h for h in celdas[i_t]["enlaces"] if h.startswith("/ageofempires/")), None)
+            titulo = url = None
+            if href and "redlink=1" not in href and "action=edit" not in href:
+                ruta = href.split("#")[0]
+                titulo = urllib.parse.unquote(ruta.split("/ageofempires/", 1)[1]).replace("_", " ")
+                url = LQ_BASE + ruta
+            tier, tipo = torneos_tier(t[0])
+            ini, fin = torneos_fechas(t[i_t + 1])
+            fila = {"nombre": t[i_t], "titulo": titulo, "url": url, "tier": tier, "tipo": tipo, "inicio": ini, "fin": fin,
+                    "bolsa": torneos_dinero(t[i_t + 2]), "lugar": None, "participantes": None}
+            resto = [(c, x) for c, x in zip(celdas[i_t + 3:], t[i_t + 3:]) if "column__placement" not in c["cls"]]
+            if resto:      # varios lugares («World» + «Hamburg») vienen en spans separados
+                lugares = [" ".join(x.split()) for x in resto[0][0]["trozos"]]
+                fila["lugar"] = ", ".join(dict.fromkeys(x for x in lugares if x)) or None
+            if len(resto) > 1 and resto[1][1].isdigit():
+                fila["participantes"] = int(resto[1][1])
+            plac = [c for c in celdas if "column__placement" in c["cls"]]
+            for clave, c in zip(("ganador", "finalista"), plac):
+                nombres = [" ".join(x.split()) for x in c["nombres"]]
+                nombres = [x for x in nombres if x and x.upper() not in ("TBD", "TBA")]
+                if nombres:
+                    fila[clave] = " & ".join(nombres)
+            out.append(fila)
+        except Exception as ex:
+            log(f"torneos: fila ilegible: {ex!r}")
+    return out
+
+
+def wiki_limpiar(v):
+    """Valor de parámetro de plantilla → texto plano: quita comentarios, enlaces [[a|b]], {{!}}, plantillas y etiquetas."""
+    import re
+    v = re.sub(r"<!--.*?-->", "", v or "", flags=re.S)
+    v = v.replace("{{!}}", "|")
+    v = re.sub(r"\[\[(?:[^\]|]*\|)?([^\]]*)\]\]", r"\1", v)
+    v = re.sub(r"\[https?://\S+\s+([^\]]*)\]", r"\1", v)
+    for _ in range(3):
+        v = re.sub(r"\{\{[^{}]*\}\}", "", v)
+    v = re.sub(r"<[^>]+>", "", v)
+    return " ".join(v.split()).strip()
+
+
+def wiki_infobox(texto):
+    """Parámetros del primer {{Infobox …}} del wikitexto (separa por «|» de primer nivel, respetando {{ }} y [[ ]])."""
+    texto = texto or ""
+    i = texto.find("{{Infobox")
+    if i < 0:
+        return {}
+    prof, j, trozos, ini = 0, i, [], i + 2
+    while j < len(texto):
+        par = texto[j:j + 2]
+        if par in ("{{", "[["):
+            prof += 1
+            j += 2
+            continue
+        if par in ("}}", "]]"):
+            prof -= 1
+            if prof == 0:
+                trozos.append(texto[ini:j])
+                break
+            j += 2
+            continue
+        if texto[j] == "|" and prof == 1:
+            trozos.append(texto[ini:j])
+            ini = j + 1
+        j += 1
+    out = {}
+    for t in trozos[1:]:
+        if "=" in t:
+            k, v = t.split("=", 1)
+            out[k.strip().lower()] = v.strip()
+    return out
+
+
+def torneos_formato(fmt):
+    """«1v1, Single Elimination» → "1v1"; «1v1, 2v2, 4v4» → "mixto"; «FFA» → "FFA"; «Team» → "equipos"; nada → None."""
+    import re
+    modos = list(dict.fromkeys(f"{x}v{y}" for x, y in re.findall(r"\b(\d)\s*v\s*(\d)\b", fmt or "", re.I)))
+    if len(modos) > 1:
+        return "mixto"
+    if modos:
+        return modos[0]
+    if re.search(r"\bffa\b|free[- ]for[- ]all", fmt or "", re.I):
+        return "FFA"
+    if re.search(r"\bteam", fmt or "", re.I):
+        return "equipos"
+    return None
+
+
+def torneos_enriquecer(t, ib):
+    """Completa un torneo con su infobox: organizador, formato, moneda local, y fechas y bolsa si la tabla no las dio."""
+    import re
+    orgs = [wiki_limpiar(ib[k]) for k in sorted(ib, key=lambda k: (len(k), k)) if re.fullmatch(r"organizer\d*", k)]
+    orgs = [o for o in orgs if o]
+    if orgs:
+        t["organizador"] = ", ".join(dict.fromkeys(orgs))
+    fmt = wiki_limpiar(ib.get("format", ""))
+    if fmt:
+        t["formato_texto"] = fmt
+        t["formato"] = torneos_formato(fmt)
+    if not t.get("formato"):
+        t["formato"] = torneos_formato(wiki_limpiar(ib.get("mode", ""))) or torneos_formato(t.get("nombre"))
+    for k_iso, k_ib in (("inicio", "sdate"), ("fin", "edate")):
+        v = wiki_limpiar(ib.get(k_ib, ""))
+        if not t.get(k_iso) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+            t[k_iso] = v
+    if t.get("bolsa") is None:
+        t["bolsa"] = torneos_dinero(wiki_limpiar(ib.get("prizepoolusd", "")))
+    local, moneda = torneos_dinero(wiki_limpiar(ib.get("prizepool", ""))), wiki_limpiar(ib.get("localcurrency", "")).upper()
+    if local and moneda and moneda != "USD":
+        t["bolsa_local"], t["moneda_local"] = local, moneda
+
+
+def torneos_estado(t, hoy):
+    ini = date.fromisoformat(t["inicio"])
+    fin = date.fromisoformat(t["fin"]) if t.get("fin") else ini
+    if fin < hoy:
+        return "terminado"
+    if ini > hoy:
+        return "proximo"
+    return "en_curso"
+
+
+def torneos_en_ventana(filas, hoy):
+    """Torneos cuyas fechas tocan la ventana [hoy - PASADO, hoy + FUTURO], sin duplicados (misma URL o mismo nombre y fecha)."""
+    desde, hasta = hoy - timedelta(days=TORNEOS_DIAS_PASADO), hoy + timedelta(days=TORNEOS_DIAS_FUTURO)
+    out, vistos, sin_fecha = [], set(), 0
+    for f in filas:
+        if not f.get("inicio"):
+            sin_fecha += 1
+            continue
+        ini = date.fromisoformat(f["inicio"])
+        fin = date.fromisoformat(f["fin"]) if f.get("fin") else ini
+        if fin < desde or ini > hasta:
+            continue
+        clave = f.get("url") or (f["nombre"], f["inicio"])
+        if clave in vistos:
+            continue
+        vistos.add(clave)
+        out.append(dict(f))
+    if sin_fecha:
+        log(f"torneos: {sin_fecha} filas sin fecha legible (fuera)")
+    return out
+
+
+def torneos_componer(filas, infoboxes, hoy, previo=None):
+    """Lista final ordenada. infoboxes: {título: params}; si falta el de un torneo, organizador y formato se toman del
+    torneos.json anterior (misma URL)."""
+    previos = {t.get("url"): t for t in (previo or {}).get("torneos", []) if t.get("url")}
+    out = []
+    for f in torneos_en_ventana(filas, hoy):
+        titulo = f.pop("titulo", None)
+        ib = infoboxes.get(titulo) if titulo else None
+        if ib:
+            torneos_enriquecer(f, ib)
+        elif f.get("url") in previos:
+            for k in ("organizador", "formato", "formato_texto", "bolsa_local", "moneda_local"):
+                if previos[f["url"]].get(k) is not None and f.get(k) is None:
+                    f[k] = previos[f["url"]][k]
+        f["fin"] = f.get("fin") or f["inicio"]
+        f["estado"] = torneos_estado(f, hoy)
+        f["moneda"] = "USD" if f.get("bolsa") is not None else None
+        t = {k: f.get(k) for k in ("nombre", "tier", "tipo", "inicio", "fin", "estado", "bolsa", "moneda")}
+        if f.get("bolsa_local") is not None:
+            t.update(bolsa_local=f["bolsa_local"], moneda_local=f["moneda_local"])
+        t.update({k: f.get(k) for k in ("formato", "formato_texto", "organizador", "lugar", "participantes", "url")})
+        for k in ("ganador", "finalista"):
+            if f.get(k):
+                t[k] = f[k]
+        out.append(t)
+    en_curso = sorted((t for t in out if t["estado"] == "en_curso"), key=lambda t: (t["fin"], t["nombre"].lower()))
+    proximos = sorted((t for t in out if t["estado"] == "proximo"), key=lambda t: (t["inicio"], t["nombre"].lower()))
+    terminados = sorted((t for t in out if t["estado"] == "terminado"), key=lambda t: (t["fin"], t["inicio"]), reverse=True)
+    return en_curso + proximos + terminados
+
+
+def torneos_salida(lista, hoy):
+    g = ahora()
+    return {"v": 1, "generado": g, "hoy": hoy.isoformat(),
+            "ventana": {"desde": (hoy - timedelta(days=TORNEOS_DIAS_PASADO)).isoformat(),
+                        "hasta": (hoy + timedelta(days=TORNEOS_DIAS_FUTURO)).isoformat()},
+            "fuente": {"nombre": "Liquipedia", "url": "https://liquipedia.net/ageofempires/", "licencia": "CC BY-SA 3.0",
+                       "licencia_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+                       "atribucion": "Datos de torneos de Liquipedia (liquipedia.net/ageofempires), licencia CC BY-SA 3.0. "
+                                     "Este archivo se distribuye con la misma licencia.",
+                       "generado": g},
+            "torneos": lista}
+
+
+def torneos_infoboxes(lq, titulos):
+    """Wikitexto de los torneos (action=query, 50 títulos por petición) → {título como sale en la tabla: params del infobox}."""
+    out = {}
+    titulos = list(dict.fromkeys(titulos))
+    for k in range(0, len(titulos), LQ_TITULOS_POR_QUERY):
+        lote = titulos[k:k + LQ_TITULOS_POR_QUERY]
+        d = lq.get({"action": "query", "prop": "revisions", "rvprop": "content", "rvslots": "main", "redirects": "1",
+                    "titles": "|".join(lote)})
+        q = d.get("query", {})
+        origen = {}       # título final → título pedido (deshace normalización y redirecciones)
+        for r in (q.get("normalized") or []) + (q.get("redirects") or []):
+            origen[r["to"]] = origen.get(r["from"], r["from"])
+        for p in q.get("pages", []):
+            revs = p.get("revisions") or []
+            if not revs:
+                continue
+            ib = wiki_infobox(revs[0].get("slots", {}).get("main", {}).get("content", ""))
+            out[p["title"]] = ib
+            if p["title"] in origen:
+                out[origen[p["title"]]] = ib
+    return out
+
+
+def torneos():
+    """torneos.json desde Liquipedia (esquema en la cabecera, normas arriba). Si algo falla o no sale ningún torneo, no se
+    escribe: se queda el anterior (recuperado de la rama data) con aviso ::warning:: en el resumen; el paso no rompe el build."""
+    hoy = datetime.now(timezone.utc).date()
+    previo = leer_json("torneos.json", None)
+    lq = Liquipedia()
+    filas, infob = [], {}
+    try:
+        d = lq.get({"action": "parse", "title": "Age_of_Empires_II/Tournaments", "contentmodel": "wikitext", "prop": "text",
+                    "text": torneos_wikitexto(hoy), "disablelimitreport": "1", "disableeditsection": "1"})
+        filas = torneos_tabla(d.get("parse", {}).get("text", ""))
+        log(f"torneos: años {torneos_anios(hoy)}: {len(filas)} filas")
+        if not filas:
+            raise RuntimeError("ninguna fila en la tabla de TournamentsList")
+        candidatos = torneos_en_ventana(filas, hoy)
+        try:
+            infob = torneos_infoboxes(lq, [c["titulo"] for c in candidatos if c.get("titulo")])
+        except Exception as ex:
+            print(f"::warning title=torneos::sin infoboxes ({ex!r}): organizador y formato, del torneos.json anterior", flush=True)
+        lista = torneos_componer(filas, infob, hoy, previo)
+        if not lista:
+            raise RuntimeError(f"{len(filas)} filas pero ninguna en la ventana")
+    except Exception as ex:
+        print(f"::warning title=torneos::Liquipedia no respondió bien ({ex!r}): se conserva el torneos.json anterior", flush=True)
+        return
+    finally:
+        lq.cerrar()
+    escribir_json("torneos.json", torneos_salida(lista, hoy))
+    cuenta = defaultdict(int)
+    for t in lista:
+        cuenta[t["estado"]] += 1
+    log(f"torneos: {len(lista)} torneos ({dict(cuenta)}); {len({id(v) for v in infob.values()})} infoboxes; {lq.peticiones} peticiones a Liquipedia")
+
+
+def torneos_probar():
+    """Prueba sin red: muestra guardada (HTML de action=parse recortado + wikitexto de infoboxes) con una fecha fija."""
+    m = leer_json(TORNEOS_MUESTRA)
+    hoy = date.fromisoformat(m["hoy"])
+    filas = torneos_tabla(m["html"])
+    infob = {titulo: wiki_infobox(texto) for titulo, texto in m["wikitexto"].items()}
+    lista = torneos_componer(filas, infob, hoy)
+    fallos = []
+    for esperado in m["esperado"]:
+        t = next((x for x in lista if x["nombre"] == esperado["nombre"]), None)
+        if t is None:
+            fallos.append(f"falta {esperado['nombre']}")
+            continue
+        for k, v in esperado.items():
+            if t.get(k) != v:
+                fallos.append(f"{esperado['nombre']}: {k} = {t.get(k)!r}, se esperaba {v!r}")
+        for k in ("ganador", "finalista"):
+            if k not in esperado and k in t:
+                fallos.append(f"{esperado['nombre']}: {k} no debería estar")
+    for nombre in m.get("fuera", []):
+        if any(x["nombre"] == nombre for x in lista):
+            fallos.append(f"{nombre} no debería salir")
+    casos = {"Oct 17, 2026": ("2026-10-17", "2026-10-17"), "Nov 30 – Dec 20, 2026": ("2026-11-30", "2026-12-20"),
+             "Oct 05–31, 2026": ("2026-10-05", "2026-10-31"), "Nov 28, 2025 – Jan 01, 2026": ("2025-11-28", "2026-01-01"),
+             "Dec 28 – Jan 03, 2027": ("2026-12-28", "2027-01-03"), "TBA": (None, None), "Oct 2026": (None, None), "": (None, None)}
+    for txt, esp in casos.items():
+        if torneos_fechas(txt) != esp:
+            fallos.append(f"fechas {txt!r} → {torneos_fechas(txt)}, se esperaba {esp}")
+    for txt, esp in {"S-Tier": ("S", None), "Qualifier\xa0(A)": ("A", "Qualifier"), "Weekly (M.)": ("Misc", "Weekly"),
+                     "Misc": ("Misc", None), "C-Tier": ("C", None), "": (None, None)}.items():
+        if torneos_tier(txt) != esp:
+            fallos.append(f"tier {txt!r} → {torneos_tier(txt)}, se esperaba {esp}")
+    for d, esp in ((date(2026, 10, 18), [2026, 2027]), (date(2027, 1, 10), [2026, 2027, 2028]), (date(2027, 12, 20), [2027, 2028])):
+        if torneos_anios(d) != esp:
+            fallos.append(f"años {d}: {torneos_anios(d)}, se esperaba {esp}")
+    for txt, esp in {"1v1, Single Elimination": "1v1", "1v1, 2v2, 4v4": "mixto", "3v3 Round Robin": "3v3", "FFA": "FFA",
+                     "Team": "equipos", "": None, "CBA 4v4 Tournament": "4v4"}.items():
+        if torneos_formato(txt) != esp:
+            fallos.append(f"formato {txt!r} → {torneos_formato(txt)}, se esperaba {esp}")
+    if torneos_tabla("<p>nada</p>") != [] or torneos_tabla("") != []:
+        fallos.append("HTML sin tabla debería dar []")
+    for t in lista:
+        log(f"  {t['estado']:9} {t['inicio']} → {t['fin']}  {t['tier'] or '-':4} {t['nombre']}")
+    for f in fallos:
+        log("FALLO", f)
+    log(f"torneos --probar: {len(lista)} torneos, {len(fallos)} fallos")
+    return not fallos
+
+
 if __name__ == "__main__":
+    if "--probar" in sys.argv:
+        sys.exit(0 if torneos_probar() else 1)
+    pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("perfiles", perfiles))
+    pedidos = [a for a in sys.argv[1:] if not a.startswith("-")]     # sin argumentos, todos (el build nocturno)
     ok = True
-    for nombre, fn in (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("perfiles", perfiles)):
+    for nombre, fn in pasos:
+        if pedidos and nombre not in pedidos:
+            continue
         try:
             fn()
         except Exception as ex:
