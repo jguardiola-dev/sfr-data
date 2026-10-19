@@ -2310,7 +2310,8 @@ def logos_probar():
 # Los partidos no se repiten: ya están en partidos.json (torneo_url). Ritmo: como mucho TORNEOS_DETALLE_POR_NOCHE páginas
 # y TORNEOS_DETALLE_TIEMPO_S por noche (≈7,5 min); lo que no cabe, la noche siguiente. Cada página se vuelve a pedir solo si
 # toca: en curso, cada noche; próximo, cada 3 días (cada noche si empieza en 2 días); terminado, una vez más al acabar y ya
-# nunca. Lo ya obtenido se conserva (rama data). Contenido CC BY-SA 3.0, como torneos.json.
+# nunca. Las que aún no se tienen van antes que las renovaciones. Lo ya obtenido se conserva (rama data).
+# Contenido CC BY-SA 3.0, como torneos.json.
 TORNEOS_DETALLE_DIR = "torneos"
 TORNEOS_DETALLE_POR_NOCHE = 13
 TORNEOS_DETALLE_TIEMPO_S = 7.5 * 60
@@ -2585,6 +2586,18 @@ def detalle_candidatos(historico, hoy):
     return sorted(c, key=clave)
 
 
+def detalle_cola(candidatos, ahora_dt):
+    """[(torneo, ruta, detalle previo)] de las páginas que toca pedir: primero las que aún no se tienen (para que el
+    histórico se complete en pocas noches) y luego las renovaciones, cada grupo en el orden de prioridad de los candidatos."""
+    nuevos, renovar = [], []
+    for t in candidatos:
+        ruta = os.path.join(TORNEOS_DETALLE_DIR, detalle_slug(t["url"]) + ".json")
+        previo = leer_json(ruta, None)
+        if detalle_toca(t, previo, ahora_dt):
+            (renovar if previo else nuevos).append((t, ruta, previo))
+    return nuevos + renovar
+
+
 def detalle_toca(t, previo, ahora_dt):
     """¿Hay que volver a pedir la página? previo = detalle guardado o None."""
     if not previo or not previo.get("obtenido"):
@@ -2616,11 +2629,7 @@ def torneos_detalle():
     lq = Liquipedia()
     t0, hechos, fallos = _t.monotonic(), 0, 0
     try:
-        for t in candidatos:
-            ruta = os.path.join(TORNEOS_DETALLE_DIR, detalle_slug(t["url"]) + ".json")
-            previo = leer_json(ruta, None)
-            if not detalle_toca(t, previo, ahora_dt):
-                continue
+        for t, ruta, previo in detalle_cola(candidatos, ahora_dt):
             if hechos + fallos >= TORNEOS_DETALLE_POR_NOCHE or _t.monotonic() - t0 > TORNEOS_DETALLE_TIEMPO_S - LQ_ESPERA_PARSE_S:
                 break
             try:
@@ -2727,6 +2736,19 @@ def detalle_probar():
     orden = [t["url"] for t in detalle_candidatos(hist, ahora_dt.date())]
     if orden != ["c", "e", "d", "a"]:
         fallos.append(f"candidatos {orden}, se esperaba ['c', 'e', 'd', 'a']")
+    # cola: los que aún no tienen detalle van antes que las renovaciones (c, en curso, ya tiene uno de hace un día)
+    global TORNEOS_DETALLE_DIR
+    import shutil, tempfile
+    dir_antes, tmp = TORNEOS_DETALLE_DIR, tempfile.mkdtemp()
+    try:
+        TORNEOS_DETALLE_DIR = tmp
+        escribir_json(os.path.join(tmp, "c.json"), {"obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "en_curso"})
+        cola = [t["url"] for t, _, _ in detalle_cola(detalle_candidatos(hist, ahora_dt.date()), ahora_dt)]
+        if cola != ["e", "d", "a", "c"]:
+            fallos.append(f"cola {cola}, se esperaba ['e', 'd', 'a', 'c']")
+    finally:
+        TORNEOS_DETALLE_DIR = dir_antes
+        shutil.rmtree(tmp, ignore_errors=True)
     for f in fallos:
         log("FALLO", f)
     log(f"detalle --probar: {len(m['casos'])} páginas, {len(fallos)} fallos")
