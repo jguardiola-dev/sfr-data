@@ -2108,7 +2108,9 @@ def partidos_pais(src):
     if not m:
         return None
     c = m.group(1).upper()
-    return {"UK": "GB"}.get(c, c)
+    if c in ("EU", "UN"):                 # banderas que no son de un país
+        return None
+    return {"UK": "GB", "EN": "GB", "SC": "GB", "WA": "GB"}.get(c, c)      # Inglaterra, Escocia, Gales → GB
 
 
 def partidos_stream(href):
@@ -2430,7 +2432,8 @@ def partidos_probar():
                       "/ageofempires/Special:Stream/twitch/a%22b": None}.items():
         if partidos_stream(href) != esp:
             fallos.append(f"stream {href} → {partidos_stream(href)}, se esperaba {esp}")
-    for src, esp in {"/commons/images/thumb/0/02/Se_hd.png/36px-Se_hd.png": "SE", "/x/Uk_hd.png": "GB", "/x/Flag.png": None}.items():
+    for src, esp in {"/commons/images/thumb/0/02/Se_hd.png/36px-Se_hd.png": "SE", "/x/Uk_hd.png": "GB", "/x/En_hd.png": "GB",
+                     "/x/Eu_hd.png": None, "/x/Flag.png": None}.items():
         if partidos_pais(src) != esp:
             fallos.append(f"país {src} → {partidos_pais(src)}, se esperaba {esp}")
     for p in lista:
