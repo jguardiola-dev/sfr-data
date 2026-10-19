@@ -48,8 +48,8 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      que ya no usa ningún torneo de torneos.json/torneos_historico.json se borran. Carpeta en la rama data.
 - torneos/<slug>.json  detalle de los torneos importantes (S y A del histórico; B en curso o próximos), de su página de
                      Liquipedia (action=parse; ver torneos_detalle()). slug = ruta de la página en minúsculas con «-»
-                     («Warlords/5» → warlords-5). Lo enlaza el campo «detalle» de torneos.json/torneos_historico.json. Esquema (v1):
-                     {"v":1, "url", "nombre", "tier", "inicio", "fin", "obtenido":ISO, "estado_al_obtener",
+                     («Warlords/5» → warlords-5). Lo enlaza el campo «detalle» de torneos.json/torneos_historico.json. Esquema (v2; v1 = sin «cuadros»):
+                     {"v":2, "url", "nombre", "tier", "inicio", "fin", "obtenido":ISO, "estado_al_obtener",
                       "formato":[{"texto","nivel"}] (lista de la sección Format; nivel = sangría, 0 = primera),
                       "calendario":[{"texto","nivel","desde":"AAAA-MM-DD"|null,["hasta"]}] (sección Schedule),
                       "mapas":["Arabia"…],
@@ -2325,6 +2325,7 @@ def logos_probar():
 # nunca. Las que aún no se tienen van antes que las renovaciones. Lo ya obtenido se conserva (rama data).
 # Contenido CC BY-SA 3.0, como torneos.json.
 TORNEOS_DETALLE_DIR = "torneos"
+DETALLE_VERSION = 2             # v2: «cuadros» en las fases. Un detalle de versión anterior se vuelve a pedir (también terminados)
 TORNEOS_DETALLE_POR_NOCHE = 13
 TORNEOS_DETALLE_TIEMPO_S = 7.5 * 60
 TORNEOS_DETALLE_MUESTRA = os.path.join("pruebas", "torneo_detalle_muestra.json")
@@ -2758,7 +2759,7 @@ def detalle_componer(html_txt, t, obtenido):
     """HTML de action=parse de la página de un torneo → detalle (esquema en la cabecera)."""
     sec = detalle_secciones(html_txt)
     puestos, resultados, total = detalle_premios(detalle_seccion(sec, "prize_pool", "prizepool"))
-    d = {"v": 1, "url": t["url"], "nombre": t["nombre"], "tier": t.get("tier"), "inicio": t.get("inicio"), "fin": t.get("fin"),
+    d = {"v": DETALLE_VERSION, "url": t["url"], "nombre": t["nombre"], "tier": t.get("tier"), "inicio": t.get("inicio"), "fin": t.get("fin"),
          "obtenido": obtenido, "estado_al_obtener": t.get("estado"),
          "formato": detalle_lista(detalle_seccion(sec, "format")),
          "calendario": detalle_calendario(detalle_seccion(sec, "schedule"), t.get("inicio")),
@@ -2799,8 +2800,8 @@ def detalle_cola(candidatos, ahora_dt):
 
 def detalle_toca(t, previo, ahora_dt):
     """¿Hay que volver a pedir la página? previo = detalle guardado o None."""
-    if not previo or not previo.get("obtenido"):
-        return True
+    if not previo or not previo.get("obtenido") or (previo.get("v") or 1) < DETALLE_VERSION:
+        return True                     # sin detalle, o de un esquema anterior (v1 no traía «cuadros»): se rehace
     try:
         edad_h = (ahora_dt - datetime.fromisoformat(previo["obtenido"])).total_seconds() / 3600
     except ValueError:
@@ -2919,11 +2920,12 @@ def detalle_probar():
     ahora_dt = datetime(2026, 10, 19, 5, 0, tzinfo=timezone.utc)
     base = {"url": "u", "inicio": "2026-10-01", "fin": "2026-10-30", "estado": "en_curso"}
     for t, previo, esp in ((base, None, True), (base, {"obtenido": "2026-10-18T05:00:00+00:00"}, True),
-                           (base, {"obtenido": "2026-10-19T01:00:00+00:00"}, False),
-                           (dict(base, estado="proximo", inicio="2026-11-20"), {"obtenido": "2026-10-17T05:00:00+00:00"}, False),
+                           (base, {"v": 2, "obtenido": "2026-10-19T01:00:00+00:00"}, False),
+                           (dict(base, estado="proximo", inicio="2026-11-20"), {"v": 2, "obtenido": "2026-10-17T05:00:00+00:00"}, False),
                            (dict(base, estado="proximo", inicio="2026-10-20"), {"obtenido": "2026-10-18T05:00:00+00:00"}, True),
                            (dict(base, estado="terminado", fin="2026-10-17"), {"obtenido": "2026-10-17T05:00:00+00:00", "estado_al_obtener": "en_curso"}, True),
-                           (dict(base, estado="terminado", fin="2026-10-17"), {"obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "terminado"}, False)):
+                           (dict(base, estado="terminado", fin="2026-10-17"), {"obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "terminado"}, True),
+                           (dict(base, estado="terminado", fin="2026-10-17"), {"v": 2, "obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "terminado"}, False)):
         if detalle_toca(t, previo, ahora_dt) != esp:
             fallos.append(f"toca {t['estado']} {previo} → {not esp}")
     hist = [{"url": "a", "tier": "S", "estado": "terminado", "inicio": "2026-01-01", "fin": "2026-01-05"},
