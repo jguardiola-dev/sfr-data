@@ -23,7 +23,9 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                                   "inicio":"AAAA-MM-DD", "fin":"AAAA-MM-DD", "estado":"en_curso|proximo|terminado",
                                   "bolsa":número|null, "moneda":"USD"|null, ["bolsa_local", "moneda_local"],
                                   "formato":"1v1|2v2|3v3|4v4|mixto|FFA|equipos|null", "formato_texto", "organizador", "lugar",
-                                  "participantes", "url", ["enlaces"], ["logo", "logo_oscuro"], ["ganador", "finalista"]}]}
+                                  "participantes", "url", ["enlaces"], ["logo", "logo_oscuro"], ["detalle"],
+                                  ["ganador", "finalista"]}]}
+                     «detalle» (opcional): "torneos/<slug>.json" si hay ficha de detalle de ese torneo (ver más abajo).
                      «enlaces» (opcional, del infobox): {"web","discord","twitch","youtube","x","bracket"}, cada uno solo si
                      Liquipedia lo da y es una URL https válida (los identificadores sueltos se completan: twitch.tv/…, x.com/…).
                      ganador/finalista solo si Liquipedia los da (la app los esconde: sin spoilers); varios jugadores se unen
@@ -43,6 +45,24 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      Commons (no se enlazan: Liquipedia pide no hacer hotlink). Nombre = archivo de Liquipedia en minúsculas +
                      sha1[:8] del archivo (clave de caché: un logo nuevo en la wiki cambia el hash y se baja otra vez). Los
                      que ya no usa ningún torneo de torneos.json/torneos_historico.json se borran. Carpeta en la rama data.
+- torneos/<slug>.json  detalle de los torneos importantes (S y A del histórico; B en curso o próximos), de su página de
+                     Liquipedia (action=parse; ver torneos_detalle()). slug = ruta de la página en minúsculas con «-»
+                     («Warlords/5» → warlords-5). Lo enlaza el campo «detalle» de torneos.json/torneos_historico.json. Esquema (v1):
+                     {"v":1, "url", "nombre", "tier", "inicio", "fin", "obtenido":ISO, "estado_al_obtener",
+                      "formato":[{"texto","nivel"}] (lista de la sección Format; nivel = sangría, 0 = primera),
+                      "calendario":[{"texto","nivel","desde":"AAAA-MM-DD"|null,["hasta"]}] (sección Schedule),
+                      "mapas":["Arabia"…],
+                      "premios":{"total_usd":número|null, "puestos":[{"puesto":"5-8","desde":5,"hasta":8,["usd"],["otros":[…]]}]},
+                      "participantes":[{"nombre",["pais"] (ISO2),["grupo"] (Invited, Qualifier #1…),["sembrado"]} |
+                                       {"nombre","tipo":"equipo",["jugadores":[{"nombre",["pais"]}]]}],
+                      "fases":[{"nombre","nivel" (1 = fase, 2 = grupo/subfase),["tipo":"grupos|bracket|partidos"],
+                                ["rondas":[{"nombre","bo"}]]}] (subsecciones de Results),
+                      "resultados":{"puestos":[{"puesto","desde","hasta","jugadores":[…]}]}}
+                     SIN SPOILERS: quién quedó en qué puesto va SOLO en «resultados» (la app lo esconde); «premios» nunca
+                     lleva nombres. Los partidos no se repiten aquí: están en partidos.json (torneo_url). Como mucho
+                     TORNEOS_DETALLE_POR_NOCHE páginas por noche; en curso se renueva cada noche, próximo cada 3 días,
+                     terminado una vez tras acabar. Lo anterior se conserva si una página falla.
+                     Prueba sin red: python build_data.py --probar detalle. Solo este paso: python build_data.py detalle
 - streamers.json     imagen de perfil pública de canales de Twitch (API Helix; ver streamers()). Esquema (v1):
                      {"v":1, "generado":ISO, "fuente":"Twitch (imagen de perfil pública, solo para dar crédito y enlazar al canal)",
                       "canales":{"<login>":{"nombre", "avatar_url" (https://static-cdn.jtvnw.net/…), "url":"https://twitch.tv/<login>"}},
@@ -2281,6 +2301,438 @@ def logos_probar():
     return not fallos
 
 
+# ----------------------------------------------------------------------------- detalle de torneos importantes (Liquipedia)
+# Para que la vista «Torneos» de la app no necesite Liquipedia: de los torneos de torneos_historico.json de tier S y A (y los
+# B en curso o próximos) se pide su página con action=parse (API MediaWiki, 1 cada 30 s) y se saca: formato (lista de la
+# sección «Format»), calendario («Schedule»), mapas («Map Pool»), reparto del premio por puesto («Prize Pool»),
+# participantes (nombre, país, equipo/jugadores, grupo de entrada: invitado, clasificatoria, sembrado…) y fases (títulos de
+# «Results» con sus rondas y Bo). Los puestos ya conocidos (quién quedó qué) van SOLO en «resultados» (la app los esconde).
+# Los partidos no se repiten: ya están en partidos.json (torneo_url). Ritmo: como mucho TORNEOS_DETALLE_POR_NOCHE páginas
+# y TORNEOS_DETALLE_TIEMPO_S por noche (≈7,5 min); lo que no cabe, la noche siguiente. Cada página se vuelve a pedir solo si
+# toca: en curso, cada noche; próximo, cada 3 días (cada noche si empieza en 2 días); terminado, una vez más al acabar y ya
+# nunca. Lo ya obtenido se conserva (rama data). Contenido CC BY-SA 3.0, como torneos.json.
+TORNEOS_DETALLE_DIR = "torneos"
+TORNEOS_DETALLE_POR_NOCHE = 13
+TORNEOS_DETALLE_TIEMPO_S = 7.5 * 60
+TORNEOS_DETALLE_MUESTRA = os.path.join("pruebas", "torneo_detalle_muestra.json")
+MESES_LARGOS = {m: i + 1 for i, m in enumerate(("january", "february", "march", "april", "may", "june", "july", "august",
+                                                "september", "october", "november", "december"))}
+
+
+def _html_texto(v):
+    import html as _h, re
+    v = re.sub(r"<sup\b.*?</sup>", "", v or "", flags=re.S)
+    return " ".join(_h.unescape(re.sub(r"<[^>]+>", " ", v)).replace("​", "").split()).strip()
+
+
+def detalle_slug(url):
+    """URL de Liquipedia → nombre de archivo: «Warlords/5/Qualifier/1» → «warlords-5-qualifier-1»."""
+    import re, unicodedata, urllib.parse
+    t = urllib.parse.unquote(url.split("/ageofempires/", 1)[-1])
+    t = unicodedata.normalize("NFKD", t).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", "-", t).strip("-")[:100] or "torneo"
+
+
+def detalle_titulo(url):
+    import urllib.parse
+    return urllib.parse.unquote(url.split("/ageofempires/", 1)[-1]).replace(" ", "_")
+
+
+def detalle_secciones(html_txt):
+    """[(nivel, id, título, html hasta el siguiente encabezado de nivel <= al suyo)] de los h2/h3/h4 de la página."""
+    import re
+    hs = [(int(m.group(1)), m.group(2), _html_texto(m.group(3)), m.start())
+          for m in re.finditer(r'<h([234]) id="([^"]+)"[^>]*>(.*?)</h\1>', html_txt or "", re.S)]
+    out = []
+    for k, (nivel, ident, titulo, ini) in enumerate(hs):
+        fin = next((h[3] for h in hs[k + 1:] if h[0] <= nivel), len(html_txt))
+        out.append((nivel, ident, titulo, html_txt[ini:fin]))
+    return out
+
+
+def detalle_seccion(secciones, *ids):
+    for nivel, ident, titulo, cuerpo in secciones:
+        if ident.lower() in ids:
+            return cuerpo
+    return ""
+
+
+def detalle_lista(cuerpo):
+    """Elementos <li> de una sección, en orden, con su nivel de anidamiento: [{"texto", "nivel"}] (nivel 0 = primero).
+    Solo las listas antes de la primera tabla o subsección (lo que es texto de la sección)."""
+    import re
+    cuerpo = re.split(r'<table|<div class="mw-heading|<div class="table2', cuerpo, maxsplit=1)[0]
+    out, nivel = [], -1
+    for m in re.finditer(r"<(/?)(ul|ol|li)\b[^>]*>", cuerpo):
+        cierre, tag = m.group(1), m.group(2)
+        if tag in ("ul", "ol"):
+            nivel += -1 if cierre else 1
+        elif not cierre:
+            resto = cuerpo[m.end():]
+            fin = re.search(r"<(?:/?li|ul|ol)\b", resto)
+            texto = _html_texto(resto[:fin.start()] if fin else resto)
+            if texto:
+                out.append({"texto": texto[:200], "nivel": max(nivel, 0)})
+    return out[:60]
+
+
+def detalle_fechas(texto, anio_base, mes_base=1):
+    """«May 7th - 10th, starting…» → ("AAAA-05-07", "AAAA-05-10"); «November 25: WB Ro8» → (fecha, None); sin fecha → (None,
+    None). El año es el del inicio del torneo (si el mes es muy anterior al de inicio, el siguiente)."""
+    import re
+    pat = r"\b(" + "|".join(m[:3] for m in MESES_LARGOS) + r")[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b"
+    m = re.search(pat, texto, re.I)
+    if not m:
+        return None, None
+
+    def iso(mes, dia):
+        a = anio_base + (1 if mes < mes_base - 6 else 0)
+        try:
+            return date(a, mes, dia).isoformat()
+        except ValueError:
+            return None
+    mes = MESES_EN[m.group(1)[:3].lower()]
+    desde = iso(mes, int(m.group(2)))
+    resto = texto[m.end():]
+    m2 = re.match(r"\s*[-–]\s*(?:" + pat + r"|(\d{1,2})(?:st|nd|rd|th)?\b)", resto, re.I)
+    hasta = None
+    if m2:
+        if m2.group(1):
+            hasta = iso(MESES_EN[m2.group(1)[:3].lower()], int(m2.group(2)))
+        elif m2.group(3):
+            hasta = iso(mes, int(m2.group(3)))
+    return desde, hasta
+
+
+def detalle_calendario(cuerpo, inicio):
+    try:
+        d0 = date.fromisoformat(inicio)
+        anio, mes = d0.year, d0.month
+    except (TypeError, ValueError):
+        anio, mes = datetime.now(timezone.utc).year, 1
+    out = []
+    for e in detalle_lista(cuerpo):
+        desde, hasta = detalle_fechas(e["texto"], anio, mes)
+        f = {"texto": e["texto"], "nivel": e["nivel"], "desde": desde}
+        if hasta:
+            f["hasta"] = hasta
+        out.append(f)
+    return out
+
+
+def detalle_jugador(trozo):
+    """Primer jugador/equipo de un trozo de HTML: {"nombre", ["pais"]} o None (TBD/vacío)."""
+    import re
+    m = re.search(r'<span class="name"[^>]*>(.*?)</span>', trozo, re.S)
+    nombre = _html_texto(m.group(1)) if m else ""
+    if not nombre or nombre.upper() in ("TBD", "TBA", "BYE"):
+        return None
+    out = {"nombre": nombre[:60]}
+    f = re.search(r'<span class="flag"><img [^>]*src="([^"]+)"', trozo[:m.start()] if m else trozo)
+    pais = partidos_pais(f.group(1)) if f else None
+    if pais:
+        out["pais"] = pais
+    return out
+
+
+def detalle_participantes(cuerpo):
+    """Participantes: tablas participantTable (jugador o equipo por casilla, con el grupo de entrada del título de la fila)
+    o tarjetas de equipo (team-participant-card, con sus jugadores). Sin repetidos (la vista «Show Seedings» repite)."""
+    import re
+    out, vistos = [], set()
+    if "team-participant-card" in cuerpo:
+        for card in re.split(r'<div class="general-collapsible[^"]*team-participant-card"', cuerpo)[1:]:
+            partes = re.split(r'team-participant-card&#95;&#95;member"', card)
+            eq = detalle_jugador(partes[0])
+            if not eq or eq["nombre"] in vistos:
+                continue
+            vistos.add(eq["nombre"])
+            eq.pop("pais", None)
+            jug = [j for j in (detalle_jugador(p) for p in partes[1:]) if j]
+            out.append(dict(eq, tipo="equipo", **({"jugadores": jug} if jug else {})))
+        return out
+    grupo = None
+    for m in re.finditer(r'<div class="participantTable-title">(.*?)</div>|<div class="participantTable-entry[^"]*"[^>]*>', cuerpo, re.S):
+        if m.group(1) is not None:
+            g = re.sub(r"\(\d+\)|[¹²³⁴⁵⁶⁷⁸⁹⁰*]", "", _html_texto(m.group(1))).strip()
+            grupo = None if g.lower() in ("participants", "participantes", "") else g
+            continue
+        fin = cuerpo.find('<div class="participantTable-entry', m.end())
+        j = detalle_jugador(cuerpo[m.end():fin if fin > 0 else m.end() + 4000])
+        if not j or j["nombre"] in vistos:
+            continue
+        vistos.add(j["nombre"])
+        if grupo:
+            j["grupo"] = grupo
+            s = re.search(r"seed\w*\s*#?\s*(\d+)", grupo, re.I)
+            if s:
+                j["sembrado"] = int(s.group(1))
+        out.append(j)
+    return out
+
+
+def detalle_premios(cuerpo):
+    """Tabla «Prize Pool» (prizepooltable-placement) → (puestos [{"puesto","desde","hasta",["usd"],["otros"]}], resultados
+    [{"puesto","desde","hasta","jugadores":[…]}]: solo los puestos con nombres ya conocidos) y el total en USD si lo dice."""
+    import re
+    total = None
+    m = re.search(r"\$([\d,]+(?:\.\d+)?)\s*(?:&#160;|\s)*<abbr title=\"United States Dollar\">USD</abbr> are spread", cuerpo)
+    if m:
+        total = torneos_dinero(m.group(1))
+    tabla = re.search(r'<table class="[^"]*prizepooltable-placement[^"]*">(.*?)</table>', cuerpo, re.S)
+    if not tabla:
+        return [], [], total
+    filas = re.findall(r"<tr[^>]*>(.*?)</tr>", tabla.group(1), re.S)
+    cab = [_html_texto(x) for x in re.findall(r"<th[^>]*>(.*?)</th>", filas[0], re.S)] if filas else []
+    otras = [c for c in cab[2:] if "USD" not in c]
+    puestos, resultados = [], []
+    for f in filas[1:]:
+        celdas = re.findall(r"<td([^>]*)>(.*?)</td>", f, re.S)
+        lugar = next((c for a, c in celdas if "prizepooltable-place" in a), None)
+        equipo = [c for a, c in celdas if "prizepooltable-col-team" in a]
+        if lugar is not None:
+            txt = _html_texto(lugar).replace("–", "-")
+            r = re.match(r"(\d+)(?:\s*-\s*(\d+))?", txt)
+            if not r:
+                continue
+            p = {"puesto": txt, "desde": int(r.group(1)), "hasta": int(r.group(2) or r.group(1))}
+            resto = [c for a, c in celdas if "prizepooltable-place" not in a and "prizepooltable-col-team" not in a]
+            vals = [_html_texto(c) for c in resto]
+            usd = next((torneos_dinero(v) for v in vals if v.startswith("$")), None)
+            if usd is not None:
+                p["usd"] = usd
+            extra = [f"{cab_}: {v}" for cab_, v in zip(otras, [v for v in vals if not v.startswith("$")]) if v and cab_]
+            if extra:
+                p["otros"] = extra[:4]
+            puestos.append(p)
+            resultados.append({"puesto": p["puesto"], "desde": p["desde"], "hasta": p["hasta"], "jugadores": []})
+        if resultados:
+            for c in equipo:
+                j = detalle_jugador(c)
+                if j:
+                    resultados[-1]["jugadores"].append(j["nombre"])
+    return puestos[:64], [r for r in resultados if r["jugadores"]][:64], total
+
+
+def detalle_fases(secciones):
+    """Subsecciones de «Results» (h3/h4) con sus rondas de bracket («Semifinals (Bo5)» → {"nombre","bo"}) y su tipo."""
+    import re
+    out, dentro, nivel_res = [], False, None
+    for nivel, ident, titulo, cuerpo in secciones:
+        if ident.lower() in ("results", "resultados"):
+            dentro, nivel_res = True, nivel
+            continue
+        if not dentro:
+            continue
+        if nivel <= nivel_res:
+            break
+        propio = cuerpo[:10] + re.split(r'<div class="mw-heading', cuerpo[10:], maxsplit=1)[0] if nivel < 4 else cuerpo
+        rondas, vistas = [], set()
+        for h in re.findall(r'class="brkts-header[^"]*"[^>]*>(.*?)</div>', propio, re.S):
+            t = _html_texto(h)
+            b = re.search(r"\(\s*Bo\s*(\d+)\s*\)", t)
+            nombre = re.sub(r"\(\s*Bo\s*\d+\s*\)", "", t).strip()
+            if nombre and nombre not in vistas:
+                vistas.add(nombre)
+                rondas.append({"nombre": nombre[:60], **({"bo": int(b.group(1))} if b else {})})
+        tipo = "grupos" if "grouptable" in propio else ("bracket" if "brkts-bracket" in propio else
+                                                         ("partidos" if "brkts-match" in propio else None))
+        f = {"nombre": titulo[:80], "nivel": nivel - nivel_res}
+        if tipo:
+            f["tipo"] = tipo
+        if rondas:
+            f["rondas"] = rondas[:20]
+        out.append(f)
+    return out[:30]
+
+
+def detalle_mapas(cuerpo):
+    """Mapas de «Map Pool»: textos de los enlaces de sus tablas (las cabeceras a veces son categorías: Open, Closed…)."""
+    import re
+    tablas = "".join(re.findall(r"<table.*?</table>", cuerpo, re.S))
+    return list(dict.fromkeys(t for t in (_html_texto(x) for x in re.findall(r"<a [^>]*>(.*?)</a>", tablas, re.S))
+                              if t and len(t) <= 40))[:40]
+
+
+def detalle_componer(html_txt, t, obtenido):
+    """HTML de action=parse de la página de un torneo → detalle (esquema en la cabecera)."""
+    sec = detalle_secciones(html_txt)
+    puestos, resultados, total = detalle_premios(detalle_seccion(sec, "prize_pool", "prizepool"))
+    d = {"v": 1, "url": t["url"], "nombre": t["nombre"], "tier": t.get("tier"), "inicio": t.get("inicio"), "fin": t.get("fin"),
+         "obtenido": obtenido, "estado_al_obtener": t.get("estado"),
+         "formato": detalle_lista(detalle_seccion(sec, "format")),
+         "calendario": detalle_calendario(detalle_seccion(sec, "schedule"), t.get("inicio")),
+         "mapas": detalle_mapas(detalle_seccion(sec, "map_pool")),
+         "premios": {"total_usd": total if total is not None else t.get("bolsa"), "puestos": puestos},
+         "participantes": detalle_participantes(detalle_seccion(sec, "participants")),
+         "fases": detalle_fases(sec),
+         "resultados": {"puestos": resultados}}
+    return d
+
+
+def detalle_candidatos(historico, hoy):
+    """Torneos con detalle: S y A (todos los del histórico) y B en curso o próximos. Orden de prioridad: en curso, próximos
+    (el que empieza antes primero), terminados (el más reciente primero); dentro, primero los que no son clasificatorias ni
+    showmatches."""
+    def clave(t):
+        est = {"en_curso": 0, "proximo": 1, "terminado": 2}[t["estado"]]
+        menor = 1 if t.get("tipo") in ("Qualifier", "Showmatch") else 0
+        fecha = t["inicio"] if est < 2 else t["fin"]
+        orden = date.fromisoformat(fecha).toordinal()
+        return (est, menor, orden if est < 2 else -orden, {"S": 0, "A": 1}.get(t.get("tier"), 2))
+    c = [t for t in historico if t.get("url") and t.get("inicio") and
+         (t.get("tier") in ("S", "A") or (t.get("tier") == "B" and t.get("estado") in ("en_curso", "proximo")))]
+    return sorted(c, key=clave)
+
+
+def detalle_toca(t, previo, ahora_dt):
+    """¿Hay que volver a pedir la página? previo = detalle guardado o None."""
+    if not previo or not previo.get("obtenido"):
+        return True
+    try:
+        edad_h = (ahora_dt - datetime.fromisoformat(previo["obtenido"])).total_seconds() / 3600
+    except ValueError:
+        return True
+    hoy = ahora_dt.date()
+    if t["estado"] == "en_curso":
+        return edad_h >= 20
+    if t["estado"] == "proximo":
+        cerca = date.fromisoformat(t["inicio"]) - hoy <= timedelta(days=2)
+        return edad_h >= (20 if cerca else 72)
+    # terminado: una vez más tras acabar (con los puestos finales) y ya nunca
+    return previo.get("estado_al_obtener") != "terminado" and hoy >= date.fromisoformat(t["fin"]) + timedelta(days=1)
+
+
+def torneos_detalle():
+    """torneos/<slug>.json de los torneos importantes de torneos_historico.json (ver el bloque de arriba). Nunca lanza;
+    lo que falla se queda como estaba."""
+    import time as _t
+    hist = leer_json(TORNEOS_HISTORICO, None)
+    if not hist or not hist.get("torneos"):
+        log("detalle: sin torneos_historico.json")
+        return
+    ahora_dt = datetime.now(timezone.utc)
+    candidatos = detalle_candidatos(hist["torneos"], ahora_dt.date())
+    lq = Liquipedia()
+    t0, hechos, fallos = _t.monotonic(), 0, 0
+    try:
+        for t in candidatos:
+            ruta = os.path.join(TORNEOS_DETALLE_DIR, detalle_slug(t["url"]) + ".json")
+            previo = leer_json(ruta, None)
+            if not detalle_toca(t, previo, ahora_dt):
+                continue
+            if hechos + fallos >= TORNEOS_DETALLE_POR_NOCHE or _t.monotonic() - t0 > TORNEOS_DETALLE_TIEMPO_S - LQ_ESPERA_PARSE_S:
+                break
+            try:
+                d = lq.get({"action": "parse", "page": detalle_titulo(t["url"]), "prop": "text", "redirects": "1",
+                            "disablelimitreport": "1", "disableeditsection": "1"}, intentos=1)
+                html_txt = (d.get("parse") or {}).get("text") or ""
+                if not html_txt:
+                    raise RuntimeError("página vacía o inexistente")
+                det = detalle_componer(html_txt, t, ahora())
+                if not (det["participantes"] or det["premios"]["puestos"] or det["formato"]) and previo:
+                    raise RuntimeError("sin nada legible: se conserva el anterior")
+                escribir_json(ruta, det)
+                hechos += 1
+            except Exception as ex:
+                fallos += 1
+                log(f"detalle: {t['url']}: {ex!r}")
+    finally:
+        lq.cerrar()
+    # fuera los de torneos que ya no están en el histórico
+    validos = {detalle_slug(t["url"]) + ".json" for t in hist["torneos"] if t.get("url")}
+    quedan = 0
+    if os.path.isdir(TORNEOS_DETALLE_DIR):
+        for a in os.listdir(TORNEOS_DETALLE_DIR):
+            if a.endswith(".json") and a not in validos:
+                os.remove(os.path.join(TORNEOS_DETALLE_DIR, a))
+            else:
+                quedan += 1
+    pend = sum(1 for t in candidatos if detalle_toca(t, leer_json(os.path.join(TORNEOS_DETALLE_DIR, detalle_slug(t["url"]) + ".json"), None), ahora_dt))
+    log(f"detalle: {len(candidatos)} candidatos, {hechos} páginas nuevas o renovadas, {fallos} fallos, {pend} pendientes "
+        f"para otra noche; {quedan} archivos en {TORNEOS_DETALLE_DIR}/; {_t.monotonic() - t0:.0f} s")
+    if fallos:
+        print(f"::warning title=detalle::{fallos} páginas de torneo no se pudieron leer (se conserva lo anterior)", flush=True)
+
+
+def detalle():
+    """Paso «detalle» del build: páginas de los torneos importantes y la marca «detalle» en torneos.json/torneos_historico.json."""
+    torneos_detalle()
+    torneos_marcar_detalle()
+
+
+def torneos_marcar_detalle():
+    """Añade «detalle»: "torneos/<slug>.json" a los torneos de torneos.json y torneos_historico.json que lo tengan."""
+    for ruta in ("torneos.json", TORNEOS_HISTORICO):
+        d = leer_json(ruta, None)
+        if not d:
+            continue
+        cambia = False
+        for t in d.get("torneos", []):
+            arch = f"{TORNEOS_DETALLE_DIR}/{detalle_slug(t['url'])}.json" if t.get("url") else None
+            if arch and os.path.exists(arch):
+                cambia |= t.get("detalle") != arch
+                t["detalle"] = arch
+            elif t.pop("detalle", None):
+                cambia = True
+        if cambia:
+            escribir_json(ruta, d)
+
+
+def detalle_probar():
+    """Prueba sin red: HTML real recortado de 3 páginas (action=parse) con los resultados esperados."""
+    m = leer_json(TORNEOS_DETALLE_MUESTRA)
+    fallos = []
+    for caso in m["casos"]:
+        d = detalle_componer(caso["html"], caso["torneo"], "2026-10-19T05:00:00+00:00")
+        for k, esp in caso["esperado"].items():
+            if k == "n_participantes":
+                if len(d["participantes"]) != esp:
+                    fallos.append(f"{caso['torneo']['nombre']}: {len(d['participantes'])} participantes, se esperaban {esp}")
+                continue
+            v = d
+            for p in k.split("."):
+                v = v[int(p)] if isinstance(v, list) and p.isdigit() else (v.get(p) if isinstance(v, dict) else None)
+            if v != esp:
+                fallos.append(f"{caso['torneo']['nombre']}: {k} = {json.dumps(v, ensure_ascii=False)}, se esperaba {json.dumps(esp, ensure_ascii=False)}")
+        if any("jugadores" in p for p in d["premios"]["puestos"]):
+            fallos.append(f"{caso['torneo']['nombre']}: jugadores dentro de premios (spoiler)")
+        log(f"  {caso['torneo']['nombre']}: {len(d['participantes'])} participantes, {len(d['premios']['puestos'])} puestos con "
+            f"premio, {len(d['resultados']['puestos'])} con resultado, {len(d['fases'])} fases, {len(d['calendario'])} líneas de calendario")
+    for txt, esp in {"May 7th - 10th, starting at 15:00": ("2026-05-07", "2026-05-10"), "November 25: WB Ro8": ("2026-11-25", None),
+                     "August 10th - September 16th: Round Robin": ("2026-08-10", "2026-09-16"), "Group Stage:": (None, None),
+                     "Feb 30": (None, None)}.items():
+        if detalle_fechas(txt, 2026, 5) != esp:
+            fallos.append(f"fechas {txt!r} → {detalle_fechas(txt, 2026, 5)}, se esperaba {esp}")
+    if detalle_fechas("January 3: Final", 2026, 11) != ("2027-01-03", None):
+        fallos.append(f"cambio de año: {detalle_fechas('January 3: Final', 2026, 11)}")
+    if detalle_slug("https://liquipedia.net/ageofempires/Svenska_TG-ligan/2026/H%C3%B6st") != "svenska-tg-ligan-2026-host":
+        fallos.append(f"slug: {detalle_slug('https://liquipedia.net/ageofempires/Svenska_TG-ligan/2026/H%C3%B6st')}")
+    ahora_dt = datetime(2026, 10, 19, 5, 0, tzinfo=timezone.utc)
+    base = {"url": "u", "inicio": "2026-10-01", "fin": "2026-10-30", "estado": "en_curso"}
+    for t, previo, esp in ((base, None, True), (base, {"obtenido": "2026-10-18T05:00:00+00:00"}, True),
+                           (base, {"obtenido": "2026-10-19T01:00:00+00:00"}, False),
+                           (dict(base, estado="proximo", inicio="2026-11-20"), {"obtenido": "2026-10-17T05:00:00+00:00"}, False),
+                           (dict(base, estado="proximo", inicio="2026-10-20"), {"obtenido": "2026-10-18T05:00:00+00:00"}, True),
+                           (dict(base, estado="terminado", fin="2026-10-17"), {"obtenido": "2026-10-17T05:00:00+00:00", "estado_al_obtener": "en_curso"}, True),
+                           (dict(base, estado="terminado", fin="2026-10-17"), {"obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "terminado"}, False)):
+        if detalle_toca(t, previo, ahora_dt) != esp:
+            fallos.append(f"toca {t['estado']} {previo} → {not esp}")
+    hist = [{"url": "a", "tier": "S", "estado": "terminado", "inicio": "2026-01-01", "fin": "2026-01-05"},
+            {"url": "b", "tier": "B", "estado": "terminado", "inicio": "2026-09-01", "fin": "2026-09-05"},
+            {"url": "c", "tier": "B", "estado": "en_curso", "inicio": "2026-10-01", "fin": "2026-10-30"},
+            {"url": "d", "tier": "A", "estado": "proximo", "inicio": "2026-12-01", "fin": "2026-12-05", "tipo": "Qualifier"},
+            {"url": "e", "tier": "S", "estado": "proximo", "inicio": "2026-12-10", "fin": "2026-12-15"},
+            {"url": "f", "tier": "C", "estado": "en_curso", "inicio": "2026-10-01", "fin": "2026-10-30"}]
+    orden = [t["url"] for t in detalle_candidatos(hist, ahora_dt.date())]
+    if orden != ["c", "e", "d", "a"]:
+        fallos.append(f"candidatos {orden}, se esperaba ['c', 'e', 'd', 'a']")
+    for f in fallos:
+        log("FALLO", f)
+    log(f"detalle --probar: {len(m['casos'])} páginas, {len(fallos)} fallos")
+    return not fallos
+
+
 # ----------------------------------------------------------------------------- noticias (ageofempires.com)
 # Fuente: la API REST pública de WordPress de https://www.ageofempires.com (la misma que anuncia la web con
 # <link rel="https://api.w.org/">). Se prefiere al RSS (/news/feed/) porque el RSS solo trae 5 entradas de todos los juegos,
@@ -3055,13 +3507,13 @@ def streamers_probar():
 
 if __name__ == "__main__":
     if "--probar" in sys.argv:          # sin red: torneos, noticias y partidos (o solo los nombrados: --probar noticias)
-        pruebas = {"torneos": torneos_probar, "logos": logos_probar, "noticias": noticias_probar, "partidos": partidos_probar,
+        pruebas = {"torneos": torneos_probar, "logos": logos_probar, "detalle": detalle_probar, "noticias": noticias_probar, "partidos": partidos_probar,
                    "streamers": streamers_probar}
         pedidas = [a for a in sys.argv[1:] if a in pruebas] or list(pruebas)
         resultados = [pruebas[a]() for a in pedidas]
         sys.exit(0 if all(resultados) else 1)
-    pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("noticias", noticias),
-             ("partidos", partidos), ("streamers", streamers), ("perfiles", perfiles))
+    pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("detalle", detalle),
+             ("noticias", noticias), ("partidos", partidos), ("streamers", streamers), ("perfiles", perfiles))
     pedidos = [a for a in sys.argv[1:] if not a.startswith("-")]     # sin argumentos, todos (el build nocturno)
     ok = True
     for nombre, fn in pasos:
