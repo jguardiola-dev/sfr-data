@@ -23,7 +23,9 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                                   "inicio":"AAAA-MM-DD", "fin":"AAAA-MM-DD", "estado":"en_curso|proximo|terminado",
                                   "bolsa":número|null, "moneda":"USD"|null, ["bolsa_local", "moneda_local"],
                                   "formato":"1v1|2v2|3v3|4v4|mixto|FFA|equipos|null", "formato_texto", "organizador", "lugar",
-                                  "participantes", "url", ["ganador", "finalista"]}]}
+                                  "participantes", "url", ["enlaces"], ["ganador", "finalista"]}]}
+                     «enlaces» (opcional, del infobox): {"web","discord","twitch","youtube","x","bracket"}, cada uno solo si
+                     Liquipedia lo da y es una URL https válida (los identificadores sueltos se completan: twitch.tv/…, x.com/…).
                      ganador/finalista solo si Liquipedia los da (la app los esconde: sin spoilers); varios jugadores se unen
                      con « & ». Orden: en_curso (por fin), proximo (por inicio), terminado (el más reciente primero).
                      Si Liquipedia falla o no sale ningún torneo, se conserva el torneos.json anterior (rama data).
@@ -35,8 +37,25 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      Como mucho NOTICIAS_MAX, la más reciente primero. «imagen» = URL de la miniatura 288x162 del CDN de la web.
                      Si la web falla o no sale ninguna noticia, se conserva el noticias.json anterior (rama data).
                      Prueba sin red: python build_data.py --probar [noticias]. Solo este paso: python build_data.py noticias
+- partidos.json      partidos de torneos de AoE II según el «match ticker» de Liquipedia: terminados de las últimas 24 h, en curso
+                     y próximos 7 días. Ver partidos(). Se regenera también cada 2 h (.github/workflows/partidos.yml). Esquema (v1):
+                     {"v":1, "generado":ISO, "ventana":{"desde","hasta"} (ISO UTC),
+                      "fuente":{"nombre":"Liquipedia","url","licencia":"CC BY-SA 3.0","licencia_url","atribucion","generado"},
+                      "partidos":[{"torneo", "torneo_url", ["fase"], "inicio":"AAAA-MM-DDTHH:MM:SSZ" (UTC),
+                                   "estado":"proximo|en_curso|terminado", "j1", "j2", ["j1_pais", "j2_pais"] (ISO2, solo
+                                   jugador individual), ["formato":"Bo3"…], ["stream"] (https://www.twitch.tv/… o canal de
+                                   YouTube /live; solo si no ha terminado), ["resultado":"2-1"|"W-L"…], ["ganador"]}]}
+                     torneo_url = la misma forma que «url» en torneos.json (para cruzarlos). j1/j2: jugador, equipo (nombre
+                     completo) o «A & B»; «TBD» si falta uno (si faltan los dos, el partido no sale). resultado y ganador
+                     van SOLO en esos campos (la app los esconde: sin spoilers); en empate no hay ganador. en_curso = sin
+                     terminar y empezado hace <= PARTIDOS_EN_CURSO_MAX_H h (más viejo = nadie lo cerró en la wiki: fuera).
+                     Orden: en_curso y proximo por inicio, terminado el más reciente primero.
+                     Si Liquipedia falla, el ticker viene vacío o con error, o nada cae en la ventana y el anterior tenía
+                     partidos, se conserva el partidos.json anterior (rama data) con aviso ::warning::.
+                     Prueba sin red: python build_data.py --probar [partidos]. Solo este paso: python build_data.py partidos
 Fuente: volcados diarios de aoe2companion (https://www.aoe2companion.com/more/api).
-Torneos: Liquipedia (https://liquipedia.net/ageofempires/), CC BY-SA 3.0; torneos.json se publica con la misma licencia.
+Torneos y partidos: Liquipedia (https://liquipedia.net/ageofempires/), CC BY-SA 3.0; torneos.json y partidos.json se
+publican con la misma licencia.
 Noticias: titulares y enlaces de https://www.ageofempires.com/news/ (World's Edge / Microsoft); los artículos no se copian.
 Créditos: aoe2companion (Dennis Keil) · Liquipedia · Age of Empires II © Microsoft.
 """
@@ -1283,19 +1302,22 @@ TIPOS_TIER = {"qualifier": "Qualifier", "weekly": "Weekly", "monthly": "Monthly"
 class Liquipedia:
     """Cliente mínimo de la API MediaWiki de Liquipedia: conexión HTTPS reutilizada, gzip y esperas entre peticiones."""
 
+    # las esperas son de la clase, no de cada cliente: torneos() y partidos() en la misma ejecución comparten el ritmo
+    # (el action=parse de partidos espera 30 s desde el de torneos)
+    _ultima = None
+    _ultima_parse = None
+
     def __init__(self):
         import http.client
         self._hc = http.client
         self.con = None
-        self.ultima = 0.0
-        self.ultima_parse = 0.0
         self.peticiones = 0
 
-    def _esperar(self, parse):
-        if not self.peticiones:
-            return
+    @classmethod
+    def _esperar(cls, parse):
         t = time.monotonic()
-        espera = max(self.ultima + LQ_ESPERA_S - t, (self.ultima_parse + LQ_ESPERA_PARSE_S - t) if parse and self.ultima_parse else 0, 0)
+        espera = max((cls._ultima + LQ_ESPERA_S - t) if cls._ultima is not None else 0,
+                     (cls._ultima_parse + LQ_ESPERA_PARSE_S - t) if parse and cls._ultima_parse is not None else 0, 0)
         if espera > 0:
             time.sleep(espera)
 
@@ -1305,9 +1327,9 @@ class Liquipedia:
         ruta = LQ_API + "?" + urllib.parse.urlencode(dict(params, format="json", formatversion="2"))
         for i in range(intentos):
             self._esperar(parse)
-            self.ultima = time.monotonic()
+            Liquipedia._ultima = time.monotonic()
             if parse:
-                self.ultima_parse = self.ultima
+                Liquipedia._ultima_parse = Liquipedia._ultima
             self.peticiones += 1
             try:
                 if self.con is None:
@@ -1327,7 +1349,7 @@ class Liquipedia:
                     raise RuntimeError(f"API: {err.get('code')}: {err.get('info')}")
                 return d
             except Exception as ex:
-                log(f"torneos: petición {params.get('action')} {i + 1}/{intentos}: {ex!r}")
+                log(f"liquipedia: petición {params.get('action')} {i + 1}/{intentos}: {ex!r}")
                 try:
                     self.con.close()
                 except Exception:
@@ -1586,6 +1608,53 @@ def torneos_enriquecer(t, ib):
     local, moneda = torneos_dinero(wiki_limpiar(ib.get("prizepool", ""))), wiki_limpiar(ib.get("localcurrency", "")).upper()
     if local and moneda and moneda != "USD":
         t["bolsa_local"], t["moneda_local"] = local, moneda
+    enlaces = torneos_enlaces(ib)
+    if enlaces:
+        t["enlaces"] = enlaces
+
+
+# parámetro del infobox → (clave en «enlaces», prefijo para un identificador suelto; None = solo URL completa). Prefijos
+# como los de Module:Links de Liquipedia (twitter → x.com). Solo el primero de cada uno (twitch, no twitch2).
+TORNEOS_ENLACES = (("website", "web", None), ("web", "web", None), ("discord", "discord", "https://discord.gg/"),
+                   ("twitch", "twitch", "https://www.twitch.tv/"), ("youtube", "youtube", "https://www.youtube.com/"),
+                   ("twitter", "x", "https://x.com/"), ("x", "x", "https://x.com/"), ("bracket", "bracket", None))
+
+
+def url_https_ok(url):
+    """URL https con host y sin espacios ni comillas/ángulos (va tal cual a la app)."""
+    import re, urllib.parse
+    if not url or re.search(r"[\s<>\"'\\]", url):
+        return False
+    try:
+        u = urllib.parse.urlsplit(url)
+        return (u.scheme == "https" and u.username is None
+                and re.fullmatch(r"[a-z0-9-]+(?:\.[a-z0-9-]+)+", u.hostname or "") is not None)
+    except ValueError:
+        return False
+
+
+def torneos_enlaces(ib):
+    """Enlaces del torneo desde el infobox: {"web","discord","twitch","youtube","x","bracket"} (solo los que haya, solo
+    https válidas). Un identificador suelto (twitch=beingesports, youtube=@x, discord=AbC123) se completa con el prefijo."""
+    import re
+    out = {}
+    for param, clave, prefijo in TORNEOS_ENLACES:
+        if clave in out:
+            continue
+        v = re.sub(r"<!--.*?-->", "", ib.get(param) or "", flags=re.S).strip()
+        m = re.fullmatch(r"\[(\S+)(?:\s[^\]]*)?\]", v)        # [https://… texto] → la URL
+        v = m.group(1) if m else v
+        if not v:
+            continue
+        if re.match(r"^https?://", v, re.I):
+            url = v
+        elif prefijo and re.fullmatch(r"@?[A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.@\-]+)*", v):
+            url = prefijo + v
+        else:
+            continue
+        if url_https_ok(url):
+            out[clave] = url
+    return out
 
 
 def torneos_estado(t, hoy):
@@ -1631,7 +1700,7 @@ def torneos_componer(filas, infoboxes, hoy, previo=None):
         if ib:
             torneos_enriquecer(f, ib)
         elif f.get("url") in previos:
-            for k in ("organizador", "formato", "formato_texto", "bolsa_local", "moneda_local"):
+            for k in ("organizador", "formato", "formato_texto", "bolsa_local", "moneda_local", "enlaces"):
                 if previos[f["url"]].get(k) is not None and f.get(k) is None:
                     f[k] = previos[f["url"]][k]
         f["fin"] = f.get("fin") or f["inicio"]
@@ -1641,6 +1710,8 @@ def torneos_componer(filas, infoboxes, hoy, previo=None):
         if f.get("bolsa_local") is not None:
             t.update(bolsa_local=f["bolsa_local"], moneda_local=f["moneda_local"])
         t.update({k: f.get(k) for k in ("formato", "formato_texto", "organizador", "lugar", "participantes", "url")})
+        if f.get("enlaces"):
+            t["enlaces"] = f["enlaces"]
         for k in ("ganador", "finalista"):
             if f.get(k):
                 t[k] = f[k]
@@ -1737,12 +1808,21 @@ def torneos_probar():
         for k, v in esperado.items():
             if t.get(k) != v:
                 fallos.append(f"{esperado['nombre']}: {k} = {t.get(k)!r}, se esperaba {v!r}")
-        for k in ("ganador", "finalista"):
+        for k in ("ganador", "finalista", "enlaces"):
             if k not in esperado and k in t:
                 fallos.append(f"{esperado['nombre']}: {k} no debería estar")
     for nombre in m.get("fuera", []):
         if any(x["nombre"] == nombre for x in lista):
             fallos.append(f"{nombre} no debería salir")
+    for ib, esp in (({"website": "http://inseguro.com", "twitch": "a b", "discord": "javascript:alert(1)", "twitter": "@x_y"},
+                     {"x": "https://x.com/@x_y"}),
+                    ({"web": "[https://ejemplo.org/torneo Web]", "youtube": "channel/UC1234567890abcdefghijkl", "twitch2": "otro",
+                      "bracket": "https://challonge.com/abc", "x": "https://x.com/org"},
+                     {"web": "https://ejemplo.org/torneo", "youtube": "https://www.youtube.com/channel/UC1234567890abcdefghijkl",
+                      "bracket": "https://challonge.com/abc", "x": "https://x.com/org"}),
+                    ({"website": "https://<script>.com", "discord": ""}, {})):
+        if torneos_enlaces(ib) != esp:
+            fallos.append(f"enlaces {ib} → {torneos_enlaces(ib)}, se esperaba {esp}")
     casos = {"Oct 17, 2026": ("2026-10-17", "2026-10-17"), "Nov 30 – Dec 20, 2026": ("2026-11-30", "2026-12-20"),
              "Oct 05–31, 2026": ("2026-10-05", "2026-10-31"), "Nov 28, 2025 – Jan 01, 2026": ("2025-11-28", "2026-01-01"),
              "Dec 28 – Jan 03, 2027": ("2026-12-28", "2027-01-03"), "TBA": (None, None), "Oct 2026": (None, None), "": (None, None)}
@@ -1994,14 +2074,382 @@ def noticias_probar():
     return not fallos
 
 
+# ----------------------------------------------------------------------------- partidos (Liquipedia)
+# Próximos partidos, en curso y resultados recientes de AoE II, con las mismas normas de la API de Liquipedia que torneos
+# (cliente Liquipedia de arriba). Fuente: el «match ticker» de la wiki, el mismo módulo que pinta la página
+# «Liquipedia:Upcoming and ongoing matches» ({{#invoke:Lua|invoke|module=MatchTicker/Custom|fn=mainPage|…}}, que consulta
+# LiquipediaDB en el servidor). En vez de pedir la página (todos los juegos de AoE, límite 50) se manda un solo action=parse
+# con dos llamadas al módulo filtradas por game=Age of Empires II: type=upcoming (sin terminar: en curso y próximos) y
+# type=recent (terminados, del más reciente al más antiguo). 1 petición por ejecución; ni HTML fuera de la API ni
+# LiquipediaDB directa. El HTML del ticker trae fecha (timestamp UNIX), rivales con bandera, marcador, Bo-N, torneo con su
+# sección y, a veces, botón de stream (Special:Stream/twitch/<canal>). Contenido CC BY-SA 3.0.
+PARTIDOS_LIMITE_PROXIMOS = 80    # partidos sin terminar que devuelve el ticker (hoy ≈15 de AoE II; aviso si se llena)
+PARTIDOS_LIMITE_RECIENTES = 100  # terminados (ordenados del más reciente): hacen falta los de 24 h (≈40 un domingo)
+PARTIDOS_HORAS_PASADO = 24       # terminados de las últimas 24 h
+PARTIDOS_DIAS_FUTURO = 7         # próximos 7 días
+PARTIDOS_EN_CURSO_MAX_H = 12     # sin terminar y empezado hace más de 12 h = nadie lo cerró en la wiki: fuera
+PARTIDOS_MUESTRA = os.path.join("pruebas", "partidos_muestra.json")
+PARTIDOS_GAME = "Age of Empires II"
+PARTIDOS_FASES_VACIAS = {"results", "resultados"}    # ancla genérica de la página: no es una fase
+
+
+def partidos_wikitexto():
+    def ticker(clase, tipo, limite):
+        return (f'<div class="{clase}">{{{{#invoke:Lua|invoke|module=MatchTicker/Custom|fn=mainPage|type={tipo}'
+                f'|limit={limite}|filterbuttons-game={PARTIDOS_GAME}}}}}</div>')
+    return "\n".join((ticker("sfr-proximos", "upcoming", PARTIDOS_LIMITE_PROXIMOS),
+                      ticker("sfr-recientes", "recent", PARTIDOS_LIMITE_RECIENTES)))
+
+
+def partidos_pais(src):
+    """Bandera de Liquipedia → ISO 3166-1 alfa-2 en mayúsculas («/…/Se_hd.png» → "SE"; «Uk_hd.png» → "GB")."""
+    import re
+    m = re.search(r"/([A-Za-z]{2})_hd\.png", src or "")
+    if not m:
+        return None
+    c = m.group(1).upper()
+    return {"UK": "GB"}.get(c, c)
+
+
+def partidos_stream(href):
+    """Botón de stream del ticker → URL directa. Twitch: twitch.tv/<canal>. YouTube solo si es un id de canal (UC…);
+    el resto (vídeos, otras plataformas) no se publica: resolverlo exigiría abrir Special:Stream, que es HTML."""
+    import re, urllib.parse
+    m = re.search(r"/Special:Stream/([a-z]+)/([^?#]+)", href or "")
+    if not m:
+        return None
+    plataforma, canal = m.group(1), urllib.parse.unquote(m.group(2))
+    if plataforma == "twitch" and re.fullmatch(r"[A-Za-z0-9_]{2,40}", canal):
+        return "https://www.twitch.tv/" + canal.lower()
+    if plataforma == "youtube" and re.fullmatch(r"UC[A-Za-z0-9_-]{22}", canal):
+        return f"https://www.youtube.com/channel/{canal}/live"
+    return None
+
+
+def partidos_html(html_txt):
+    """HTML de action=parse → {"proximos": [bloques], "recientes": [bloques], "errores": [sección]} (sin filtrar).
+    Bloque: {"ts", "terminado", "rivales":[{"nombres":[…], "paises":[…], "equipo":bool, "gana":bool}], "marcador":[…],
+             "bo", "torneo_txt", "href", "streams":[…]}."""
+    from html.parser import HTMLParser
+    VACIAS = {"img", "br", "hr", "input", "meta", "link", "wbr", "source"}
+
+    class P(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.secciones = {"proximos": [], "recientes": []}
+            self.errores = []
+            self.seccion = None
+            self.pila = []        # [(tag, papel)]
+            self.m = None         # partido en curso
+            self.txt = None       # texto que se está recogiendo: (papel, [trozos])
+            self.titulo = None    # title del enlace dentro del nombre
+
+        def handle_starttag(self, tag, attrs):
+            a = {k: (v or "") for k, v in attrs}
+            cls = a.get("class", "").split()
+            papel = None
+            if tag == "div" and "sfr-proximos" in cls:
+                self.seccion, papel = "proximos", "seccion"
+            elif tag == "div" and "sfr-recientes" in cls:
+                self.seccion, papel = "recientes", "seccion"
+            elif self.seccion and ("error" in cls or "scribunto-error" in cls):
+                if self.seccion not in self.errores:
+                    self.errores.append(self.seccion)
+            elif self.seccion and tag == "div" and "match-info" in cls:
+                self.m = {"ts": None, "terminado": self.seccion == "recientes", "rivales": [], "marcador": [], "bo": None,
+                          "torneo_txt": None, "href": None, "streams": []}
+                self.secciones[self.seccion].append(self.m)
+            elif self.m is not None:
+                if tag == "span" and "timer-object" in cls and a.get("data-timestamp", "").isdigit():
+                    self.m["ts"] = int(a["data-timestamp"])
+                    if a.get("data-finished"):
+                        self.m["terminado"] = True
+                elif tag == "div" and "match-info-header-opponent" in cls:
+                    self.m["rivales"].append({"nombres": [], "paises": [], "equipo": False,
+                                              "gana": "match-info-header-winner" in cls})
+                elif tag == "div" and "block-team" in cls and self.m["rivales"]:
+                    self.m["rivales"][-1]["equipo"] = True
+                elif tag == "div" and "block-player" in cls and self.m["rivales"]:
+                    self.m["rivales"][-1]["paises"].append(None)
+                    self.m["rivales"][-1]["nombres"].append(None)
+                elif tag == "img" and self.pila and self.pila[-1][1] == "bandera" and self.m["rivales"]:
+                    r = self.m["rivales"][-1]
+                    if r["paises"]:
+                        r["paises"][-1] = partidos_pais(a.get("src"))
+                elif tag == "span" and "flag" in cls:
+                    papel = "bandera"
+                elif tag == "span" and "name" in cls and self.m["rivales"]:
+                    papel = "nombre"
+                elif tag == "span" and "match-info-header-scoreholder-score" in cls:
+                    papel = "marcador"
+                elif tag == "span" and "match-info-header-scoreholder-lower" in cls:
+                    papel = "bo"
+                elif tag == "span" and "match-info-tournament-name" in cls:
+                    papel = "torneo"
+                elif tag == "a" and any(p == "torneo" for _, p in self.pila) and not self.m["href"]:
+                    self.m["href"] = a.get("href")
+                elif tag == "a" and "/Special:Stream/" in a.get("href", ""):
+                    self.m["streams"].append(a["href"])
+                elif tag == "a" and self.txt and self.txt[0] == "nombre" and a.get("title"):
+                    self.titulo = a["title"].replace(" (page does not exist)", "").strip()     # equipos: nombre completo («Team Ceepki», «Canada») en vez del corto
+                if papel in ("nombre", "marcador", "bo", "torneo"):
+                    self.txt, self.titulo = (papel, []), None
+            if tag not in VACIAS:
+                self.pila.append((tag, papel))
+
+        def handle_startendtag(self, tag, attrs):
+            self.handle_starttag(tag, attrs)
+            if tag not in VACIAS:
+                self.handle_endtag(tag)
+
+        def handle_endtag(self, tag):
+            if tag in VACIAS or not any(t == tag for t, _ in self.pila):
+                return
+            while self.pila:
+                t, papel = self.pila.pop()
+                self._cerrar(papel)
+                if t == tag:
+                    break
+
+        def _cerrar(self, papel):
+            if papel == "seccion":
+                self.seccion, self.m = None, None
+                return
+            if not papel or not self.txt or self.txt[0] != papel or self.m is None:
+                return
+            texto = " ".join("".join(self.txt[1]).split())
+            self.txt = None
+            if papel == "nombre":
+                r = self.m["rivales"][-1]
+                if r["nombres"] and r["nombres"][-1] is None:
+                    r["nombres"][-1] = texto
+                else:                       # equipo (block-team): un solo nombre, sin país
+                    r["nombres"].append(self.titulo if r["equipo"] and self.titulo else texto)
+                    r["paises"].append(None)
+            elif papel == "marcador":
+                self.m["marcador"].append(texto)
+            elif papel == "bo":
+                self.m["bo"] = texto
+            elif papel == "torneo":
+                self.m["torneo_txt"] = texto
+
+        def handle_data(self, data):
+            if self.txt is not None:
+                self.txt[1].append(data)
+
+    p = P()
+    p.feed(html_txt or "")
+    p.close()
+    return {"proximos": p.secciones["proximos"], "recientes": p.secciones["recientes"], "errores": p.errores}
+
+
+def partidos_iso(ts):
+    return datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def partidos_lado(r):
+    """Rival del ticker → (texto, país ISO2 | None). Varios jugadores (2v2 sin equipo) se unen con « & »."""
+    nombres = [n for n in r["nombres"] if n]
+    if not nombres:
+        return "TBD", None
+    pais = r["paises"][0] if len(nombres) == 1 and not r["equipo"] and r["paises"] else None
+    return " & ".join(nombres), pais
+
+
+def partidos_componer(secciones, ahora_dt):
+    """Bloques del ticker → lista final en la ventana (terminados 24 h, en curso, próximos 7 días), sin duplicados y ordenada:
+    en_curso (por inicio), proximo (por inicio), terminado (el más reciente primero)."""
+    import re, urllib.parse
+    t_ahora = ahora_dt.timestamp()
+    desde = t_ahora - PARTIDOS_HORAS_PASADO * 3600
+    hasta = t_ahora + PARTIDOS_DIAS_FUTURO * 86400
+    out, vistos = [], set()
+    for b in secciones.get("proximos", []) + secciones.get("recientes", []):
+        try:
+            if b.get("ts") is None or len(b.get("rivales") or []) != 2 or not b.get("href"):
+                continue
+            ts = b["ts"]
+            if b["terminado"]:
+                if not desde <= ts <= t_ahora + 3600:
+                    continue
+                estado = "terminado"
+            elif ts <= t_ahora:
+                if ts < t_ahora - PARTIDOS_EN_CURSO_MAX_H * 3600:
+                    continue
+                estado = "en_curso"
+            elif ts <= hasta:
+                estado = "proximo"
+            else:
+                continue
+            (j1, p1), (j2, p2) = partidos_lado(b["rivales"][0]), partidos_lado(b["rivales"][1])
+            if j1 == "TBD" and j2 == "TBD":
+                continue
+            ruta, _, ancla = b["href"].partition("#")
+            if not ruta.startswith("/ageofempires/") or "redlink=1" in ruta or "action=edit" in ruta:
+                continue
+            fase = " ".join(urllib.parse.unquote(ancla).replace("_", " ").split()) or None
+            if fase and fase.lower() in PARTIDOS_FASES_VACIAS:
+                fase = None
+            texto = b.get("torneo_txt") or urllib.parse.unquote(ruta.split("/ageofempires/", 1)[1]).replace("_", " ")
+            torneo = texto[:-len(" - " + fase)] if fase and texto.endswith(" - " + fase) else texto
+            p = {"torneo": torneo, "torneo_url": LQ_BASE + ruta}
+            if fase:
+                p["fase"] = fase
+            p.update(inicio=partidos_iso(ts), estado=estado, j1=j1, j2=j2)
+            if p1:
+                p["j1_pais"] = p1
+            if p2:
+                p["j2_pais"] = p2
+            bo = re.search(r"\bBo\s*(\d{1,2})\b", b.get("bo") or "", re.I)
+            if bo:
+                p["formato"] = f"Bo{int(bo.group(1))}"
+            stream = next((s for s in map(partidos_stream, b.get("streams") or []) if s), None)
+            if stream and estado != "terminado":
+                p["stream"] = stream
+            marcador = b.get("marcador") or []
+            if estado != "proximo" and len(marcador) == 2 and all(re.fullmatch(r"\d{1,2}|W|L|FF|DQ|D", x) for x in marcador):
+                p["resultado"] = f"{marcador[0]}-{marcador[1]}"
+            ganan = [i for i, r in enumerate(b["rivales"]) if r.get("gana")]
+            if estado == "terminado" and len(ganan) == 1:        # empate o sin dato: sin ganador
+                p["ganador"] = (j1, j2)[ganan[0]]
+            clave = (p["torneo_url"], p["inicio"], j1, j2)
+            if clave in vistos:
+                continue
+            vistos.add(clave)
+            out.append(p)
+        except Exception as ex:
+            log(f"partidos: bloque ilegible: {ex!r}")
+    orden = {"en_curso": 0, "proximo": 1}
+    vivos = sorted((p for p in out if p["estado"] != "terminado"),
+                   key=lambda p: (orden[p["estado"]], p["inicio"], p["torneo"].lower()))
+    term = sorted((p for p in out if p["estado"] == "terminado"), key=lambda p: p["inicio"], reverse=True)
+    return vivos + term
+
+
+def partidos_salida(lista, ahora_dt):
+    g = ahora()
+    return {"v": 1, "generado": g,
+            "ventana": {"desde": partidos_iso(ahora_dt.timestamp() - PARTIDOS_HORAS_PASADO * 3600),
+                        "hasta": partidos_iso(ahora_dt.timestamp() + PARTIDOS_DIAS_FUTURO * 86400)},
+            "fuente": {"nombre": "Liquipedia", "url": "https://liquipedia.net/ageofempires/Liquipedia:Upcoming_and_ongoing_matches",
+                       "licencia": "CC BY-SA 3.0", "licencia_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+                       "atribucion": "Partidos de Liquipedia (liquipedia.net/ageofempires), licencia CC BY-SA 3.0. "
+                                     "Este archivo se distribuye con la misma licencia.",
+                       "generado": g},
+            "partidos": lista}
+
+
+def partidos():
+    """partidos.json desde el ticker de Liquipedia (esquema en la cabecera, normas arriba). Si la petición falla, alguna
+    sección viene con error de Lua o el ticker no trae ningún partido, no se escribe: se queda el anterior (rama data) con
+    aviso ::warning::. Si el ticker responde pero nada cae en la ventana y el anterior tenía partidos, tampoco se escribe
+    (nunca se publica vacío encima de datos); el paso no rompe el build."""
+    ahora_dt = datetime.now(timezone.utc)
+    previo = leer_json("partidos.json", None)
+    lq = Liquipedia()
+    try:
+        d = lq.get({"action": "parse", "title": "Liquipedia:Upcoming and ongoing matches", "contentmodel": "wikitext",
+                    "prop": "text", "text": partidos_wikitexto(), "disablelimitreport": "1", "disableeditsection": "1"})
+        sec = partidos_html(d.get("parse", {}).get("text", ""))
+        if sec["errores"]:
+            raise RuntimeError(f"error de Lua en {sec['errores']}")
+        if not sec["proximos"] and not sec["recientes"]:
+            raise RuntimeError("el ticker no trae ningún partido")
+        # ticker lleno y su último partido aún dentro de la ventana → puede faltar alguno (se publica igual)
+        t0 = ahora_dt.timestamp()
+        for k, lim, dentro in (("proximos", PARTIDOS_LIMITE_PROXIMOS, lambda ts: ts <= t0 + PARTIDOS_DIAS_FUTURO * 86400),
+                               ("recientes", PARTIDOS_LIMITE_RECIENTES, lambda ts: ts >= t0 - PARTIDOS_HORAS_PASADO * 3600)):
+            tss = [b["ts"] for b in sec[k] if b.get("ts") is not None]
+            if len(sec[k]) >= lim and tss and dentro(tss[-1]):
+                print(f"::warning title=partidos::el ticker «{k}» llegó al límite ({lim}) dentro de la ventana: "
+                      "puede faltar algún partido", flush=True)
+        lista = partidos_componer(sec, ahora_dt)
+        if not lista and (previo or {}).get("partidos"):
+            raise RuntimeError(f"{len(sec['proximos'])}+{len(sec['recientes'])} bloques pero ninguno en la ventana")
+    except Exception as ex:
+        print(f"::warning title=partidos::Liquipedia no respondió bien ({ex!r}): se conserva el partidos.json anterior", flush=True)
+        return
+    finally:
+        lq.cerrar()
+    escribir_json("partidos.json", partidos_salida(lista, ahora_dt))
+    cuenta = defaultdict(int)
+    for p in lista:
+        cuenta[p["estado"]] += 1
+    log(f"partidos: {len(lista)} partidos ({dict(cuenta)}) de {len(sec['proximos'])}+{len(sec['recientes'])} bloques; "
+        f"{lq.peticiones} peticiones a Liquipedia")
+
+
+def partidos_probar():
+    """Prueba sin red: HTML del ticker guardado (recortado) con una hora fija, y casos límite."""
+    m = leer_json(PARTIDOS_MUESTRA)
+    ahora_dt = datetime.fromisoformat(m["ahora"].replace("Z", "+00:00"))
+    sec = partidos_html(m["html"])
+    lista = partidos_componer(sec, ahora_dt)
+    fallos = []
+    if sec["errores"]:
+        fallos.append(f"errores inesperados: {sec['errores']}")
+    for esperado in m["esperado"]:
+        p = next((x for x in lista if x["j1"] == esperado["j1"] and x["j2"] == esperado["j2"]), None)
+        if p is None:
+            fallos.append(f"falta {esperado['j1']} vs {esperado['j2']}")
+            continue
+        for k, v in esperado.items():
+            if p.get(k) != v:
+                fallos.append(f"{esperado['j1']} vs {esperado['j2']}: {k} = {p.get(k)!r}, se esperaba {v!r}")
+        for k in ("fase", "j1_pais", "j2_pais", "formato", "stream", "resultado", "ganador"):
+            if k not in esperado and k in p:
+                fallos.append(f"{esperado['j1']} vs {esperado['j2']}: {k} no debería estar")
+    for j1, j2 in m.get("fuera", []):
+        if any(x["j1"] == j1 and x["j2"] == j2 for x in lista):
+            fallos.append(f"{j1} vs {j2} no debería salir")
+    if len(lista) != m["total"]:
+        fallos.append(f"{len(lista)} partidos, se esperaban {m['total']}")
+    orden = [p["estado"] for p in lista]
+    if orden != sorted(orden, key=["en_curso", "proximo", "terminado"].index):
+        fallos.append(f"orden de estados: {orden}")
+    for est, rev in (("proximo", False), ("terminado", True)):
+        ini = [p["inicio"] for p in lista if p["estado"] == est]
+        if ini != sorted(ini, reverse=rev):
+            fallos.append(f"orden de {est}: {ini}")
+    if any(set(p) - {"torneo", "torneo_url", "fase", "inicio", "estado", "j1", "j2", "j1_pais", "j2_pais", "formato",
+                     "stream", "resultado", "ganador"} for p in lista):
+        fallos.append("campos de más en algún partido")
+    if any(not p["inicio"].endswith("Z") for p in lista):
+        fallos.append("alguna hora no va en UTC con Z")
+    if len({(p["torneo_url"], p["inicio"], p["j1"], p["j2"]) for p in lista}) != len(lista):
+        fallos.append("hay partidos duplicados")
+    vacio = partidos_html("<p>nada</p>")
+    if vacio["proximos"] or vacio["recientes"] or partidos_componer(vacio, ahora_dt) != []:
+        fallos.append("HTML sin ticker debería dar [] (y partidos() no escribe)")
+    err = partidos_html('<div class="sfr-proximos"><strong class="error"><span class="scribunto-error">Lua error</span></strong></div>')
+    if err["errores"] != ["proximos"]:
+        fallos.append(f"error de Lua no detectado: {err['errores']}")
+    for href, esp in {"/ageofempires/Special:Stream/twitch/Paradox303": "https://www.twitch.tv/paradox303",
+                      "/ageofempires/Special:Stream/youtube/UCabcdefghijklmnopqrstuv": "https://www.youtube.com/channel/UCabcdefghijklmnopqrstuv/live",
+                      "/ageofempires/Special:Stream/youtube/dQw4w9WgXcQ": None, "/ageofempires/Special:Stream/kick/x": None,
+                      "/ageofempires/Special:Stream/twitch/a%22b": None}.items():
+        if partidos_stream(href) != esp:
+            fallos.append(f"stream {href} → {partidos_stream(href)}, se esperaba {esp}")
+    for src, esp in {"/commons/images/thumb/0/02/Se_hd.png/36px-Se_hd.png": "SE", "/x/Uk_hd.png": "GB", "/x/Flag.png": None}.items():
+        if partidos_pais(src) != esp:
+            fallos.append(f"país {src} → {partidos_pais(src)}, se esperaba {esp}")
+    for p in lista:
+        log(f"  {p['estado']:9} {p['inicio']}  {p.get('formato') or '-':4} {p['j1']} vs {p['j2']}  · {p['torneo']}"
+            f"{' · ' + p['fase'] if p.get('fase') else ''}")
+    for f in fallos:
+        log("FALLO", f)
+    log(f"partidos --probar: {len(lista)} partidos, {len(fallos)} fallos")
+    return not fallos
+
+
 if __name__ == "__main__":
-    if "--probar" in sys.argv:          # sin red: torneos y noticias (o solo los nombrados: --probar noticias)
-        pruebas = {"torneos": torneos_probar, "noticias": noticias_probar}
+    if "--probar" in sys.argv:          # sin red: torneos, noticias y partidos (o solo los nombrados: --probar noticias)
+        pruebas = {"torneos": torneos_probar, "noticias": noticias_probar, "partidos": partidos_probar}
         pedidas = [a for a in sys.argv[1:] if a in pruebas] or list(pruebas)
         resultados = [pruebas[a]() for a in pedidas]
         sys.exit(0 if all(resultados) else 1)
     pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("noticias", noticias),
-             ("perfiles", perfiles))
+             ("partidos", partidos), ("perfiles", perfiles))
     pedidos = [a for a in sys.argv[1:] if not a.startswith("-")]     # sin argumentos, todos (el build nocturno)
     ok = True
     for nombre, fn in pasos:
