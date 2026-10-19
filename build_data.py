@@ -57,9 +57,15 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                       "participantes":[{"nombre",["pais"] (ISO2),["grupo"] (Invited, Qualifier #1…),["sembrado"]} |
                                        {"nombre","tipo":"equipo",["jugadores":[{"nombre",["pais"]}]]}],
                       "fases":[{"nombre","nivel" (1 = fase, 2 = grupo/subfase),["tipo":"grupos|bracket|partidos"],
-                                ["rondas":[{"nombre","bo"}]]}] (subsecciones de Results),
+                                ["rondas":[{"nombre","bo"}]],
+                                ["cuadros":[{"rondas":[{"nombre",["bo"],"partidos":[{"j1","j2",["p1","p2"],["ganador":1|2]}]}]}]]}]
+                               (subsecciones de Results, o Results misma si el cuadro va sin subsección). «cuadros»: solo
+                               en tipo bracket, uno por fila de encabezados (superior, inferior…), las rondas en columnas
+                               de izquierda a derecha y los partidos de arriba abajo; j1/j2 = {"nombre",["pais"]} o null
+                               (TBD); p1/p2 = marcador como texto («4», «W», «FF»). SPOILER: quién llega a cada ronda,
+                               marcadores y ganador (la app los esconde hasta que el usuario pide el resultado).
                       "resultados":{"puestos":[{"puesto","desde","hasta","jugadores":[…]}]}}
-                     SIN SPOILERS: quién quedó en qué puesto va SOLO en «resultados» (la app lo esconde); «premios» nunca
+                     SIN SPOILERS: quién quedó en qué puesto va SOLO en «resultados» y «cuadros» (la app los esconde); «premios» nunca
                      lleva nombres. Los partidos no se repiten aquí: están en partidos.json (torneo_url). Como mucho
                      TORNEOS_DETALLE_POR_NOCHE páginas por noche; en curso se renueva cada noche, próximo cada 3 días,
                      terminado una vez tras acabar. Lo anterior se conserva si una página falla.
@@ -2322,6 +2328,7 @@ TORNEOS_DETALLE_DIR = "torneos"
 TORNEOS_DETALLE_POR_NOCHE = 13
 TORNEOS_DETALLE_TIEMPO_S = 7.5 * 60
 TORNEOS_DETALLE_MUESTRA = os.path.join("pruebas", "torneo_detalle_muestra.json")
+TORNEOS_CUADROS_MUESTRA = os.path.join("pruebas", "torneo_cuadros_muestra.json")
 MESES_LARGOS = {m: i + 1 for i, m in enumerate(("january", "february", "march", "april", "may", "june", "july", "august",
                                                 "september", "october", "november", "december"))}
 
@@ -2521,35 +2528,221 @@ def detalle_premios(cuerpo):
     return puestos[:64], [r for r in resultados if r["jugadores"]][:64], total
 
 
+# Cuadros de eliminatorias: el HTML de Liquipedia (Module:Brackets) es un árbol anidado. Dentro de cada «brkts-bracket», una
+# fila de encabezados (brkts-round-header: una por columna, «Quarterfinals (Bo7)») va seguida de su cuerpo (brkts-round-body);
+# un cuadro con superior e inferior trae dos parejas. En el cuerpo, cada brkts-round-body contiene sus rondas anteriores
+# (brkts-round-lower) y su partido (brkts-round-center › brkts-match): la columna de un partido = profundidad máxima −
+# su profundidad. Los «brkts-popup» (detalle de cada partida: civs, mapas) no se leen.
+DETALLE_CUADRO_MAX_PARTIDOS = 256
+
+
+class _Nodo:
+    __slots__ = ("tag", "attrs", "hijos", "padre")
+
+    def __init__(self, tag, attrs, padre):
+        self.tag, self.attrs, self.hijos, self.padre = tag, dict(attrs), [], padre
+
+    def clases(self):
+        return (self.attrs.get("class") or "").split()
+
+    def tiene(self, clase):
+        return clase in self.clases()
+
+    def texto(self):
+        return "".join(h.texto() if isinstance(h, _Nodo) else h for h in self.hijos)
+
+    def buscar(self, clase, parar=None):
+        """Descendientes con esa clase, en orden del documento (sin entrar en los que tengan la clase «parar»)."""
+        out = []
+        for h in self.hijos:
+            if isinstance(h, _Nodo):
+                if parar and h.tiene(parar):
+                    continue
+                if h.tiene(clase):
+                    out.append(h)
+                out.extend(h.buscar(clase, parar))
+        return out
+
+    def imgs(self):
+        for h in self.hijos:
+            if isinstance(h, _Nodo):
+                if h.tag == "img":
+                    yield h
+                yield from h.imgs()
+
+
+def _arbol_html(html_txt):
+    """HTML → árbol de _Nodo (html.parser de la biblioteca estándar; tolera etiquetas sin cerrar)."""
+    from html.parser import HTMLParser
+    vacias = {"img", "br", "hr", "meta", "link", "input", "wbr", "source", "col", "area", "base", "embed", "param", "track"}
+
+    class _P(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.raiz = _Nodo("raiz", [], None)
+            self.cur = self.raiz
+
+        def handle_starttag(self, tag, attrs):
+            n = _Nodo(tag, attrs, self.cur)
+            self.cur.hijos.append(n)
+            if tag not in vacias:
+                self.cur = n
+
+        def handle_startendtag(self, tag, attrs):
+            self.cur.hijos.append(_Nodo(tag, attrs, self.cur))
+
+        def handle_endtag(self, tag):
+            x = self.cur
+            while x is not None and x.tag != tag:
+                x = x.padre
+            if x is not None and x.padre is not None:
+                self.cur = x.padre
+
+        def handle_data(self, d):
+            self.cur.hijos.append(d)
+
+    p = _P()
+    p.feed(html_txt or "")
+    p.close()
+    return p.raiz
+
+
+def _cuadro_lado(entrada):
+    """Un lado de un partido (brkts-opponent-entry) → ({"nombre",["pais"]} o None si TBD/vacío, marcador o None, ¿ganó?)."""
+    import re
+    nombres = [" ".join(n.texto().split()) for n in entrada.buscar("name")]
+    nombre = " ".join((entrada.attrs.get("aria-label") or "").split()) or " & ".join(x for x in nombres if x)
+    marcador = "".join(" ".join(m.texto().split()) for m in entrada.buscar("brkts-opponent-score-inner")).strip()
+    marcador = marcador if re.fullmatch(r"\d{1,3}|[WLDF]|FF", marcador) else None
+    gano = entrada.tiene("brkts-opponent-win") or bool(entrada.buscar("brkts-opponent-win"))
+    if not nombre or nombre.upper() in ("TBD", "TBA", "BYE"):
+        return None, marcador, gano
+    lado = {"nombre": nombre[:60]}
+    if len(nombres) <= 1:                           # bandera solo de un jugador suelto (un equipo no tiene país)
+        img = next((i for i in entrada.imgs() if i.padre is not None and i.padre.tiene("flag")), None)
+        pais = partidos_pais(img.attrs.get("src")) if img is not None else None
+        if pais:
+            lado["pais"] = pais
+    return lado, marcador, gano
+
+
+def _encabezado(cab):
+    """Texto principal de un brkts-header (sin sus variantes cortas brkts-header-option)."""
+    propio = "".join(h if isinstance(h, str) else ("" if h.tiene("brkts-header-option") else h.texto()) for h in cab.hijos)
+    if not propio.strip():
+        op = cab.buscar("brkts-header-option")
+        propio = op[0].texto() if op else ""
+    return _html_texto(propio)
+
+
+def detalle_cuadros(html_fase):
+    """HTML de una fase → [{"rondas":[{"nombre",["bo"],"partidos":[{"j1","j2",["p1","p2"],["ganador":1|2]}]}]}] (un cuadro por
+    fila de encabezados: superior, inferior…; la gran final va en el superior). j1/j2 = {"nombre",["pais"]} o null (TBD).
+    SPOILER: quién está en las rondas después de la primera, los marcadores y «ganador» delatan resultados (la app los
+    esconde). [] si no se entiende."""
+    import re
+    raiz = _arbol_html(html_fase)
+    cuadros, total = [], 0
+    for b in raiz.buscar("brkts-bracket"):
+        pares = []                                   # (encabezados, cuerpo) en orden del documento
+        for cab in b.buscar("brkts-round-header", parar="brkts-popup"):
+            hermanos = [h for h in cab.padre.hijos if isinstance(h, _Nodo)]
+            k = next(n for n, h in enumerate(hermanos) if h is cab)
+            cuerpo = hermanos[k + 1] if k + 1 < len(hermanos) else None
+            if cuerpo is not None and cuerpo.tiene("brkts-round-body"):
+                pares.append(([_encabezado(h) for h in cab.buscar("brkts-header")], cuerpo))
+        cuerpos = {id(c) for _, c in pares}
+        for encabezados, cuerpo in pares:
+            partidos = []                            # (profundidad, partido), en orden del documento: de arriba abajo
+            for m in cuerpo.buscar("brkts-match", parar="brkts-popup"):
+                prof, x = 0, m.padre
+                while x is not None and x is not cuerpo and id(x) not in cuerpos:
+                    if x.tiene("brkts-round-body"):
+                        prof += 1
+                    x = x.padre
+                if x is not cuerpo:                  # de un cuadro anidado (el inferior): va en el suyo
+                    continue
+                entradas = m.buscar("brkts-opponent-entry", parar="brkts-popup")
+                if len(entradas) != 2:
+                    continue
+                (j1, p1, g1), (j2, p2, g2) = _cuadro_lado(entradas[0]), _cuadro_lado(entradas[1])
+                pa = {"j1": j1, "j2": j2}
+                if p1 is not None and p2 is not None:
+                    pa["p1"], pa["p2"] = p1, p2
+                if g1 != g2:
+                    pa["ganador"] = 1 if g1 else 2
+                partidos.append((prof, pa))
+            if not partidos:
+                continue
+            maxp = max(p for p, _ in partidos)
+            rondas = []
+            for col in range(maxp + 1):
+                enc = encabezados[col] if col < len(encabezados) else ""
+                bo = re.search(r"\(\s*Bo\s*(\d+)\s*\)", enc)
+                nombre = re.sub(r"\(\s*Bo\s*\d+\s*\)", "", enc).strip() or f"Round {col + 1}"
+                rondas.append({"nombre": nombre[:60], **({"bo": int(bo.group(1))} if bo else {}),
+                               "partidos": [pa for p, pa in partidos if maxp - p == col]})
+            total += len(partidos)
+            if total > DETALLE_CUADRO_MAX_PARTIDOS:
+                return cuadros
+            cuadros.append({"rondas": rondas})
+    return cuadros[:8]
+
+
+def _rondas_de(propio):
+    """Encabezados de ronda de un trozo de HTML («Semifinals (Bo5)» → {"nombre","bo"}), sin repetir. Liquipedia pone en cada
+    encabezado el texto largo y, dentro, sus variantes cortas (brkts-header-option: «UB Round 1», «UBR1»): solo el largo."""
+    import re
+    rondas, vistas = [], set()
+    for h in re.findall(r'class="brkts-header(?:\s[^"]*)?"[^>]*>(.*?)(?:<div|</div>)', propio, re.S):
+        t = _html_texto(h)
+        b = re.search(r"\(\s*Bo\s*(\d+)\s*\)", t)
+        nombre = re.sub(r"\(\s*Bo\s*\d+\s*\)", "", t).strip()
+        if nombre and nombre not in vistas:
+            vistas.add(nombre)
+            rondas.append({"nombre": nombre[:60], **({"bo": int(b.group(1))} if b else {})})
+    return rondas
+
+
+def _fase(titulo, nivel, propio):
+    tipo = "grupos" if "grouptable" in propio else ("bracket" if "brkts-bracket" in propio else
+                                                     ("partidos" if "brkts-match" in propio else None))
+    f = {"nombre": titulo[:80], "nivel": nivel}
+    if tipo:
+        f["tipo"] = tipo
+    rondas = _rondas_de(propio)
+    if rondas:
+        f["rondas"] = rondas[:20]
+    if tipo == "bracket":
+        try:
+            cuadros = detalle_cuadros(propio)
+        except Exception as ex:                    # un HTML raro no tumba la ficha: sin cuadro (la app enlaza a Liquipedia)
+            log(f"detalle: cuadro de {titulo!r} ilegible ({ex!r})")
+            cuadros = []
+        if cuadros:
+            f["cuadros"] = cuadros
+    return f
+
+
 def detalle_fases(secciones):
-    """Subsecciones de «Results» (h3/h4) con sus rondas de bracket («Semifinals (Bo5)» → {"nombre","bo"}) y su tipo."""
+    """Subsecciones de «Results» (h3/h4) con sus rondas de bracket («Semifinals (Bo5)» → {"nombre","bo"}), su tipo y, si son
+    un cuadro, sus partidos («cuadros», ver detalle_cuadros). Si «Results» trae un cuadro sin subsección (torneos pequeños),
+    sale como una fase con el título de la sección."""
     import re
     out, dentro, nivel_res = [], False, None
     for nivel, ident, titulo, cuerpo in secciones:
         if ident.lower() in ("results", "resultados"):
             dentro, nivel_res = True, nivel
+            propio = cuerpo[:10] + re.split(r'<div class="mw-heading', cuerpo[10:], maxsplit=1)[0]
+            if "brkts-bracket" in propio:
+                out.append(_fase(titulo, 1, propio))
             continue
         if not dentro:
             continue
         if nivel <= nivel_res:
             break
         propio = cuerpo[:10] + re.split(r'<div class="mw-heading', cuerpo[10:], maxsplit=1)[0] if nivel < 4 else cuerpo
-        rondas, vistas = [], set()
-        for h in re.findall(r'class="brkts-header[^"]*"[^>]*>(.*?)</div>', propio, re.S):
-            t = _html_texto(h)
-            b = re.search(r"\(\s*Bo\s*(\d+)\s*\)", t)
-            nombre = re.sub(r"\(\s*Bo\s*\d+\s*\)", "", t).strip()
-            if nombre and nombre not in vistas:
-                vistas.add(nombre)
-                rondas.append({"nombre": nombre[:60], **({"bo": int(b.group(1))} if b else {})})
-        tipo = "grupos" if "grouptable" in propio else ("bracket" if "brkts-bracket" in propio else
-                                                         ("partidos" if "brkts-match" in propio else None))
-        f = {"nombre": titulo[:80], "nivel": nivel - nivel_res}
-        if tipo:
-            f["tipo"] = tipo
-        if rondas:
-            f["rondas"] = rondas[:20]
-        out.append(f)
+        out.append(_fase(titulo, nivel - nivel_res, propio))
     return out[:30]
 
 
@@ -2755,9 +2948,26 @@ def detalle_probar():
     finally:
         TORNEOS_DETALLE_DIR = dir_antes
         shutil.rmtree(tmp, ignore_errors=True)
+    # cuadros de eliminatorias: HTML real recortado (sencilla, doble eliminación 1v1 y 3v3)
+    mc = leer_json(TORNEOS_CUADROS_MUESTRA)
+    for caso in mc["casos"]:
+        c = detalle_cuadros(caso["html"])
+        if c != caso["esperado"]:
+            fallos.append(f"cuadros de {caso['url']}: {json.dumps(c, ensure_ascii=False)[:300]}")
+    w = detalle_cuadros(mc["casos"][0]["html"])
+    final = w[0]["rondas"][-1] if w else {}
+    if [r["nombre"] for r in (w[0]["rondas"] if w else [])] != ["Round of 12", "Quarterfinals", "Semifinals", "Final"] or             final.get("bo") != 9 or final.get("partidos") != [{"j1": {"nombre": "Liereyy", "pais": "AT"}, "j2": {"nombre": "ACCM", "pais": "VN"},
+                                                               "p1": "5", "p2": "3", "ganador": 1}]:
+        fallos.append(f"cuadro de Warlords 5: {json.dumps(w, ensure_ascii=False)[:300]}")
+    r = detalle_cuadros(mc["casos"][1]["html"])
+    if len(r) != 2 or r[0]["rondas"][-1]["nombre"] != "Grand Final" or r[1]["rondas"][0]["nombre"] != "Lower Bracket Round 1":
+        fallos.append(f"doble eliminación: {[[x['nombre'] for x in c['rondas']] for c in r]}")
+    for raro in ("", "<div class=\"brkts-bracket\"><div class=\"brkts-round-header\">", "<p>sin cuadro</p>"):
+        if detalle_cuadros(raro) != []:
+            fallos.append(f"cuadro de {raro!r} no vacío")
     for f in fallos:
         log("FALLO", f)
-    log(f"detalle --probar: {len(m['casos'])} páginas, {len(fallos)} fallos")
+    log(f"detalle --probar: {len(m['casos'])} páginas y {len(mc['casos'])} cuadros, {len(fallos)} fallos")
     return not fallos
 
 

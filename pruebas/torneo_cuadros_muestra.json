@@ -1,0 +1,849 @@
+{
+ "_nota": "HTML real de action=parse (Liquipedia, 2026-10-19) recortado a la fase con el cuadro (sin brkts-popup ni estilos), con lo que debe sacar detalle_cuadros(). Contenido CC BY-SA 3.0.",
+ "casos": [
+  {
+   "url": "https://liquipedia.net/ageofempires/Warlords/5",
+   "html": "<h3 id=\"Playoffs\">Playoffs</h3><span class=\"mw-editsection\"><span class=\"mw-editsection-bracket\">[</span><a href=\"/ageofempires/index.php?title=Warlords/5&amp;action=edit&amp;section=13\" title=\"Edit section: Playoffs\">edit</a><span class=\"mw-editsection-bracket\">]</span></span></div>\n<div class=\"brkts-bracket-wrapper\"><div class=\"brkts-bracket\"><div class=\"brkts-round-header\"><div class=\"brkts-header brkts-header-div\">Round of 12 (<abbr title=\"Best of 7\">Bo7</abbr>)</div><div class=\"brkts-header brkts-header-div\">Quarterfinals (<abbr title=\"Best of 7\">Bo7</abbr>)</div><div class=\"brkts-header brkts-header-div\">Semifinals (<abbr title=\"Best of 7\">Bo7</abbr>)</div><div class=\"brkts-header brkts-header-div\">Final (<abbr title=\"Best of 9\">Bo9</abbr>)</div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Hera\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Canada\" src=\"/commons/images/thumb/7/72/Ca_hd.png/36px-Ca_hd.png\" title=\"Canada\" /></span><span class=\"name\">Hera</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">1</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lewis\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"United Kingdom\" src=\"/commons/images/thumb/5/5e/Gb_hd.png/36px-Gb_hd.png\" title=\"United Kingdom\" /></span><span class=\"name\">Lewis</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>4</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Liereyy\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Austria\" src=\"/commons/images/thumb/1/1c/At_hd.png/36px-At_hd.png\" title=\"Austria\" /></span><span class=\"name\">Liereyy</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>4</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lewis\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"United Kingdom\" src=\"/commons/images/thumb/5/5e/Gb_hd.png/36px-Gb_hd.png\" title=\"United Kingdom\" /></span><span class=\"name\">Lewis</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Barles\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Poland\" src=\"/commons/images/thumb/6/61/Pl_hd.png/36px-Pl_hd.png\" title=\"Poland\" /></span><span class=\"name\">Barles</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Vinchester\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Vinchester</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>4</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"FreakinAndy\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Austria\" src=\"/commons/images/thumb/1/1c/At_hd.png/36px-At_hd.png\" title=\"Austria\" /></span><span class=\"name\">FreakinAndy</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">1</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Vinchester\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Vinchester</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>4</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Liereyy\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Austria\" src=\"/commons/images/thumb/1/1c/At_hd.png/36px-At_hd.png\" title=\"Austria\" /></span><span class=\"name\">Liereyy</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>4</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Vinchester\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Vinchester</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">1</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"TaToH\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Spain\" src=\"/commons/images/thumb/c/c9/Es_hd.png/36px-Es_hd.png\" title=\"Spain\" /></span><span class=\"name\">TaToH</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>4</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Sitaux\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"France\" src=\"/commons/images/thumb/4/40/Fr_hd.png/36px-Fr_hd.png\" title=\"France\" /></span><span class=\"name\">Sitaux</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">1</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Sebastian\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Uruguay\" src=\"/commons/images/thumb/c/cd/Uy_hd.png/36px-Uy_hd.png\" title=\"Uruguay\" /></span><span class=\"name\">Sebastian</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>4</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"TaToH\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Spain\" src=\"/commons/images/thumb/c/c9/Es_hd.png/36px-Es_hd.png\" title=\"Spain\" /></span><span class=\"name\">TaToH</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"ACCM\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Vietnam\" src=\"/commons/images/thumb/a/a3/Vn_hd.png/36px-Vn_hd.png\" title=\"Vietnam\" /></span><span class=\"name\">ACCM</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>4</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Hearttt\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Peru\" src=\"/commons/images/thumb/3/38/Pe_hd.png/36px-Pe_hd.png\" title=\"Peru\" /></span><span class=\"name\">Hearttt</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"TheViper\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Norway\" src=\"/commons/images/thumb/f/ff/No_hd.png/36px-No_hd.png\" title=\"Norway\" /></span><span class=\"name\">TheViper</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">3</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"ACCM\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Vietnam\" src=\"/commons/images/thumb/a/a3/Vn_hd.png/36px-Vn_hd.png\" title=\"Vietnam\" /></span><span class=\"name\">ACCM</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>4</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Sebastian\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Uruguay\" src=\"/commons/images/thumb/c/cd/Uy_hd.png/36px-Uy_hd.png\" title=\"Uruguay\" /></span><span class=\"name\">Sebastian</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">2</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"ACCM\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Vietnam\" src=\"/commons/images/thumb/a/a3/Vn_hd.png/36px-Vn_hd.png\" title=\"Vietnam\" /></span><span class=\"name\">ACCM</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>4</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Liereyy\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Austria\" src=\"/commons/images/thumb/1/1c/At_hd.png/36px-At_hd.png\" title=\"Austria\" /></span><span class=\"name\">Liereyy</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>5</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"ACCM\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Vietnam\" src=\"/commons/images/thumb/a/a3/Vn_hd.png/36px-Vn_hd.png\" title=\"Vietnam\" /></span><span class=\"name\">ACCM</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">3</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div></div>\n",
+   "esperado": [
+    {
+     "rondas": [
+      {
+       "nombre": "Round of 12",
+       "bo": 7,
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "Hera",
+          "pais": "CA"
+         },
+         "j2": {
+          "nombre": "Lewis",
+          "pais": "GB"
+         },
+         "p1": "1",
+         "p2": "4",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "Barles",
+          "pais": "PL"
+         },
+         "j2": {
+          "nombre": "Vinchester",
+          "pais": "RU"
+         },
+         "p1": "0",
+         "p2": "4",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "TaToH",
+          "pais": "ES"
+         },
+         "j2": {
+          "nombre": "Sitaux",
+          "pais": "FR"
+         },
+         "p1": "4",
+         "p2": "1",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "ACCM",
+          "pais": "VN"
+         },
+         "j2": {
+          "nombre": "Hearttt",
+          "pais": "PE"
+         },
+         "p1": "4",
+         "p2": "0",
+         "ganador": 1
+        }
+       ]
+      },
+      {
+       "nombre": "Quarterfinals",
+       "bo": 7,
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "Liereyy",
+          "pais": "AT"
+         },
+         "j2": {
+          "nombre": "Lewis",
+          "pais": "GB"
+         },
+         "p1": "4",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "FreakinAndy",
+          "pais": "AT"
+         },
+         "j2": {
+          "nombre": "Vinchester",
+          "pais": "RU"
+         },
+         "p1": "1",
+         "p2": "4",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "Sebastian",
+          "pais": "UY"
+         },
+         "j2": {
+          "nombre": "TaToH",
+          "pais": "ES"
+         },
+         "p1": "4",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "TheViper",
+          "pais": "NO"
+         },
+         "j2": {
+          "nombre": "ACCM",
+          "pais": "VN"
+         },
+         "p1": "3",
+         "p2": "4",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Semifinals",
+       "bo": 7,
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "Liereyy",
+          "pais": "AT"
+         },
+         "j2": {
+          "nombre": "Vinchester",
+          "pais": "RU"
+         },
+         "p1": "4",
+         "p2": "1",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Sebastian",
+          "pais": "UY"
+         },
+         "j2": {
+          "nombre": "ACCM",
+          "pais": "VN"
+         },
+         "p1": "2",
+         "p2": "4",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Final",
+       "bo": 9,
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "Liereyy",
+          "pais": "AT"
+         },
+         "j2": {
+          "nombre": "ACCM",
+          "pais": "VN"
+         },
+         "p1": "5",
+         "p2": "3",
+         "ganador": 1
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "url": "https://liquipedia.net/ageofempires/Rusaoc_Cup/190",
+   "html": "<h2 id=\"Results\">Results</h2><span class=\"mw-editsection\"><span class=\"mw-editsection-bracket\">[</span><a href=\"/ageofempires/index.php?title=Rusaoc_Cup/190&amp;action=edit&amp;section=5\" title=\"Edit section: Results\">edit</a><span class=\"mw-editsection-bracket\">]</span></span></div>\n<div class=\"content-ad navigation-not-searchable\"><div id=\"ageofempires_728x90_BTF\"></div></div>\n\n<div class=\"brkts-bracket-wrapper\"><div class=\"brkts-bracket\"><div class=\"brkts-round-header\"><div class=\"brkts-header brkts-header-div\">Upper Bracket Round 1<div class=\"brkts-header-option\">Upper Bracket Round 1</div><div class=\"brkts-header-option\">UB Round 1</div><div class=\"brkts-header-option\">UBR1</div></div><div class=\"brkts-header brkts-header-div\">Upper Bracket Quarterfinals<div class=\"brkts-header-option\">Upper Bracket Quarterfinals</div><div class=\"brkts-header-option\">UB Quarterfinals</div><div class=\"brkts-header-option\">UBQF</div></div><div class=\"brkts-header brkts-header-div\">Upper Bracket Semifinals<div class=\"brkts-header-option\">Upper Bracket Semifinals</div><div class=\"brkts-header-option\">UB Semifinals</div><div class=\"brkts-header-option\">UBSF</div></div><div class=\"brkts-header brkts-header-div\">Upper Bracket Final<div class=\"brkts-header-option\">Upper Bracket Final</div><div class=\"brkts-header-option\">UB Final</div><div class=\"brkts-header-option\">UBF</div></div><div class=\"brkts-header brkts-header-div\">Grand Final<div class=\"brkts-header-option\">Grand Final</div><div class=\"brkts-header-option\">Final</div><div class=\"brkts-header-option\">GF</div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"FStalker\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">FStalker</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Sourman\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Sourman</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"DzeDanik\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">Daniil_Dz</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Karabas\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Ukraine\" src=\"/commons/images/thumb/b/bb/Ua_hd.png/36px-Ua_hd.png\" title=\"Ukraine\" /></span><span class=\"name\">Karabas</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"FStalker\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">FStalker</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"DzeDanik\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">Daniil_Dz</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"The&#95;Beatleman\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">The_Beatleman</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Bee\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Bee</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Tralfamador\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Tralfamador</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Forvin\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Forvin</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"The&#95;Beatleman\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">The_Beatleman</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Forvin\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Forvin</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"DzeDanik\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">Daniil_Dz</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"The&#95;Beatleman\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">The_Beatleman</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"GRIGORYAN\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Armenia\" src=\"/commons/images/thumb/3/3e/Am_hd.png/36px-Am_hd.png\" title=\"Armenia\" /></span><span class=\"name\">GRIGORYAN</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Togin-Shi\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Togin-Shi</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Repard\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">repard</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Scatterbrained\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">Scatter</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"GRIGORYAN\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Armenia\" src=\"/commons/images/thumb/3/3e/Am_hd.png/36px-Am_hd.png\" title=\"Armenia\" /></span><span class=\"name\">GRIGORYAN</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Repard\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">repard</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Dark\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Dark</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lamo\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"OLADUSHEK\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">OLADUSHEK</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Blind&#95;mist\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">blind_mist</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Dark\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Dark</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"OLADUSHEK\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">OLADUSHEK</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Repard\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">repard</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Dark\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Dark</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"The&#95;Beatleman\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">The_Beatleman</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Dark\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Dark</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-header\"><div class=\"brkts-header brkts-header-div\">Lower Bracket Round 1<div class=\"brkts-header-option\">Lower Bracket Round 1</div><div class=\"brkts-header-option\">LB Round 1</div><div class=\"brkts-header-option\">LBR1</div></div><div class=\"brkts-header brkts-header-div\">Lower Bracket Round 2<div class=\"brkts-header-option\">Lower Bracket Round 2</div><div class=\"brkts-header-option\">LB Round 2</div><div class=\"brkts-header-option\">LBR2</div></div><div class=\"brkts-header brkts-header-div\">Lower Bracket Round 3<div class=\"brkts-header-option\">Lower Bracket Round 3</div><div class=\"brkts-header-option\">LB Round 3</div><div class=\"brkts-header-option\">LBR3</div></div><div class=\"brkts-header brkts-header-div\">Lower Bracket Quarterfinals<div class=\"brkts-header-option\">Lower Bracket Quarterfinals</div><div class=\"brkts-header-option\">LB Quarterfinals</div><div class=\"brkts-header-option\">LBQF</div></div><div class=\"brkts-header brkts-header-div\">Lower Bracket Semifinals<div class=\"brkts-header-option\">Lower Bracket Semifinals</div><div class=\"brkts-header-option\">LB Semifinals</div><div class=\"brkts-header-option\">LBSF</div></div><div class=\"brkts-header brkts-header-div\">Lower Bracket Final<div class=\"brkts-header-option\">Lower Bracket Final</div><div class=\"brkts-header-option\">LB Final</div><div class=\"brkts-header-option\">LBF</div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Sourman\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Sourman</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Karabas\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Ukraine\" src=\"/commons/images/thumb/b/bb/Ua_hd.png/36px-Ua_hd.png\" title=\"Ukraine\" /></span><span class=\"name\">Karabas</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"OLADUSHEK\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">OLADUSHEK</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Sourman\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Sourman</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Bee\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Bee</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Tralfamador\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Tralfamador</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"GRIGORYAN\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Armenia\" src=\"/commons/images/thumb/3/3e/Am_hd.png/36px-Am_hd.png\" title=\"Armenia\" /></span><span class=\"name\">GRIGORYAN</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Bee\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Bee</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Sourman\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Sourman</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Bee\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Bee</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"DzeDanik\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">Daniil_Dz</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Bee\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Bee</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Togin-Shi\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Togin-Shi</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Scatterbrained\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">Scatter</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Forvin\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Forvin</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Scatterbrained\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">Scatter</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Lamo\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Blind&#95;mist\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">blind_mist</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"FStalker\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">FStalker</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lamo\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Scatterbrained\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">Scatter</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lamo\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Repard\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">repard</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lamo\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"DzeDanik\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">Daniil_Dz</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lamo\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"The&#95;Beatleman\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">The_Beatleman</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lamo\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Dark\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Dark</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>2</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lamo\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div></div>\n",
+   "esperado": [
+    {
+     "rondas": [
+      {
+       "nombre": "Upper Bracket Round 1",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "FStalker",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Sourman",
+          "pais": "RU"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "DzeDanik",
+          "pais": "BY"
+         },
+         "j2": {
+          "nombre": "Karabas",
+          "pais": "UA"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "The_Beatleman",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Bee",
+          "pais": "RU"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Tralfamador",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Forvin",
+          "pais": "RU"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "GRIGORYAN",
+          "pais": "AM"
+         },
+         "j2": {
+          "nombre": "Togin-Shi",
+          "pais": "RU"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Repard",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Scatterbrained",
+          "pais": "BY"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Dark",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Lamo",
+          "pais": "LV"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "OLADUSHEK",
+          "pais": "BY"
+         },
+         "j2": {
+          "nombre": "Blind_mist",
+          "pais": "RU"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        }
+       ]
+      },
+      {
+       "nombre": "Upper Bracket Quarterfinals",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "FStalker",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "DzeDanik",
+          "pais": "BY"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "The_Beatleman",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Forvin",
+          "pais": "RU"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "GRIGORYAN",
+          "pais": "AM"
+         },
+         "j2": {
+          "nombre": "Repard",
+          "pais": "RU"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "Dark",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "OLADUSHEK",
+          "pais": "BY"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        }
+       ]
+      },
+      {
+       "nombre": "Upper Bracket Semifinals",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "DzeDanik",
+          "pais": "BY"
+         },
+         "j2": {
+          "nombre": "The_Beatleman",
+          "pais": "RU"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "Repard",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Dark",
+          "pais": "RU"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Upper Bracket Final",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "The_Beatleman",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Dark",
+          "pais": "RU"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Grand Final",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "Dark",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Lamo",
+          "pais": "LV"
+         },
+         "p1": "2",
+         "p2": "0",
+         "ganador": 1
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "rondas": [
+      {
+       "nombre": "Lower Bracket Round 1",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "Sourman",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Karabas",
+          "pais": "UA"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Bee",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Tralfamador",
+          "pais": "RU"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Togin-Shi",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Scatterbrained",
+          "pais": "BY"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "Lamo",
+          "pais": "LV"
+         },
+         "j2": {
+          "nombre": "Blind_mist",
+          "pais": "RU"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        }
+       ]
+      },
+      {
+       "nombre": "Lower Bracket Round 2",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "OLADUSHEK",
+          "pais": "BY"
+         },
+         "j2": {
+          "nombre": "Sourman",
+          "pais": "RU"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "GRIGORYAN",
+          "pais": "AM"
+         },
+         "j2": {
+          "nombre": "Bee",
+          "pais": "RU"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "Forvin",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Scatterbrained",
+          "pais": "BY"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "FStalker",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Lamo",
+          "pais": "LV"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Lower Bracket Round 3",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "Sourman",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Bee",
+          "pais": "RU"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "Scatterbrained",
+          "pais": "BY"
+         },
+         "j2": {
+          "nombre": "Lamo",
+          "pais": "LV"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Lower Bracket Quarterfinals",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "DzeDanik",
+          "pais": "BY"
+         },
+         "j2": {
+          "nombre": "Bee",
+          "pais": "RU"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Repard",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Lamo",
+          "pais": "LV"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Lower Bracket Semifinals",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "DzeDanik",
+          "pais": "BY"
+         },
+         "j2": {
+          "nombre": "Lamo",
+          "pais": "LV"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Lower Bracket Final",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "The_Beatleman",
+          "pais": "RU"
+         },
+         "j2": {
+          "nombre": "Lamo",
+          "pais": "LV"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "url": "https://liquipedia.net/ageofempires/Rusaoc_Cup/191",
+   "html": "<h2 id=\"Results\">Results</h2><span class=\"mw-editsection\"><span class=\"mw-editsection-bracket\">[</span><a href=\"/ageofempires/index.php?title=Rusaoc_Cup/191&amp;action=edit&amp;section=5\" title=\"Edit section: Results\">edit</a><span class=\"mw-editsection-bracket\">]</span></span></div>\n<div class=\"content-ad navigation-not-searchable\"><div id=\"ageofempires_728x90_BTF\"></div></div>\n\n<div class=\"brkts-bracket-wrapper\"><div class=\"brkts-bracket\"><div class=\"brkts-round-header\"><div class=\"brkts-header brkts-header-div\">Upper Bracket Quarterfinals<div class=\"brkts-header-option\">Upper Bracket Quarterfinals</div><div class=\"brkts-header-option\">UB Quarterfinals</div><div class=\"brkts-header-option\">UBQF</div></div><div class=\"brkts-header brkts-header-div\">Upper Bracket Semifinals<div class=\"brkts-header-option\">Upper Bracket Semifinals</div><div class=\"brkts-header-option\">UB Semifinals</div><div class=\"brkts-header-option\">UBSF</div></div><div class=\"brkts-header brkts-header-div\">Upper Bracket Final<div class=\"brkts-header-option\">Upper Bracket Final</div><div class=\"brkts-header-option\">UB Final</div><div class=\"brkts-header-option\">UBF</div></div><div class=\"brkts-header brkts-header-div\">Grand Final<div class=\"brkts-header-option\">Grand Final</div><div class=\"brkts-header-option\">Final</div><div class=\"brkts-header-option\">GF</div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"HeO&#95;3km / Redfish / The&#95;Beatleman\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">The_Beatleman</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">redfish</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">HeO_3km</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Grinch&#95;XO / Ten2004 / Vinchester\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Vinchester</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Kazakhstan\" src=\"/commons/images/thumb/9/91/Kz_hd.png/36px-Kz_hd.png\" title=\"Kazakhstan\" /></span><span class=\"name\">Grinch_XO</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Ten2004</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Nikolay&#95;borisbl4 / Nothing&#95;unreal / Shegin\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Shegin</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Armenia\" src=\"/commons/images/thumb/3/3e/Am_hd.png/36px-Am_hd.png\" title=\"Armenia\" /></span><span class=\"name\">nothing_unreal</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">nikolay_borisbl4</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"4ndrew / Forvin / Konstantin&#95;OK\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Forvin</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">4ndrew</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Konstantin_OK</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"HeO&#95;3km / Redfish / The&#95;Beatleman\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">The_Beatleman</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">redfish</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">HeO_3km</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"4ndrew / Forvin / Konstantin&#95;OK\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Forvin</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">4ndrew</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Konstantin_OK</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Landau / SMY / Togin-Shi\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">SMY</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Landau</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Togin-Shi</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"GRIGORYAN / MONSTERGARA / UMARR\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Armenia\" src=\"/commons/images/thumb/3/3e/Am_hd.png/36px-Am_hd.png\" title=\"Armenia\" /></span><span class=\"name\">GRIGORYAN</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">MONSTERGARA</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">UMARR</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Mental&#95;105 / Reactive&#95;sock / Yix&#95;x&#95;xio\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">yix_x_xio</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">mental_105</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Reactive_sock</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lamo / Puzotron / Tralfamador\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Tralfamador</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Puzotron</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Landau / SMY / Togin-Shi\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">SMY</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Landau</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Togin-Shi</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lamo / Puzotron / Tralfamador\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Tralfamador</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Puzotron</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"HeO&#95;3km / Redfish / The&#95;Beatleman\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">The_Beatleman</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">redfish</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">HeO_3km</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Lamo / Puzotron / Tralfamador\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Tralfamador</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Puzotron</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-header\"><div class=\"brkts-header brkts-header-div\">Lower Bracket Round 1<div class=\"brkts-header-option\">Lower Bracket Round 1</div><div class=\"brkts-header-option\">LB Round 1</div><div class=\"brkts-header-option\">LBR1</div></div><div class=\"brkts-header brkts-header-div\">Lower Bracket Quarterfinals<div class=\"brkts-header-option\">Lower Bracket Quarterfinals</div><div class=\"brkts-header-option\">LB Quarterfinals</div><div class=\"brkts-header-option\">LBQF</div></div><div class=\"brkts-header brkts-header-div\">Lower Bracket Semifinals<div class=\"brkts-header-option\">Lower Bracket Semifinals</div><div class=\"brkts-header-option\">LB Semifinals</div><div class=\"brkts-header-option\">LBSF</div></div><div class=\"brkts-header brkts-header-div\">Lower Bracket Final<div class=\"brkts-header-option\">Lower Bracket Final</div><div class=\"brkts-header-option\">LB Final</div><div class=\"brkts-header-option\">LBF</div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"PAnDAn126 / Sibro / Sourman\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Sourman</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Sibro</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">PAnDAn126</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"GRIGORYAN / MONSTERGARA / UMARR\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Armenia\" src=\"/commons/images/thumb/3/3e/Am_hd.png/36px-Am_hd.png\" title=\"Armenia\" /></span><span class=\"name\">GRIGORYAN</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">MONSTERGARA</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">UMARR</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"4ndrew / Forvin / Konstantin&#95;OK\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Forvin</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">4ndrew</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Konstantin_OK</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"GRIGORYAN / MONSTERGARA / UMARR\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Armenia\" src=\"/commons/images/thumb/3/3e/Am_hd.png/36px-Am_hd.png\" title=\"Armenia\" /></span><span class=\"name\">GRIGORYAN</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">MONSTERGARA</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">UMARR</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div><div class=\"brkts-round-body\"><div class=\"brkts-round-lower\"><div class=\"brkts-round-body\"><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Nikolay&#95;borisbl4 / Nothing&#95;unreal / Shegin\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Shegin</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Armenia\" src=\"/commons/images/thumb/3/3e/Am_hd.png/36px-Am_hd.png\" title=\"Armenia\" /></span><span class=\"name\">nothing_unreal</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">nikolay_borisbl4</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Grinch&#95;XO / Ten2004 / Vinchester\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Vinchester</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Kazakhstan\" src=\"/commons/images/thumb/9/91/Kz_hd.png/36px-Kz_hd.png\" title=\"Kazakhstan\" /></span><span class=\"name\">Grinch_XO</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Ten2004</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Landau / SMY / Togin-Shi\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">SMY</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Landau</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Togin-Shi</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Grinch&#95;XO / Ten2004 / Vinchester\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Vinchester</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Kazakhstan\" src=\"/commons/images/thumb/9/91/Kz_hd.png/36px-Kz_hd.png\" title=\"Kazakhstan\" /></span><span class=\"name\">Grinch_XO</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Ten2004</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"4ndrew / Forvin / Konstantin&#95;OK\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Forvin</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">4ndrew</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Konstantin_OK</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Grinch&#95;XO / Ten2004 / Vinchester\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Vinchester</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Kazakhstan\" src=\"/commons/images/thumb/9/91/Kz_hd.png/36px-Kz_hd.png\" title=\"Kazakhstan\" /></span><span class=\"name\">Grinch_XO</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Ten2004</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div></div><div class=\"brkts-connector-stub\"><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"HeO&#95;3km / Redfish / The&#95;Beatleman\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">The_Beatleman</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Belarus\" src=\"/commons/images/thumb/3/36/By_hd.png/36px-By_hd.png\" title=\"Belarus\" /></span><span class=\"name\">redfish</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">HeO_3km</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Grinch&#95;XO / Ten2004 / Vinchester\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Vinchester</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Kazakhstan\" src=\"/commons/images/thumb/9/91/Kz_hd.png/36px-Kz_hd.png\" title=\"Kazakhstan\" /></span><span class=\"name\">Grinch_XO</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Ten2004</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div><div class=\"brkts-round-lower-connectors\"><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div><div class=\"brkts-connector\"><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div><div class=\"brkts-line\"></div></div></div><div class=\"brkts-round-center\"><div class=\"brkts-match brkts-match-popup-wrapper brkts-match-has-details brkts-match-popup-wrapper\"><div class=\"brkts-opponent-entry brkts-opponent-hover\" aria-label=\"Lamo / Puzotron / Tralfamador\"><div class=\"brkts-opponent-entry-left\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Latvia\" src=\"/commons/images/thumb/0/0a/Lv_hd.png/36px-Lv_hd.png\" title=\"Latvia\" /></span><span class=\"name\">Lamo</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Tralfamador</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Puzotron</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\">0</div></div></div><div class=\"brkts-opponent-entry brkts-opponent-entry-last brkts-opponent-hover\" aria-label=\"Grinch&#95;XO / Ten2004 / Vinchester\"><div class=\"brkts-opponent-entry-left brkts-opponent-win\"><div class=\"block-players-wrapper\"><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Vinchester</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Kazakhstan\" src=\"/commons/images/thumb/9/91/Kz_hd.png/36px-Kz_hd.png\" title=\"Kazakhstan\" /></span><span class=\"name\">Grinch_XO</span></div><div class=\"block-player\"><span class=\"flag\"><img alt=\"Russia\" src=\"/commons/images/thumb/7/76/Ru_hd.png/36px-Ru_hd.png\" title=\"Russia\" /></span><span class=\"name\">Ten2004</span></div></div></div><div class=\"brkts-opponent-score-outer\"><div class=\"brkts-opponent-score-inner\"><b>1</b></div></div></div><div class=\"brkts-match-info-icon\"></div></div></div></div></div></div>\n",
+   "esperado": [
+    {
+     "rondas": [
+      {
+       "nombre": "Upper Bracket Quarterfinals",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "HeO_3km / Redfish / The_Beatleman"
+         },
+         "j2": {
+          "nombre": "Grinch_XO / Ten2004 / Vinchester"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Nikolay_borisbl4 / Nothing_unreal / Shegin"
+         },
+         "j2": {
+          "nombre": "4ndrew / Forvin / Konstantin_OK"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "Landau / SMY / Togin-Shi"
+         },
+         "j2": {
+          "nombre": "GRIGORYAN / MONSTERGARA / UMARR"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Mental_105 / Reactive_sock / Yix_x_xio"
+         },
+         "j2": {
+          "nombre": "Lamo / Puzotron / Tralfamador"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Upper Bracket Semifinals",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "HeO_3km / Redfish / The_Beatleman"
+         },
+         "j2": {
+          "nombre": "4ndrew / Forvin / Konstantin_OK"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Landau / SMY / Togin-Shi"
+         },
+         "j2": {
+          "nombre": "Lamo / Puzotron / Tralfamador"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Upper Bracket Final",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "HeO_3km / Redfish / The_Beatleman"
+         },
+         "j2": {
+          "nombre": "Lamo / Puzotron / Tralfamador"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Grand Final",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "Lamo / Puzotron / Tralfamador"
+         },
+         "j2": {
+          "nombre": "Grinch_XO / Ten2004 / Vinchester"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "rondas": [
+      {
+       "nombre": "Lower Bracket Round 1",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "PAnDAn126 / Sibro / Sourman"
+         },
+         "j2": {
+          "nombre": "GRIGORYAN / MONSTERGARA / UMARR"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        },
+        {
+         "j1": {
+          "nombre": "Nikolay_borisbl4 / Nothing_unreal / Shegin"
+         },
+         "j2": {
+          "nombre": "Grinch_XO / Ten2004 / Vinchester"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Lower Bracket Quarterfinals",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "4ndrew / Forvin / Konstantin_OK"
+         },
+         "j2": {
+          "nombre": "GRIGORYAN / MONSTERGARA / UMARR"
+         },
+         "p1": "1",
+         "p2": "0",
+         "ganador": 1
+        },
+        {
+         "j1": {
+          "nombre": "Landau / SMY / Togin-Shi"
+         },
+         "j2": {
+          "nombre": "Grinch_XO / Ten2004 / Vinchester"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Lower Bracket Semifinals",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "4ndrew / Forvin / Konstantin_OK"
+         },
+         "j2": {
+          "nombre": "Grinch_XO / Ten2004 / Vinchester"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      },
+      {
+       "nombre": "Lower Bracket Final",
+       "partidos": [
+        {
+         "j1": {
+          "nombre": "HeO_3km / Redfish / The_Beatleman"
+         },
+         "j2": {
+          "nombre": "Grinch_XO / Ten2004 / Vinchester"
+         },
+         "p1": "0",
+         "p2": "1",
+         "ganador": 2
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
