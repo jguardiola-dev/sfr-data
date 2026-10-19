@@ -24,7 +24,13 @@
    "organizador": "Ogazjoker",
    "lugar": "Chile",
    "participantes": 16,
-   "url": "https://liquipedia.net/ageofempires/Chilean_Cup/2026"
+   "url": "https://liquipedia.net/ageofempires/Chilean_Cup/2026",
+   "enlaces": {
+    "web": "https://aoebattles.com/tournaments/51",
+    "twitch": "https://www.twitch.tv/ogazjoker",
+    "youtube": "https://www.youtube.com/@ogazjoker690",
+    "bracket": "https://aoebattles.com/tournaments/51"
+   }
   },
   {
    "nombre": "T90 Titans League 6: Bronze League",
@@ -36,14 +42,27 @@
    "bolsa": 1600,
    "formato": "1v1",
    "formato_texto": "1v1, Single Elimination",
-   "organizador": "T90Official"
+   "organizador": "T90Official",
+   "enlaces": {
+    "discord": "https://discord.gg/98Nw5PJK9k",
+    "twitch": "https://www.twitch.tv/t90official",
+    "youtube": "https://www.youtube.com/t90official"
+   }
   },
   {
    "nombre": "The Bastion: Season 2",
    "estado": "en_curso",
    "fin": "2027-03-07",
    "organizador": "BEING ESPORTS",
-   "lugar": "Germany, Austria, Switzerland"
+   "lugar": "Germany, Austria, Switzerland",
+   "enlaces": {
+    "web": "https://www.beingesports.com/de",
+    "discord": "https://discord.gg/uSbbgA4tvJ",
+    "twitch": "https://www.twitch.tv/beingesports",
+    "youtube": "https://www.youtube.com/@BeingEsports",
+    "x": "https://x.com/BeingEsports",
+    "bracket": "https://beingesports.com/de/aoe2/tabelle"
+   }
   },
   {
    "nombre": "CastleRush Solo Clash #13",
