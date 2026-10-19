@@ -3594,6 +3594,8 @@ STREAMERS_CREADORES = {
     "st4rk": "st4rk_",
     "dragonstar": "dragonstar_aoe",     # página «The Dragonstar»
     "liereyy": "liereyy",
+    "tatoh": "tatohaoe",
+    "sebastian": "sebastian2002",
     "morleygames": "morleygames",       # DUDOSO
     "daut": "daut",
     "ciskhan": "ciskhan_",
