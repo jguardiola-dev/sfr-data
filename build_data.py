@@ -26,7 +26,8 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                                   "participantes", "url", ["enlaces"], ["logo", "logo_oscuro"], ["detalle"],
                                   ["ganador", "finalista"]}]}
                      «detalle» (opcional): "torneos/<slug>.json" si hay ficha de detalle de ese torneo (ver más abajo).
-                     «enlaces» (opcional, del infobox): {"web","discord","twitch","youtube","x","bracket"}, cada uno solo si
+                     «enlaces» (opcional, del infobox): {"web","discord","twitch","youtube","x","bracket","reglamento"}
+                     (reglamento = el «rulebook»/handbook del organizador: PDF, Google Drive…), cada uno solo si
                      Liquipedia lo da y es una URL https válida (los identificadores sueltos se completan: twitch.tv/…, x.com/…).
                      ganador/finalista solo si Liquipedia los da (la app los esconde: sin spoilers); varios jugadores se unen
                      con « & ». Orden: en_curso (por fin), proximo (por inicio), terminado (el más reciente primero).
@@ -1712,7 +1713,8 @@ def torneos_enriquecer(t, ib):
 # como los de Module:Links de Liquipedia (twitter → x.com). Solo el primero de cada uno (twitch, no twitch2).
 TORNEOS_ENLACES = (("website", "web", None), ("web", "web", None), ("discord", "discord", "https://discord.gg/"),
                    ("twitch", "twitch", "https://www.twitch.tv/"), ("youtube", "youtube", "https://www.youtube.com/"),
-                   ("twitter", "x", "https://x.com/"), ("x", "x", "https://x.com/"), ("bracket", "bracket", None))
+                   ("twitter", "x", "https://x.com/"), ("x", "x", "https://x.com/"), ("bracket", "bracket", None),
+                   ("rulebook", "reglamento", None), ("rules", "reglamento", None), ("handbook", "reglamento", None))
 
 
 def url_https_ok(url):
@@ -1729,7 +1731,7 @@ def url_https_ok(url):
 
 
 def torneos_enlaces(ib):
-    """Enlaces del torneo desde el infobox: {"web","discord","twitch","youtube","x","bracket"} (solo los que haya, solo
+    """Enlaces del torneo desde el infobox: {"web","discord","twitch","youtube","x","bracket","reglamento"} (solo los que haya, solo
     https válidas). Un identificador suelto (twitch=beingesports, youtube=@x, discord=AbC123) se completa con el prefijo."""
     import re
     out = {}
@@ -2182,7 +2184,11 @@ def torneos_probar():
                       "bracket": "https://challonge.com/abc", "x": "https://x.com/org"},
                      {"web": "https://ejemplo.org/torneo", "youtube": "https://www.youtube.com/channel/UC1234567890abcdefghijkl",
                       "bracket": "https://challonge.com/abc", "x": "https://x.com/org"}),
-                    ({"website": "https://<script>.com", "discord": ""}, {})):
+                    ({"website": "https://<script>.com", "discord": ""}, {}),
+                    ({"rulebook": "https://christianamdi.com/tournaments/warlords5/handbook.pdf", "rules": "https://otro.org/r"},
+                     {"reglamento": "https://christianamdi.com/tournaments/warlords5/handbook.pdf"}),
+                    ({"rulebook": "reglas.pdf", "rules": "[https://drive.google.com/file/d/abc/view Rules]"},
+                     {"reglamento": "https://drive.google.com/file/d/abc/view"})):
         if torneos_enlaces(ib) != esp:
             fallos.append(f"enlaces {ib} → {torneos_enlaces(ib)}, se esperaba {esp}")
     casos = {"Oct 17, 2026": ("2026-10-17", "2026-10-17"), "Nov 30 – Dec 20, 2026": ("2026-11-30", "2026-12-20"),
