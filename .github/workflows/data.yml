@@ -22,11 +22,11 @@ jobs:
         with:
           python-version: "3.12"
       - name: dependencias
-        run: pip install pandas pyarrow numpy
+        run: pip install pandas pyarrow numpy pillow
       - name: datos previos (rama data)
         run: |
           if git fetch -q --depth=1 origin data:refs/remotes/origin/data 2>/dev/null; then
-            for p in civstats ladder.json clans.json.gz dispersion.json.gz mapas.json torneos.json noticias.json partidos.json; do
+            for p in civstats logos ladder.json clans.json.gz dispersion.json.gz mapas.json torneos.json torneos_historico.json noticias.json partidos.json streamers.json; do
               git checkout origin/data -- "$p" 2>/dev/null || true
             done
             echo "recuperados de la rama data: $(ls civstats/dias 2>/dev/null | wc -l) días"
@@ -35,6 +35,10 @@ jobs:
           fi
       - name: generar datos
         run: python build_data.py
+        env:
+          # app de desarrollador de Twitch (solo para streamers.json); si faltan los secretos, el paso se salta con ::notice
+          TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
+          TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
         continue-on-error: true    # si una parte falla, se publica lo que haya salido bien y lo recuperado
       - name: publicar perfiles (releases «perfiles» y base)
         if: hashFiles('perfiles/index.json') != ''
@@ -68,10 +72,11 @@ jobs:
           git config user.email "bot@users.noreply.github.com"
           git checkout -q --orphan publicacion
           git rm -r -q -f --cached . 2>/dev/null || true
-          for f in ladder.json clans.json.gz dispersion.json.gz mapas.json torneos.json noticias.json partidos.json; do
+          for f in ladder.json clans.json.gz dispersion.json.gz mapas.json torneos.json torneos_historico.json noticias.json partidos.json streamers.json; do
             [ -f "$f" ] && git add -f "$f" || true
           done
           [ -d civstats ] && git add -f civstats || true
+          [ -d logos ] && git add -f logos || true
           git commit -q -m "datos $(date -u '+%F %H:%M UTC')" || { echo "nada que publicar"; exit 0; }
           git push --force -q origin HEAD:data
           echo "publicado en la rama data: $(git ls-files | wc -l) archivos"

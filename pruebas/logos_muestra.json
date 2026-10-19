@@ -1,0 +1,91 @@
+{
+  "_nota": "Muestra para python build_data.py --probar logos. imageinfo: forma real de la API de Liquipedia (wiki de AoE, 2026-10-19; los archivos de Commons vienen con missing:true y known:true y SÍ traen imageinfo). fichas: wikitexto real de las páginas File: de Liquipedia Commons ({{FileInfo}}). Las imágenes se generan en memoria con Pillow.",
+  "torneos": [
+    {"nombre": "The Bastion: Season 2", "url": "https://liquipedia.net/ageofempires/The_Bastion/2", "organizador": "Bastion Org"},
+    {"nombre": "Chilean Cup 2026", "url": "https://liquipedia.net/ageofempires/Chilean_Cup/2026", "organizador": "AoE Chile"},
+    {"nombre": "T90 Titans League 6: Bronze League", "url": "https://liquipedia.net/ageofempires/T90_Titans_League/6/Bronze_League"},
+    {"nombre": "Solo icono", "url": "https://liquipedia.net/ageofempires/Solo_icono"},
+    {"nombre": "Imagen rota", "url": "https://liquipedia.net/ageofempires/Imagen_rota"},
+    {"nombre": "Sin infobox", "url": "https://liquipedia.net/ageofempires/Sin_infobox",
+     "logo": {"archivo": "logos/torneos/no-existe-00000000.png", "fuente": null, "credito": "viejo"}}
+  ],
+  "infoboxes": {
+    "https://liquipedia.net/ageofempires/The_Bastion/2": {"image": "The Bastion lightmode.png", "imagedark": "The Bastion darkmode.png", "icon": "The Bastion logo lightmode.png", "icondark": "The Bastion logo darkmode.png"},
+    "https://liquipedia.net/ageofempires/Chilean_Cup/2026": {"image": "Chilean Cup 2026 allmode.webp", "imagedark": "Chilean Cup 2026 allmode.webp"},
+    "https://liquipedia.net/ageofempires/T90_Titans_League/6/Bronze_League": {"image": "<!--T90 Titans League 6 Bronze League allmode.png-->", "icon": "<!--T90 Titans League 6 Bronze League allmode.png-->"},
+    "https://liquipedia.net/ageofempires/Solo_icono": {"image": "", "icon": "File:solo_icono_allmode.png"},
+    "https://liquipedia.net/ageofempires/Imagen_rota": {"image": "Imagen rota.png"}
+  },
+  "imageinfo": {"batchcomplete": true, "query": {
+    "normalized": [{"fromencoded": false, "from": "File:Solo icono allmode.png", "to": "File:Solo icono allmode.png"}],
+    "pages": [
+      {"ns": 6, "title": "File:Nope nope.png", "missing": true, "imagerepository": ""},
+      {"ns": 6, "title": "File:Chilean Cup 2026 allmode.webp", "missing": true, "known": true, "imagerepository": "lpcommons",
+       "imageinfo": [{"size": 136688, "width": 1665, "height": 2000,
+         "thumburl": "https://liquipedia.net/commons/images/thumb/d/d7/Chilean_Cup_2026_allmode.webp/80px-Chilean_Cup_2026_allmode.webp.png",
+         "thumbwidth": 80, "thumbheight": 96,
+         "url": "https://liquipedia.net/commons/images/d/d7/Chilean_Cup_2026_allmode.webp",
+         "descriptionurl": "https://liquipedia.net/commons/File:Chilean_Cup_2026_allmode.webp",
+         "sha1": "a409243e55cad044eddaa7c167a25081823a9263",
+         "extmetadata": {"DateTime": {"value": "2026-08-27T08:33:53Z", "source": "mediawiki-metadata", "hidden": ""},
+                         "ObjectName": {"value": "Chilean Cup 2026 allmode", "source": "mediawiki-metadata"}},
+         "mime": "image/webp"}]},
+      {"ns": 6, "title": "File:The Bastion lightmode.png", "missing": true, "known": true, "imagerepository": "lpcommons",
+       "imageinfo": [{"size": 141158, "width": 4000, "height": 1461,
+         "thumburl": "https://liquipedia.net/commons/images/thumb/7/7c/The_Bastion_lightmode.png/263px-The_Bastion_lightmode.png",
+         "thumbwidth": 263, "thumbheight": 96,
+         "url": "https://liquipedia.net/commons/images/7/7c/The_Bastion_lightmode.png",
+         "descriptionurl": "https://liquipedia.net/commons/File:The_Bastion_lightmode.png",
+         "sha1": "51ea08bee97282a6a06f4e795522a6f04d8d94fb",
+         "extmetadata": {"DateTime": {"value": "2026-03-13T13:57:54Z", "source": "mediawiki-metadata", "hidden": ""}},
+         "mime": "image/png"}]},
+      {"ns": 6, "title": "File:The Bastion darkmode.png", "missing": true, "known": true, "imagerepository": "lpcommons",
+       "imageinfo": [{"size": 140000, "width": 4000, "height": 1461,
+         "thumburl": "https://liquipedia.net/commons/images/thumb/2/28/The_Bastion_darkmode.png/263px-The_Bastion_darkmode.png",
+         "thumbwidth": 263, "thumbheight": 96,
+         "url": "https://liquipedia.net/commons/images/2/28/The_Bastion_darkmode.png",
+         "descriptionurl": "https://liquipedia.net/commons/File:The_Bastion_darkmode.png",
+         "sha1": "28ee41a9aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+         "extmetadata": {"LicenseShortName": {"value": "CC BY-SA 4.0"}, "Artist": {"value": "<a href=\"x\">Bastion &amp; Co</a>"}},
+         "mime": "image/png"}]},
+      {"ns": 6, "title": "File:Solo icono allmode.png", "missing": true, "known": true, "imagerepository": "lpcommons",
+       "imageinfo": [{"size": 5000, "width": 200, "height": 200,
+         "thumburl": "https://liquipedia.net/commons/images/thumb/1/11/Solo_icono_allmode.png/96px-Solo_icono_allmode.png",
+         "thumbwidth": 96, "thumbheight": 96,
+         "url": "https://liquipedia.net/commons/images/1/11/Solo_icono_allmode.png",
+         "descriptionurl": "https://liquipedia.net/commons/File:Solo_icono_allmode.png",
+         "sha1": "1111111122222222333333334444444455555555", "mime": "image/png"}]},
+      {"ns": 6, "title": "File:Imagen rota.png", "missing": true, "known": true, "imagerepository": "lpcommons",
+       "imageinfo": [{"size": 5000, "width": 200, "height": 200,
+         "thumburl": "https://liquipedia.net/commons/images/thumb/9/99/Imagen_rota.png/96px-Imagen_rota.png",
+         "thumbwidth": 96, "thumbheight": 96,
+         "url": "https://liquipedia.net/commons/images/9/99/Imagen_rota.png",
+         "descriptionurl": "https://liquipedia.net/commons/File:Imagen_rota.png",
+         "sha1": "9999999999999999999999999999999999999999", "mime": "image/png"}]}
+    ]}},
+  "fichas": {"batchcomplete": true, "query": {"pages": [
+    {"pageid": 623926, "ns": 6, "title": "File:The Bastion lightmode.png", "revisions": [{"slots": {"main": {"contentmodel": "wikitext",
+      "content": "== Summary ==\n{{FileInfo\n|featured=\n|description=\n|license=fairuse\n|game=\n|event=\n|date=\n|author=\n|copyright=\n|note=\n|source=\n}}"}}}]},
+    {"pageid": 659170, "ns": 6, "title": "File:Chilean Cup 2026 allmode.webp", "revisions": [{"slots": {"main": {"contentmodel": "wikitext",
+      "content": "== Summary ==\n{{FileInfo\n|license=fairuselogo\n|author=[[User:Ejemplo|Ejemplo]]\n|copyright=AoE Chile\n}}"}}}]},
+    {"pageid": 1, "ns": 6, "title": "File:Solo icono allmode.png", "revisions": [{"slots": {"main": {"contentmodel": "wikitext",
+      "content": "sin plantilla"}}}]}
+  ]}},
+  "rotas": ["https://liquipedia.net/commons/images/thumb/9/99/Imagen_rota.png/96px-Imagen_rota.png"],
+  "esperado": {
+    "The Bastion: Season 2": {
+      "logo": {"archivo": "logos/torneos/the-bastion-lightmode-51ea08be.png", "fuente": "https://liquipedia.net/commons/File:The_Bastion_lightmode.png",
+               "credito": "Logo de The Bastion: Season 2 © Bastion Org. Vía Liquipedia Commons; licencia: uso legítimo (fair use); no es CC BY-SA.", "licencia": "fairuse"},
+      "logo_oscuro": {"archivo": "logos/torneos/the-bastion-darkmode-28ee41a9.png", "fuente": "https://liquipedia.net/commons/File:The_Bastion_darkmode.png",
+               "credito": "Logo de The Bastion: Season 2 © Bastion & Co. Vía Liquipedia Commons; licencia: CC BY-SA 4.0.", "licencia": "CC BY-SA 4.0"}},
+    "Chilean Cup 2026": {
+      "logo": {"archivo": "logos/torneos/chilean-cup-2026-allmode-a409243e.png", "fuente": "https://liquipedia.net/commons/File:Chilean_Cup_2026_allmode.webp",
+               "credito": "Logo de Chilean Cup 2026 © AoE Chile. Archivo de Ejemplo en Liquipedia Commons; licencia: logo, uso legítimo (fair use); no es CC BY-SA.", "licencia": "fairuselogo"}},
+    "T90 Titans League 6: Bronze League": {},
+    "Solo icono": {
+      "logo": {"archivo": "logos/torneos/solo-icono-allmode-11111111.png", "fuente": "https://liquipedia.net/commons/File:Solo_icono_allmode.png",
+               "credito": "Logo de Solo icono © su titular. Vía Liquipedia Commons; licencia: no indicada; no es CC BY-SA."}},
+    "Imagen rota": {},
+    "Sin infobox": {}
+  }
+}
