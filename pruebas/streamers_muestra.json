@@ -1,0 +1,58 @@
+{
+  "_nota": "Respuestas de Twitch Helix INVENTADAS con la forma real de Get Streams y Get Users (https://dev.twitch.tv/docs/api/reference), para python build_data.py --probar streamers. Los ids, títulos y URLs de avatar son de ejemplo.",
+  "creadores": {"hera": "hera", "st4rk": "st4rk_", "morleygames": "morleygames", "daut": "daut"},
+  "streams": {
+    "data": [
+      {"id": "40000000001", "user_id": "100000001", "user_login": "t90official", "user_name": "T90Official", "game_id": "13389",
+       "game_name": "Age of Empires II", "type": "live", "title": "Ejemplo de directo", "viewer_count": 5321,
+       "started_at": "2026-10-19T03:00:00Z", "language": "en",
+       "thumbnail_url": "https://static-cdn.jtvnw.net/previews-ttv/live_user_t90official-{width}x{height}.jpg",
+       "tag_ids": [], "tags": ["English"], "is_mature": false},
+      {"id": "40000000002", "user_id": "100000002", "user_login": "Hera", "user_name": "Hera", "game_id": "13389",
+       "game_name": "Age of Empires II", "type": "live", "title": "ranked", "viewer_count": 2100,
+       "started_at": "2026-10-19T02:00:00Z", "language": "en",
+       "thumbnail_url": "https://static-cdn.jtvnw.net/previews-ttv/live_user_hera-{width}x{height}.jpg",
+       "tag_ids": [], "tags": [], "is_mature": false},
+      {"id": "40000000003", "user_id": "100000003", "user_login": "memb", "user_name": "MembTV", "game_id": "13389",
+       "game_name": "Age of Empires II", "type": "live", "title": "torneo", "viewer_count": 800,
+       "started_at": "2026-10-19T01:00:00Z", "language": "en",
+       "thumbnail_url": "https://static-cdn.jtvnw.net/previews-ttv/live_user_memb-{width}x{height}.jpg",
+       "tag_ids": [], "tags": [], "is_mature": false}
+    ],
+    "pagination": {"cursor": "eyJiIjpudWxsLCJhIjp7Ik9mZnNldCI6M319"}
+  },
+  "partidos": {"partidos": [
+    {"torneo": "X", "stream": "https://www.twitch.tv/beingesports"},
+    {"torneo": "X", "stream": "https://www.youtube.com/channel/UC1234567890abcdefghijkl/live"},
+    {"torneo": "Y", "stream": "https://www.twitch.tv/memb"},
+    {"torneo": "Z"}
+  ]},
+  "torneos": {"torneos": [
+    {"nombre": "A", "enlaces": {"twitch": "https://www.twitch.tv/RedBullGaming", "web": "https://example.org"}},
+    {"nombre": "B"}
+  ]},
+  "previo": {"canales": {"viejo_canal": {"nombre": "Viejo", "avatar_url": "https://static-cdn.jtvnw.net/x.png", "url": "https://twitch.tv/viejo_canal"}}},
+  "users": {
+    "data": [
+      {"id": "100000002", "login": "hera", "display_name": "Hera", "type": "", "broadcaster_type": "partner",
+       "description": "Ejemplo", "profile_image_url": "https://static-cdn.jtvnw.net/jtv_user_pictures/ejemplo-hera-profile_image-300x300.png",
+       "offline_image_url": "", "view_count": 0, "created_at": "2014-01-01T00:00:00Z"},
+      {"id": "100000004", "login": "st4rk_", "display_name": "St4rk_", "type": "", "broadcaster_type": "partner",
+       "description": "", "profile_image_url": "https://static-cdn.jtvnw.net/jtv_user_pictures/ejemplo-st4rk-profile_image-300x300.png",
+       "offline_image_url": "", "view_count": 0, "created_at": "2015-01-01T00:00:00Z"},
+      {"id": "100000005", "login": "daut", "display_name": "DauT", "type": "", "broadcaster_type": "partner",
+       "description": "", "profile_image_url": "https://evil.example.com/avatar.png",
+       "offline_image_url": "", "view_count": 0, "created_at": "2013-01-01T00:00:00Z"},
+      {"id": "100000001", "login": "t90official", "display_name": "T90Official", "type": "", "broadcaster_type": "partner",
+       "description": "", "profile_image_url": "https://static-cdn.jtvnw.net/jtv_user_pictures/ejemplo-t90-profile_image-300x300.png",
+       "offline_image_url": "", "view_count": 0, "created_at": "2012-01-01T00:00:00Z"}
+    ]
+  },
+  "esperado_logins": ["hera", "st4rk_", "morleygames", "daut", "t90official", "memb", "beingesports", "redbullgaming", "viejo_canal"],
+  "esperado_canales": {
+    "hera": {"nombre": "Hera", "avatar_url": "https://static-cdn.jtvnw.net/jtv_user_pictures/ejemplo-hera-profile_image-300x300.png", "url": "https://twitch.tv/hera"},
+    "st4rk_": {"nombre": "St4rk_", "avatar_url": "https://static-cdn.jtvnw.net/jtv_user_pictures/ejemplo-st4rk-profile_image-300x300.png", "url": "https://twitch.tv/st4rk_"},
+    "t90official": {"nombre": "T90Official", "avatar_url": "https://static-cdn.jtvnw.net/jtv_user_pictures/ejemplo-t90-profile_image-300x300.png", "url": "https://twitch.tv/t90official"}
+  },
+  "esperado_creadores": {"hera": "hera", "st4rk": "st4rk_"}
+}

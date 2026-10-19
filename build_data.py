@@ -23,13 +23,36 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                                   "inicio":"AAAA-MM-DD", "fin":"AAAA-MM-DD", "estado":"en_curso|proximo|terminado",
                                   "bolsa":número|null, "moneda":"USD"|null, ["bolsa_local", "moneda_local"],
                                   "formato":"1v1|2v2|3v3|4v4|mixto|FFA|equipos|null", "formato_texto", "organizador", "lugar",
-                                  "participantes", "url", ["enlaces"], ["ganador", "finalista"]}]}
+                                  "participantes", "url", ["enlaces"], ["logo", "logo_oscuro"], ["ganador", "finalista"]}]}
                      «enlaces» (opcional, del infobox): {"web","discord","twitch","youtube","x","bracket"}, cada uno solo si
                      Liquipedia lo da y es una URL https válida (los identificadores sueltos se completan: twitch.tv/…, x.com/…).
                      ganador/finalista solo si Liquipedia los da (la app los esconde: sin spoilers); varios jugadores se unen
                      con « & ». Orden: en_curso (por fin), proximo (por inicio), terminado (el más reciente primero).
+                     «logo» / «logo_oscuro» (opcionales; ver torneos_logos()): {"archivo":"logos/torneos/<x>.png" (ruta
+                     relativa a la raíz de la rama data), "fuente": URL de la página File: de Liquipedia Commons, "credito":
+                     texto para mostrar, ["licencia"]: la de la ficha del archivo tal cual («fairuse», «fairuselogo», «pd»…)}.
+                     logo = image (o «allmode», sirve para los dos temas) o, si no hay, icon; logo_oscuro solo si el infobox
+                     da una variante distinta para tema oscuro (imagedark/icondark). Los logos son marcas de sus dueños, NO
+                     van con la CC BY-SA de los datos: la app debe enseñar «credito» (o enlazar «fuente») junto al logo.
                      Si Liquipedia falla o no sale ningún torneo, se conserva el torneos.json anterior (rama data).
                      Prueba sin red: python build_data.py --probar (muestra en pruebas/). Solo este paso: python build_data.py torneos
+- torneos_historico.json  el mismo esquema que torneos.json, pero con TODOS los torneos que da {{TournamentsList}} para los
+                     años de torneos_anios() (el año en curso y el siguiente; en enero, también el anterior), sin recortar a
+                     la ventana: «ventana» = {"desde":"AAAA-01-01","hasta":"AAAA-12-31"}. Mismo orden. Lo escribe torneos().
+- logos/torneos/*.png     logos de torneo: PNG de 96 px de alto como mucho (384 de ancho), descargados UNA vez de Liquipedia
+                     Commons (no se enlazan: Liquipedia pide no hacer hotlink). Nombre = archivo de Liquipedia en minúsculas +
+                     sha1[:8] del archivo (clave de caché: un logo nuevo en la wiki cambia el hash y se baja otra vez). Los
+                     que ya no usa ningún torneo de torneos.json/torneos_historico.json se borran. Carpeta en la rama data.
+- streamers.json     imagen de perfil pública de canales de Twitch (API Helix; ver streamers()). Esquema (v1):
+                     {"v":1, "generado":ISO, "fuente":"Twitch (imagen de perfil pública, solo para dar crédito y enlazar al canal)",
+                      "canales":{"<login>":{"nombre", "avatar_url" (https://static-cdn.jtvnw.net/…), "url":"https://twitch.tv/<login>"}},
+                      "creadores":{"<creador de build orders>":"<login>"} (solo los que Twitch conoce; ver STREAMERS_CREADORES),
+                      "en_directo":["<login>"…] (top de AoE II en Twitch a la hora del build, por espectadores)}
+                     Canales = creadores + top 20 en directo + streams de partidos.json + enlaces.twitch de torneos.json + los
+                     del streamers.json anterior (tope 100). Solo se guarda la URL del avatar (CDN de Twitch), no la imagen.
+                     Necesita TWITCH_CLIENT_ID y TWITCH_CLIENT_SECRET en el entorno (secretos de Actions); sin ellos, ::notice
+                     y se conserva el anterior; si Twitch falla o no sale ningún canal, también se conserva el anterior.
+                     Prueba sin red: python build_data.py --probar streamers. Solo este paso: python build_data.py streamers
 - noticias.json      titulares recientes de AoE II de la web oficial (API REST pública de ageofempires.com, juegos AoE II DE/HD).
                      Solo titular, fecha, fuente, enlace, categoría y miniatura; nunca el cuerpo. Ver noticias(). Esquema (v1):
                      {"v":1, "generado":ISO, "fuentes":[{"nombre","url"}],
@@ -56,6 +79,8 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
 Fuente: volcados diarios de aoe2companion (https://www.aoe2companion.com/more/api).
 Torneos y partidos: Liquipedia (https://liquipedia.net/ageofempires/), CC BY-SA 3.0; torneos.json y partidos.json se
 publican con la misma licencia.
+Logos de torneo: Liquipedia Commons; cada logo es marca de su titular (licencia de su ficha, casi siempre «fair use»).
+Avatares: Twitch (URL pública del CDN de Twitch, enlazando al canal).
 Noticias: titulares y enlaces de https://www.ageofempires.com/news/ (World's Edge / Microsoft); los artículos no se copian.
 Créditos: aoe2companion (Dennis Keil) · Liquipedia · Age of Empires II © Microsoft.
 """
@@ -1282,8 +1307,9 @@ def perfiles():
 # exige y no se usa), nada de HTML de páginas fuera de la API, User-Agent propio con contacto, gzip, una conexión reutilizada,
 # action=parse como mucho 1 cada 30 s y el resto 1 cada 2 s. Por noche: 1 action=parse de {{TournamentsList|game=Age of
 # Empires II|year=…}} (la misma plantilla de la página «Age_of_Empires_II/Tournaments/AAAA-AA»), que ya trae tier, fechas,
-# bolsa en USD, lugar, participantes, ganador y finalista, y 1 o 2 action=query (50 títulos cada una) con el wikitexto de los
-# torneos de la ventana para sacar del infobox organizador, formato y moneda local. Contenido CC BY-SA 3.0.
+# bolsa en USD, lugar, participantes, ganador y finalista, y ≈5 action=query (50 títulos cada una) con el wikitexto de todos
+# los torneos de la tabla (los de la ventana primero) para sacar del infobox organizador, formato, moneda local, enlaces y el
+# nombre del logo (ver torneos_logos()). Contenido CC BY-SA 3.0.
 LQ_HOST = "liquipedia.net"
 LQ_API = "/ageofempires/api.php"
 LQ_BASE = "https://liquipedia.net"
@@ -1295,6 +1321,18 @@ TORNEOS_DIAS_PASADO = 30
 TORNEOS_DIAS_FUTURO = 60
 TORNEOS_MUESTRA = os.path.join("pruebas", "torneos_muestra.json")
 MESES_EN = {m: i + 1 for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"))}
+TORNEOS_HISTORICO = "torneos_historico.json"
+LQ_API_COMMONS = "/commons/api.php"     # los archivos (logos) viven en Liquipedia Commons: ahí está su ficha {{FileInfo}}
+LOGOS_DIR = os.path.join("logos", "torneos")
+LOGOS_ALTO = 96                 # alto máximo del PNG publicado
+LOGOS_ANCHO_MAX = 384           # ancho máximo (logos apaisados: 4:1)
+LOGOS_MAX_BYTES = 2_000_000     # una miniatura de 96 px nunca pesa esto: si lo pesa, no se baja
+LOGOS_MAX_PIXELES = 4_000_000   # tope para Pillow (bomba de descompresión)
+LOGOS_MAX_DESCARGAS = 80        # logos nuevos por noche (2,5 s cada uno); los que falten bajan la noche siguiente
+LOGOS_LICENCIAS = {"fairuse": "uso legítimo (fair use)", "fairuselogo": "logo, uso legítimo (fair use)",
+                   "permission": "con permiso del titular", "copyright": "con copyright", "cc-by-sa": "CC BY-SA",
+                   "cc-by-sa-3.0": "CC BY-SA 3.0", "cc-by-sa-4.0": "CC BY-SA 4.0", "cc-by": "CC BY", "cc0": "CC0",
+                   "pd": "dominio público", "publicdomain": "dominio público"}
 TIPOS_TIER = {"qualifier": "Qualifier", "weekly": "Weekly", "monthly": "Monthly", "showmatch": "Showmatch", "ffa": "FFA",
               "biweekly": "Biweekly", "charity": "Charity"}
 
@@ -1307,11 +1345,13 @@ class Liquipedia:
     _ultima = None
     _ultima_parse = None
 
-    def __init__(self):
+    def __init__(self, api=LQ_API):
         import http.client
         self._hc = http.client
+        self.api = api              # /ageofempires/api.php; /commons/api.php para las fichas de los archivos (mismo host y ritmo)
         self.con = None
         self.peticiones = 0
+        self.descargas = 0
 
     @classmethod
     def _esperar(cls, parse):
@@ -1324,7 +1364,7 @@ class Liquipedia:
     def get(self, params, intentos=2):
         import urllib.parse
         parse = params.get("action") == "parse"
-        ruta = LQ_API + "?" + urllib.parse.urlencode(dict(params, format="json", formatversion="2"))
+        ruta = self.api + "?" + urllib.parse.urlencode(dict(params, format="json", formatversion="2"))
         for i in range(intentos):
             self._esperar(parse)
             Liquipedia._ultima = time.monotonic()
@@ -1357,6 +1397,41 @@ class Liquipedia:
                 self.con = None
                 if i == intentos - 1:
                     raise
+
+    def descargar(self, url, max_bytes=LOGOS_MAX_BYTES):
+        """Un archivo de imagen de https://liquipedia.net/commons/images/… (no es HTML de páginas: es el fichero que la API
+        da en imageinfo), por la misma conexión y con el mismo ritmo que las peticiones a la API. Un intento; None si falla."""
+        import urllib.parse
+        u = urllib.parse.urlsplit(url or "")
+        if u.scheme != "https" or u.hostname != LQ_HOST or not u.path.startswith("/commons/images/"):
+            log(f"liquipedia: descarga rechazada (no es de {LQ_HOST}/commons/images/): {url!r}")
+            return None
+        self._esperar(False)
+        Liquipedia._ultima = time.monotonic()
+        self.descargas += 1
+        try:
+            if self.con is None:
+                self.con = self._hc.HTTPSConnection(LQ_HOST, timeout=60)
+            self.con.request("GET", u.path + (("?" + u.query) if u.query else ""),
+                             headers={"User-Agent": LQ_UA, "Accept-Encoding": "gzip", "Accept": "image/*"})
+            r = self.con.getresponse()
+            raw = r.read(max_bytes + 1)
+            if len(raw) > max_bytes:
+                raise RuntimeError(f"más de {max_bytes} bytes")
+            r.read()
+            if (r.getheader("Content-Encoding") or "").lower() == "gzip":
+                raw = gzip.decompress(raw)
+            if r.status != 200:
+                raise RuntimeError(f"HTTP {r.status}")
+            return raw
+        except Exception as ex:
+            log(f"liquipedia: descarga {url}: {ex!r}")
+            try:
+                self.con.close()
+            except Exception:
+                pass
+            self.con = None
+            return None
 
     def cerrar(self):
         if self.con is not None:
@@ -1667,9 +1742,12 @@ def torneos_estado(t, hoy):
     return "en_curso"
 
 
-def torneos_en_ventana(filas, hoy):
-    """Torneos cuyas fechas tocan la ventana [hoy - PASADO, hoy + FUTURO], sin duplicados (misma URL o mismo nombre y fecha)."""
+def torneos_en_ventana(filas, hoy, todo=False):
+    """Torneos cuyas fechas tocan la ventana [hoy - PASADO, hoy + FUTURO] (todo=True: todos los que traiga la tabla), sin
+    duplicados (misma URL o mismo nombre y fecha)."""
     desde, hasta = hoy - timedelta(days=TORNEOS_DIAS_PASADO), hoy + timedelta(days=TORNEOS_DIAS_FUTURO)
+    if todo:
+        desde, hasta = date.min, date.max
     out, vistos, sin_fecha = [], set(), 0
     for f in filas:
         if not f.get("inicio"):
@@ -1689,12 +1767,12 @@ def torneos_en_ventana(filas, hoy):
     return out
 
 
-def torneos_componer(filas, infoboxes, hoy, previo=None):
+def torneos_componer(filas, infoboxes, hoy, previo=None, todo=False):
     """Lista final ordenada. infoboxes: {título: params}; si falta el de un torneo, organizador y formato se toman del
-    torneos.json anterior (misma URL)."""
+    torneos.json anterior (misma URL). El logo del anterior se copia siempre (torneos_logos lo rehace si puede)."""
     previos = {t.get("url"): t for t in (previo or {}).get("torneos", []) if t.get("url")}
     out = []
-    for f in torneos_en_ventana(filas, hoy):
+    for f in torneos_en_ventana(filas, hoy, todo):
         titulo = f.pop("titulo", None)
         ib = infoboxes.get(titulo) if titulo else None
         if ib:
@@ -1715,6 +1793,9 @@ def torneos_componer(filas, infoboxes, hoy, previo=None):
         for k in ("ganador", "finalista"):
             if f.get(k):
                 t[k] = f[k]
+        for k in ("logo", "logo_oscuro"):
+            if previos.get(f.get("url"), {}).get(k):
+                t[k] = previos[f["url"]][k]
         out.append(t)
     en_curso = sorted((t for t in out if t["estado"] == "en_curso"), key=lambda t: (t["fin"], t["nombre"].lower()))
     proximos = sorted((t for t in out if t["estado"] == "proximo"), key=lambda t: (t["inicio"], t["nombre"].lower()))
@@ -1722,11 +1803,15 @@ def torneos_componer(filas, infoboxes, hoy, previo=None):
     return en_curso + proximos + terminados
 
 
-def torneos_salida(lista, hoy):
+def torneos_salida(lista, hoy, todo=False):
     g = ahora()
-    return {"v": 1, "generado": g, "hoy": hoy.isoformat(),
-            "ventana": {"desde": (hoy - timedelta(days=TORNEOS_DIAS_PASADO)).isoformat(),
-                        "hasta": (hoy + timedelta(days=TORNEOS_DIAS_FUTURO)).isoformat()},
+    if todo:
+        anios = torneos_anios(hoy)
+        ventana = {"desde": f"{anios[0]}-01-01", "hasta": f"{anios[-1]}-12-31"}
+    else:
+        ventana = {"desde": (hoy - timedelta(days=TORNEOS_DIAS_PASADO)).isoformat(),
+                   "hasta": (hoy + timedelta(days=TORNEOS_DIAS_FUTURO)).isoformat()}
+    return {"v": 1, "generado": g, "hoy": hoy.isoformat(), "ventana": ventana,
             "fuente": {"nombre": "Liquipedia", "url": "https://liquipedia.net/ageofempires/", "licencia": "CC BY-SA 3.0",
                        "licencia_url": "https://creativecommons.org/licenses/by-sa/3.0/",
                        "atribucion": "Datos de torneos de Liquipedia (liquipedia.net/ageofempires), licencia CC BY-SA 3.0. "
@@ -1758,11 +1843,258 @@ def torneos_infoboxes(lq, titulos):
     return out
 
 
+# ----------------------------------------------------------------------------- logos de torneos (Liquipedia Commons)
+# El infobox de cada torneo nombra su logo: image (o «allmode», vale para los dos temas), imagedark (variante para tema
+# oscuro) e icon/icondark como respaldo. Liquipedia pide no enlazar sus imágenes (no hotlink): cada logo se DESCARGA una sola
+# vez (la miniatura de 96 px de alto que la API da en imageinfo con iiurlheight, no el original), se normaliza a PNG con
+# Pillow y se publica en la rama data, en logos/torneos/<nombre>-<sha1[:8]>.png. Clave de caché = nombre + hash del archivo:
+# si el archivo ya está (recuperado de la rama data), no se vuelve a bajar; si Liquipedia sube una versión nueva, cambia el
+# hash y se baja la nueva. Los que ya no use ningún torneo se borran. Por noche: imageinfo (50 títulos por petición) en la
+# wiki de AoE, la ficha {{FileInfo}} en Commons (50 por petición: ahí están licencia, autor y copyright; el extmetadata de
+# Liquipedia solo trae DateTime y ObjectName) y como mucho LOGOS_MAX_DESCARGAS descargas, al mismo ritmo (1 cada 2,5 s).
+# Carpeta en la rama data y no assets de una release: son pocos archivos pequeños (≈5-15 KB), la app ya lee la rama data
+# por raw, la rama se rehace con un commit huérfano cada noche (no crece la historia) y una release añadiría otra ruta de
+# descarga, límites de subida de GitHub y nombres planos.
+def logos_nombre(v):
+    """Valor de image=/imagedark=/icon= del infobox → nombre de archivo («The Bastion lightmode.png») o None."""
+    import re
+    v = wiki_limpiar(v)
+    v = re.sub(r"^(?:file|image|archivo)\s*:\s*", "", v, flags=re.I).replace("_", " ").strip()
+    if not v or not re.search(r"\.(png|jpe?g|gif|webp|svg)$", v, re.I) or re.search(r"[\[\]{}|<>#]", v):
+        return None
+    return v[0].upper() + v[1:]          # MediaWiki pone en mayúscula la primera letra del título
+
+
+def logos_de_infobox(ib):
+    """(logo, logo_oscuro) del infobox: image/imagedark; si no hay image, icon/icondark. El oscuro solo si es distinto."""
+    claro = logos_nombre(ib.get("image", ""))
+    oscuro = logos_nombre(ib.get("imagedark", "")) if claro else None
+    if not claro:
+        claro = logos_nombre(ib.get("icon", ""))
+        oscuro = logos_nombre(ib.get("icondark", "")) if claro else None
+    if not claro:
+        claro, oscuro = logos_nombre(ib.get("imagedark", "")) or logos_nombre(ib.get("icondark", "")), None
+    return claro, (oscuro if oscuro != claro else None)
+
+
+def _titulos_origen(q):
+    """{título final: título pedido} de los «normalized» y «redirects» de una respuesta de action=query."""
+    origen = {}
+    for r in (q.get("normalized") or []) + (q.get("redirects") or []):
+        origen[r["to"]] = origen.get(r["from"], r["from"])
+    return origen
+
+
+def _sin_prefijo(t):
+    return t.split(":", 1)[1] if ":" in t else t
+
+
+def logos_imageinfo_paginas(paginas, origen=None):
+    """Páginas de prop=imageinfo → {nombre sin «File:»: imageinfo}. OJO: los archivos de Commons vienen con missing:true y
+    known:true (no existen en la wiki de AoE, sí en el repositorio compartido): vale lo que tenga imageinfo."""
+    out = {}
+    for p in paginas:
+        ii = (p.get("imageinfo") or [None])[0]
+        if not ii:
+            continue
+        for t in {p["title"], (origen or {}).get(p["title"], p["title"])}:
+            out[_sin_prefijo(t)] = ii
+    return out
+
+
+def logos_fichas_paginas(paginas, origen=None):
+    """Páginas de prop=revisions de Commons → {nombre: parámetros de {{FileInfo}}} (license, author, copyright, source…)."""
+    out = {}
+    for p in paginas:
+        revs = p.get("revisions") or []
+        if not revs:
+            continue
+        texto = revs[0].get("slots", {}).get("main", {}).get("content", "")
+        ficha = wiki_infobox(texto.replace("{{FileInfo", "{{Infobox", 1)) if "{{FileInfo" in texto else {}
+        for t in {p["title"], (origen or {}).get(p["title"], p["title"])}:
+            out[_sin_prefijo(t)] = ficha
+    return out
+
+
+def _consultar_por_lotes(lq, nombres, params, lector):
+    out = {}
+    nombres = list(dict.fromkeys(nombres))
+    for k in range(0, len(nombres), LQ_TITULOS_POR_QUERY):
+        lote = nombres[k:k + LQ_TITULOS_POR_QUERY]
+        d = lq.get(dict(params, titles="|".join("File:" + n for n in lote)))
+        q = d.get("query", {})
+        out.update(lector(q.get("pages", []), _titulos_origen(q)))
+    return out
+
+
+def _texto_html(v):
+    import html as _h, re
+    return " ".join(_h.unescape(re.sub(r"<[^>]+>", " ", str(v or ""))).split())
+
+
+def logos_credito(ii, ficha, torneo):
+    """(crédito, licencia) de un logo. Licencia: LicenseShortName del extmetadata si lo trae; si no, «license» de la ficha
+    {{FileInfo}} de Commons (en Liquipedia casi siempre fairuse/fairuselogo). Titular: «copyright» de la ficha, o Artist del
+    extmetadata, o el organizador del torneo. «author» de la ficha (o Credit) es quien hizo/subió el archivo a la wiki.
+    Los logos son marcas de sus dueños: no van con la CC BY-SA del texto de Liquipedia."""
+    ext = (ii or {}).get("extmetadata") or {}
+    ficha = ficha or {}
+    lic = _texto_html((ext.get("LicenseShortName") or {}).get("value")) or wiki_limpiar(ficha.get("license", ""))
+    titular = (wiki_limpiar(ficha.get("copyright", "")) or _texto_html((ext.get("Artist") or {}).get("value"))
+               or torneo.get("organizador") or "su titular")
+    autor = wiki_limpiar(ficha.get("author", "")) or _texto_html((ext.get("Credit") or {}).get("value"))
+    lic_txt = LOGOS_LICENCIAS.get(lic.lower().replace(" ", ""), lic) if lic else "no indicada"
+    credito = f"Logo de {torneo.get('nombre')} © {titular}. "
+    credito += (f"Archivo de {autor} en Liquipedia Commons" if autor and autor != titular else "Vía Liquipedia Commons")
+    credito += f"; licencia: {lic_txt}" + ("." if lic.lower().startswith("cc") else "; no es CC BY-SA.")
+    return credito[:300], (lic or None)
+
+
+def logos_ruta(nombre, sha1):
+    """logos/torneos/<nombre en minúsculas, solo [a-z0-9-]>-<sha1[:8]>.png (con «/», que es como va en el JSON)."""
+    import re, unicodedata
+    base = nombre.rsplit(".", 1)[0]
+    base = unicodedata.normalize("NFKD", base).encode("ascii", "ignore").decode().lower()
+    base = re.sub(r"[^a-z0-9]+", "-", base).strip("-")[:60] or "logo"
+    return f"{LOGOS_DIR.replace(os.sep, '/')}/{base}-{(sha1 or 'sinhash')[:8]}.png"
+
+
+def logos_png(raw):
+    """Bytes de imagen → PNG de LOGOS_ALTO px de alto como mucho (y LOGOS_ANCHO_MAX de ancho), RGBA, sin metadatos."""
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = LOGOS_MAX_PIXELES
+    im = Image.open(io.BytesIO(raw))
+    if im.width * im.height > LOGOS_MAX_PIXELES:
+        raise ValueError(f"imagen enorme {im.width}x{im.height}")
+    im.seek(0)
+    im = im.convert("RGBA")
+    im.thumbnail((LOGOS_ANCHO_MAX, LOGOS_ALTO), Image.LANCZOS)
+    out = io.BytesIO()
+    im.save(out, "PNG", optimize=True)
+    # paleta de 256 colores con alfa: a 96 px apenas se nota y pesa ≈4 veces menos; se queda el más pequeño
+    pal = io.BytesIO()
+    im.quantize(256, method=Image.Quantize.FASTOCTREE).save(pal, "PNG", optimize=True)
+    return min(out.getvalue(), pal.getvalue(), key=len)
+
+
+def logos_asignar(listas, infob, info, fichas, descargar, max_descargas=LOGOS_MAX_DESCARGAS):
+    """Pone «logo» (y «logo_oscuro») a los torneos de las listas (el orden de las listas es la prioridad de descarga).
+    infob: {url del torneo: infobox}; info: {archivo: imageinfo}; fichas: {archivo: FileInfo}; descargar(url) → bytes|None.
+    Devuelve (torneos con logo, descargas, bytes nuevos). Un logo que falla deja al torneo sin él (o con el anterior)."""
+    hechos, bajados, nbytes, con_logo = {}, 0, 0, set()
+    for lista in listas:
+        for t in lista:
+            ib = infob.get(t.get("url"))
+            if not ib:
+                continue
+            t.pop("logo", None)
+            t.pop("logo_oscuro", None)
+            for campo, nombre in zip(("logo", "logo_oscuro"), logos_de_infobox(ib)):
+                ii = info.get(nombre) if nombre else None
+                if not ii:
+                    continue
+                if nombre not in hechos:
+                    hechos[nombre] = None
+                    ruta = logos_ruta(nombre, ii.get("sha1"))
+                    if not os.path.exists(ruta):
+                        url = ii.get("thumburl") or (ii.get("url") if 0 < (ii.get("size") or 0) <= LOGOS_MAX_BYTES else None)
+                        if not url or bajados >= max_descargas:
+                            hechos.pop(nombre)          # sin cupo: queda para la noche siguiente
+                            continue
+                        bajados += 1
+                        raw = descargar(url)
+                        if not raw:
+                            continue
+                        try:
+                            png = logos_png(raw)
+                        except Exception as ex:
+                            log(f"logos: {nombre}: imagen ilegible ({ex!r})")
+                            continue
+                        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+                        with open(ruta, "wb") as f:
+                            f.write(png)
+                        nbytes += len(png)
+                    hechos[nombre] = (ruta, ii.get("descriptionurl"))
+                if not hechos.get(nombre):
+                    continue
+                ruta, fuente = hechos[nombre]
+                credito, lic = logos_credito(ii, fichas.get(nombre), t)
+                logo = {"archivo": ruta, "fuente": fuente if url_https_ok(fuente) else None, "credito": credito}
+                if lic:
+                    logo["licencia"] = lic
+                t[campo] = logo
+            if t.get("logo_oscuro") and not t.get("logo"):
+                t["logo"] = t.pop("logo_oscuro")
+            if t.get("logo"):
+                con_logo.add(t.get("url"))
+    return len(con_logo), bajados, nbytes
+
+
+def logos_validar(listas):
+    """Quita «logo»/«logo_oscuro» cuyo PNG no esté en disco (p. ej. copiado del JSON anterior y luego perdido)."""
+    for lista in listas:
+        for t in lista:
+            for c in ("logo", "logo_oscuro"):
+                if t.get(c) and not os.path.exists(t[c].get("archivo") or ""):
+                    t.pop(c)
+            if t.get("logo_oscuro") and not t.get("logo"):
+                t["logo"] = t.pop("logo_oscuro")
+
+
+def logos_podar(listas):
+    """Borra de logos/torneos los PNG que ya no usa ningún torneo. Devuelve (archivos que quedan, bytes)."""
+    usados = {os.path.normpath(t[c]["archivo"]) for lista in listas for t in lista for c in ("logo", "logo_oscuro") if t.get(c)}
+    quedan, nbytes = 0, 0
+    if not os.path.isdir(LOGOS_DIR):
+        return 0, 0
+    for a in os.listdir(LOGOS_DIR):
+        ruta = os.path.join(LOGOS_DIR, a)
+        if os.path.normpath(ruta) not in usados:
+            os.remove(ruta)
+        else:
+            quedan += 1
+            nbytes += os.path.getsize(ruta)
+    return quedan, nbytes
+
+
+def torneos_logos(lq, listas, infob):
+    """Logos de los torneos de las listas (ver el bloque de arriba). infob: {url del torneo: infobox}. Nunca lanza: si algo
+    falla, los torneos se quedan como estaban (con el logo copiado del JSON anterior, si lo había)."""
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        print("::warning title=logos::falta Pillow (pip install pillow): torneos sin logos nuevos", flush=True)
+        return
+    nombres = [n for lista in listas for t in lista for n in logos_de_infobox(infob.get(t.get("url")) or {}) if n]
+    if not nombres:
+        return
+    lqc = Liquipedia(LQ_API_COMMONS)
+    try:
+        info = _consultar_por_lotes(lq, nombres, {"action": "query", "prop": "imageinfo", "redirects": "1",
+                                                  "iiprop": "url|size|mime|sha1|extmetadata", "iiurlheight": str(LOGOS_ALTO)},
+                                    logos_imageinfo_paginas)
+        try:
+            fichas = _consultar_por_lotes(lqc, list(info), {"action": "query", "prop": "revisions", "rvprop": "content",
+                                                            "rvslots": "main", "redirects": "1"}, logos_fichas_paginas)
+        except Exception as ex:
+            log(f"logos: sin fichas de Commons ({ex!r}): crédito sin licencia")
+            fichas = {}
+        n, bajados, nbytes = logos_asignar(listas, infob, info, fichas, lq.descargar)
+        log(f"logos: {len(set(nombres))} archivos en los infoboxes, {len(info)} con imageinfo, {n} torneos con logo; "
+            f"{bajados} descargas ({nbytes / 1024:.0f} KB nuevos); {lqc.peticiones} peticiones a Commons")
+    except Exception as ex:
+        print(f"::warning title=logos::no se pudieron poner los logos ({ex!r})", flush=True)
+    finally:
+        lqc.cerrar()
+
+
 def torneos():
-    """torneos.json desde Liquipedia (esquema en la cabecera, normas arriba). Si algo falla o no sale ningún torneo, no se
-    escribe: se queda el anterior (recuperado de la rama data) con aviso ::warning:: en el resumen; el paso no rompe el build."""
+    """torneos.json (ventana) y torneos_historico.json (todo lo que da la tabla) desde Liquipedia, con logos (esquema en la
+    cabecera, normas arriba). Si algo falla o no sale ningún torneo en la ventana, no se escribe nada: se quedan los
+    anteriores (recuperados de la rama data) con aviso ::warning:: en el resumen; el paso no rompe el build."""
     hoy = datetime.now(timezone.utc).date()
     previo = leer_json("torneos.json", None)
+    previo_h = leer_json(TORNEOS_HISTORICO, None)
     lq = Liquipedia()
     filas, infob = [], {}
     try:
@@ -1772,7 +2104,8 @@ def torneos():
         log(f"torneos: años {torneos_anios(hoy)}: {len(filas)} filas")
         if not filas:
             raise RuntimeError("ninguna fila en la tabla de TournamentsList")
-        candidatos = torneos_en_ventana(filas, hoy)
+        # infoboxes: primero los de la ventana, luego el resto del histórico (50 por petición)
+        candidatos = torneos_en_ventana(filas, hoy) + torneos_en_ventana(filas, hoy, todo=True)
         try:
             infob = torneos_infoboxes(lq, [c["titulo"] for c in candidatos if c.get("titulo")])
         except Exception as ex:
@@ -1780,16 +2113,25 @@ def torneos():
         lista = torneos_componer(filas, infob, hoy, previo)
         if not lista:
             raise RuntimeError(f"{len(filas)} filas pero ninguna en la ventana")
+        historico = torneos_componer(filas, infob, hoy, previo_h or previo, todo=True)
+        ib_url = {f["url"]: infob[f["titulo"]] for f in filas if f.get("url") and infob.get(f.get("titulo"))}
+        torneos_logos(lq, [lista, historico], ib_url)
     except Exception as ex:
         print(f"::warning title=torneos::Liquipedia no respondió bien ({ex!r}): se conserva el torneos.json anterior", flush=True)
         return
     finally:
         lq.cerrar()
+    logos_validar([lista, historico])
     escribir_json("torneos.json", torneos_salida(lista, hoy))
+    escribir_json(TORNEOS_HISTORICO, torneos_salida(historico, hoy, todo=True))
+    n_logos, kb = logos_podar([lista, historico])
     cuenta = defaultdict(int)
     for t in lista:
         cuenta[t["estado"]] += 1
-    log(f"torneos: {len(lista)} torneos ({dict(cuenta)}); {len({id(v) for v in infob.values()})} infoboxes; {lq.peticiones} peticiones a Liquipedia")
+    log(f"torneos: {len(lista)} torneos ({dict(cuenta)}), {sum(1 for t in lista if t.get('logo'))} con logo; histórico "
+        f"{len(historico)} ({sum(1 for t in historico if t.get('logo'))} con logo); {len({id(v) for v in infob.values()})} "
+        f"infoboxes; logos/torneos: {n_logos} PNG, {kb / 1024:.0f} KB; {lq.peticiones} peticiones y {lq.descargas} "
+        f"descargas a Liquipedia")
 
 
 def torneos_probar():
@@ -1847,6 +2189,95 @@ def torneos_probar():
     for f in fallos:
         log("FALLO", f)
     log(f"torneos --probar: {len(lista)} torneos, {len(fallos)} fallos")
+    return not fallos
+
+
+def logos_probar():
+    """Prueba sin red: infoboxes, imageinfo y fichas de muestra; las «descargas» son imágenes generadas con Pillow en memoria
+    y los PNG van a una carpeta temporal."""
+    global LOGOS_DIR
+    import copy, shutil, tempfile
+    from PIL import Image
+    m = leer_json(os.path.join("pruebas", "logos_muestra.json"))
+    fallos = []
+    info = logos_imageinfo_paginas(m["imageinfo"]["query"]["pages"], _titulos_origen(m["imageinfo"]["query"]))
+    fichas = logos_fichas_paginas(m["fichas"]["query"]["pages"])
+    if "Nope nope.png" in info:
+        fallos.append("un archivo sin imageinfo no debería estar")
+    if "Chilean Cup 2026 allmode.webp" not in info:
+        fallos.append("missing:true + known:true con imageinfo debería contar")
+    pedidas = []
+
+    def descargar(url):
+        pedidas.append(url)
+        if url in m["rotas"]:
+            return b"esto no es una imagen"
+        im = Image.new("RGBA", (1000, 250), (200, 30, 30, 255))      # 4:1 → 384x96
+        b = io.BytesIO()
+        im.save(b, "PNG")
+        return b.getvalue()
+
+    dir_antes, tmp = LOGOS_DIR, tempfile.mkdtemp()
+    cwd = os.getcwd()
+    try:
+        os.chdir(tmp)
+        LOGOS_DIR = os.path.join("logos", "torneos")
+        lista = copy.deepcopy(m["torneos"])
+        n, bajados, nbytes = logos_asignar([lista], m["infoboxes"], info, fichas, descargar)
+        logos_validar([lista])
+        for t in lista:
+            esp = m["esperado"][t["nombre"]]
+            got = {k: t[k] for k in ("logo", "logo_oscuro") if k in t}
+            if got != esp:
+                fallos.append(f"{t['nombre']}: {json.dumps(got, ensure_ascii=False)}")
+            for k in got:
+                with Image.open(got[k]["archivo"]) as im:
+                    if im.format != "PNG" or im.height > LOGOS_ALTO or im.width > LOGOS_ANCHO_MAX:
+                        fallos.append(f"{got[k]['archivo']}: {im.format} {im.size}")
+                    if t["nombre"] == "The Bastion: Season 2" and im.size != (384, 96):
+                        fallos.append(f"redimensionado: {im.size}, se esperaba (384, 96)")
+        if n != 3 or bajados != 5:
+            fallos.append(f"con logo {n} (se esperaban 3), descargas {bajados} (se esperaban 5)")
+        # segunda pasada: todo en caché, ninguna descarga; y tope de descargas
+        antes = len(pedidas)
+        lista2 = copy.deepcopy(m["torneos"])
+        logos_asignar([lista2], m["infoboxes"], info, fichas, descargar)
+        if len(pedidas) - antes != 1:            # solo la rota se reintenta (no se guardó)
+            fallos.append(f"caché: {len(pedidas) - antes} descargas en la segunda pasada, se esperaba 1 (la rota)")
+        shutil.rmtree(LOGOS_DIR)
+        lista3 = copy.deepcopy(m["torneos"])
+        _, b3, _ = logos_asignar([lista3], m["infoboxes"], info, fichas, descargar, max_descargas=1)
+        logos_validar([lista3])
+        if b3 != 1 or sum(1 for t in lista3 if t.get("logo")) != 1:
+            fallos.append(f"tope: {b3} descargas, {sum(1 for t in lista3 if t.get('logo'))} con logo")
+        os.makedirs(LOGOS_DIR, exist_ok=True)
+        open(os.path.join(LOGOS_DIR, "huerfano-00000000.png"), "wb").write(b"x")
+        quedan, _ = logos_podar([lista3])
+        if quedan != 1 or os.path.exists(os.path.join(LOGOS_DIR, "huerfano-00000000.png")):
+            fallos.append(f"podar: quedan {quedan}")
+    finally:
+        os.chdir(cwd)
+        LOGOS_DIR = dir_antes
+        shutil.rmtree(tmp, ignore_errors=True)
+    for v, esp in {"File:the_bastion lightmode.png": "The bastion lightmode.png", "<!--x.png-->": None, "": None,
+                   "[[File:x.png]]": "X.png", "nombre sin extension": None, "a|b.png": None}.items():
+        if logos_nombre(v) != esp:
+            fallos.append(f"logos_nombre({v!r}) = {logos_nombre(v)!r}, se esperaba {esp!r}")
+    for ib, esp in (({"image": "A allmode.png", "imagedark": "A allmode.png"}, ("A allmode.png", None)),
+                    ({"imagedark": "Solo oscuro.png"}, ("Solo oscuro.png", None)),
+                    ({"image": "", "icon": "I.png", "icondark": "Id.png"}, ("I.png", "Id.png")), ({}, (None, None))):
+        if logos_de_infobox(ib) != esp:
+            fallos.append(f"logos_de_infobox({ib}) = {logos_de_infobox(ib)}, se esperaba {esp}")
+    if logos_ruta("Ñandú Cup – 2026 allmode.png", "abcdef0123") != "logos/torneos/nandu-cup-2026-allmode-abcdef01.png":
+        fallos.append(f"ruta: {logos_ruta('Ñandú Cup – 2026 allmode.png', 'abcdef0123')}")
+    try:
+        logos_png(b"<html>no</html>")
+        fallos.append("logos_png debería fallar con algo que no es imagen")
+    except Exception:
+        pass
+    for f in fallos:
+        log("FALLO", f)
+    log(f"logos --probar: {len(fallos)} fallos")
     return not fallos
 
 
@@ -2445,14 +2876,192 @@ def partidos_probar():
     return not fallos
 
 
+# ----------------------------------------------------------------------------- streamers (Twitch Helix)
+# Imagen de perfil pública de los canales de Twitch que enseña la app: los creadores de las build orders (lista fija), el top
+# de directos de AoE II en este momento y los canales que salen en partidos.json (stream) y torneos.json (enlaces.twitch).
+# API Helix (https://dev.twitch.tv/docs/api/reference): exige una app de desarrollador de Twitch y un token de aplicación
+# (client_credentials). Las credenciales van SOLO en variables de entorno (secretos de GitHub Actions TWITCH_CLIENT_ID y
+# TWITCH_CLIENT_SECRET), nunca en el repo ni en la app; si faltan, el paso se salta con ::notice. Por noche: 1 token,
+# 1 Get Games (ids de la categoría, por nombre: no se fija un id a ciegas), 1 Get Streams (top 20 de AoE II) y 1 Get Users
+# (hasta 100 logins). Las imágenes se sirven desde el CDN de Twitch (static-cdn.jtvnw.net) y Twitch permite mostrarlas
+# enlazando al canal: se guarda solo la URL, no se descargan.
+TWITCH_TOKEN_URL = "https://id.twitch.tv/oauth2/token"
+TWITCH_HELIX = "https://api.twitch.tv/helix/"
+TWITCH_JUEGOS = ("Age of Empires II", "Age of Empires II: Definitive Edition")   # categorías de Twitch (Get Games por nombre)
+TWITCH_TOP_DIRECTOS = 20
+TWITCH_MAX_LOGINS = 100         # máximo de Get Users por petición
+TWITCH_HOST_AVATAR = "static-cdn.jtvnw.net"
+STREAMERS_MUESTRA = os.path.join("pruebas", "streamers_muestra.json")
+# creador de build orders (clave en la app) → login de Twitch. Comprobados en el infobox de su página de jugador de
+# Liquipedia (parámetro twitch=) el 2026-10-19, salvo los marcados DUDOSO (sin página en Liquipedia: se usa el nombre tal
+# cual; si Twitch no lo conoce, Get Users no lo devuelve y el creador sale sin avatar).
+STREAMERS_CREADORES = {
+    "survivalist": "survivalistaoe2de",
+    "hera": "hera",
+    "sitaux": "sitaux",
+    "st4rk": "st4rk_",
+    "dragonstar": "dragonstar_aoe",     # página «The Dragonstar»
+    "liereyy": "liereyy",
+    "morleygames": "morleygames",       # DUDOSO
+    "daut": "daut",
+    "ciskhan": "ciskhan_",
+    "red_phosphorus": "red_phosphorus",  # DUDOSO
+    "ganji": "ganji__",
+}
+
+
+def twitch_login(v):
+    """Login de Twitch de una URL (https://www.twitch.tv/<login>[/…]) o de un login suelto; None si no lo parece."""
+    import re, urllib.parse
+    v = (v or "").strip()
+    if "/" in v:
+        try:
+            u = urllib.parse.urlsplit(v)
+        except ValueError:
+            return None
+        if (u.hostname or "").lower() not in ("twitch.tv", "www.twitch.tv", "m.twitch.tv"):
+            return None
+        v = u.path.strip("/").split("/")[0]
+    v = v.lower()
+    return v if re.fullmatch(r"[a-z0-9_]{3,25}", v) else None
+
+
+def streamers_logins(creadores, en_directo, partidos_json, torneos_json, previo):
+    """Logins a pedir, en orden de prioridad y sin repetir (tope TWITCH_MAX_LOGINS): creadores, top de directos, streams de
+    partidos.json, enlaces.twitch de torneos.json y, si queda sitio, los del streamers.json anterior (para refrescarlos)."""
+    out = []
+
+    def poner(v):
+        login = twitch_login(v)
+        if login and login not in out and len(out) < TWITCH_MAX_LOGINS:
+            out.append(login)
+
+    for v in creadores.values():
+        poner(v)
+    for v in en_directo:
+        poner(v)
+    for p in (partidos_json or {}).get("partidos", []):
+        poner(p.get("stream") if "twitch.tv/" in (p.get("stream") or "") else None)
+    for t in (torneos_json or {}).get("torneos", []):
+        poner((t.get("enlaces") or {}).get("twitch"))
+    for v in ((previo or {}).get("canales") or {}):
+        poner(v)
+    return out
+
+
+def streamers_componer(usuarios, creadores):
+    """Respuesta «data» de Get Users → ({login: {"nombre","avatar_url","url"}}, {creador: login} de los que existen).
+    Solo avatares https de static-cdn.jtvnw.net (si no, el canal no sale)."""
+    import urllib.parse
+    canales = {}
+    for u in usuarios or []:
+        login = twitch_login(u.get("login"))
+        avatar = u.get("profile_image_url") or ""
+        try:
+            host = urllib.parse.urlsplit(avatar).hostname
+        except ValueError:
+            host = None
+        if not login or not url_https_ok(avatar) or host != TWITCH_HOST_AVATAR:
+            continue
+        nombre = " ".join(str(u.get("display_name") or "").split())[:40] or login
+        canales[login] = {"nombre": nombre, "avatar_url": avatar, "url": f"https://twitch.tv/{login}"}
+    return dict(sorted(canales.items())), {c: l for c, l in creadores.items() if l in canales}
+
+
+def streamers_salida(canales, creadores, en_directo):
+    return {"v": 1, "generado": ahora(),
+            "fuente": "Twitch (imagen de perfil pública, solo para dar crédito y enlazar al canal)",
+            "canales": canales, "creadores": creadores, "en_directo": [l for l in en_directo if l in canales]}
+
+
+def _twitch(url, cabeceras=None, datos=None, timeout=30):
+    req = urllib.request.Request(url, data=datos, headers=dict({"User-Agent": UA, "Accept": "application/json"},
+                                                               **(cabeceras or {})))
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def streamers():
+    """streamers.json (esquema en la cabecera, normas arriba). Sin credenciales: ::notice y nada. Si Twitch falla o no sale
+    ningún canal, se conserva el streamers.json anterior (rama data) con ::warning::."""
+    import urllib.parse
+    cid, secreto = os.environ.get("TWITCH_CLIENT_ID", "").strip(), os.environ.get("TWITCH_CLIENT_SECRET", "").strip()
+    if not cid or not secreto:
+        print("::notice title=streamers::sin TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET: se salta (se conserva el streamers.json anterior)",
+              flush=True)
+        return
+    previo = leer_json("streamers.json", None)
+    try:
+        tok = _twitch(TWITCH_TOKEN_URL, datos=urllib.parse.urlencode(
+            {"client_id": cid, "client_secret": secreto, "grant_type": "client_credentials"}).encode())
+        cab = {"Client-Id": cid, "Authorization": "Bearer " + tok["access_token"]}
+        en_directo = []
+        try:
+            juegos = _twitch(TWITCH_HELIX + "games?" + urllib.parse.urlencode([("name", n) for n in TWITCH_JUEGOS]), cab)
+            ids = [g["id"] for g in juegos.get("data", []) if g.get("id")]
+            log(f"streamers: categorías de Twitch: {[(g.get('id'), g.get('name')) for g in juegos.get('data', [])]}")
+            if ids:
+                st = _twitch(TWITCH_HELIX + "streams?" + urllib.parse.urlencode(
+                    [("game_id", i) for i in ids] + [("first", TWITCH_TOP_DIRECTOS), ("type", "live")]), cab)
+                en_directo = [s.get("user_login") for s in sorted(st.get("data", []), key=lambda s: -(s.get("viewer_count") or 0))]
+                en_directo = [l for l in (twitch_login(x) for x in en_directo) if l]
+        except Exception as ex:
+            log(f"streamers: sin top de directos ({ex!r})")
+        logins = streamers_logins(STREAMERS_CREADORES, en_directo, leer_json("partidos.json", None),
+                                  leer_json("torneos.json", None), previo)
+        us = _twitch(TWITCH_HELIX + "users?" + urllib.parse.urlencode([("login", l) for l in logins]), cab)
+        canales, creadores = streamers_componer(us.get("data", []), STREAMERS_CREADORES)
+        if not canales:
+            raise RuntimeError(f"Get Users no devolvió ningún canal válido de {len(logins)} logins")
+    except Exception as ex:
+        # el mensaje nunca lleva el secreto ni el token (urllib no los pone en sus excepciones)
+        print(f"::warning title=streamers::Twitch no respondió bien ({type(ex).__name__}: {ex}): se conserva el streamers.json anterior",
+              flush=True)
+        return
+    escribir_json("streamers.json", streamers_salida(canales, creadores, en_directo))
+    faltan = sorted(set(STREAMERS_CREADORES) - set(creadores))
+    log(f"streamers: {len(canales)} canales de {len(logins)} logins; {len(en_directo)} en directo; creadores sin canal: {faltan}")
+
+
+def streamers_probar():
+    """Prueba sin red: respuestas Helix de ejemplo (inventadas, con la forma real de Get Streams y Get Users)."""
+    m = leer_json(STREAMERS_MUESTRA)
+    fallos = []
+    en_directo = [twitch_login(s["user_login"]) for s in m["streams"]["data"]]
+    logins = streamers_logins(m["creadores"], en_directo, m["partidos"], m["torneos"], m["previo"])
+    if logins != m["esperado_logins"]:
+        fallos.append(f"logins {logins}, se esperaba {m['esperado_logins']}")
+    canales, creadores = streamers_componer(m["users"]["data"], m["creadores"])
+    if canales != m["esperado_canales"]:
+        fallos.append(f"canales {json.dumps(canales, ensure_ascii=False)}")
+    if creadores != m["esperado_creadores"]:
+        fallos.append(f"creadores {creadores}, se esperaba {m['esperado_creadores']}")
+    many = streamers_logins({f"c{i}": f"canal_{i:03d}" for i in range(150)}, [], None, None, None)
+    if len(many) != TWITCH_MAX_LOGINS:
+        fallos.append(f"tope de logins: {len(many)}")
+    for v, esp in {"https://www.twitch.tv/Hera": "hera", "https://twitch.tv/daut/videos": "daut", "st4rk_": "st4rk_",
+                   "https://www.youtube.com/@hera": None, "https://evil.com/twitch.tv/x": None, "a b": None, "": None,
+                   "javascript:alert(1)": None}.items():
+        if twitch_login(v) != esp:
+            fallos.append(f"twitch_login({v!r}) = {twitch_login(v)!r}, se esperaba {esp!r}")
+    sal = streamers_salida(canales, creadores, en_directo)
+    if set(sal) != {"v", "generado", "fuente", "canales", "creadores", "en_directo"} or sal["v"] != 1:
+        fallos.append(f"salida: claves {sorted(sal)}")
+    for f in fallos:
+        log("FALLO", f)
+    log(f"streamers --probar: {len(canales)} canales, {len(fallos)} fallos")
+    return not fallos
+
+
 if __name__ == "__main__":
     if "--probar" in sys.argv:          # sin red: torneos, noticias y partidos (o solo los nombrados: --probar noticias)
-        pruebas = {"torneos": torneos_probar, "noticias": noticias_probar, "partidos": partidos_probar}
+        pruebas = {"torneos": torneos_probar, "logos": logos_probar, "noticias": noticias_probar, "partidos": partidos_probar,
+                   "streamers": streamers_probar}
         pedidas = [a for a in sys.argv[1:] if a in pruebas] or list(pruebas)
         resultados = [pruebas[a]() for a in pedidas]
         sys.exit(0 if all(resultados) else 1)
     pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("noticias", noticias),
-             ("partidos", partidos), ("perfiles", perfiles))
+             ("partidos", partidos), ("streamers", streamers), ("perfiles", perfiles))
     pedidos = [a for a in sys.argv[1:] if not a.startswith("-")]     # sin argumentos, todos (el build nocturno)
     ok = True
     for nombre, fn in pasos:
