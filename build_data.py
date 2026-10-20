@@ -134,8 +134,11 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      el UA de este proyecto). Ver comunidad(). Se regenera con partidos (cada 2 h) y de noche. Esquema (v1):
                      {"v":1, "generado":ISO, "fuente":{"nombre":"gamenex.gg","url"},
                       "torneos":[{"id" (ULID de gamenex), "nombre", "url" (ficha en gamenex, donde se apunta uno),
-                                  ["logo"] (URL absoluta), "inicio":"AAAA-MM-DDTHH:MM:SSZ" (UTC), ["formato":"1v1"|"2v2"…],
+                                  ["logo"] (URL absoluta, WebP), ["logo_archivo"] ("logos/comunidad/<id>.png": el logo pasado
+                                  a PNG de ≤96 px con Pillow, como los de Liquipedia; solo el que se pudo bajar), "inicio":"AAAA-MM-DDTHH:MM:SSZ" (UTC), ["formato":"1v1"|"2v2"…],
                                   ["plazas", "plazas_max"], "estado":"proximo|en_curso", "fuente":"gamenex"}]}
+                     Los logos se bajan UNA vez por torneo (como mucho COMUNIDAD_LOGOS_MAX por pasada) a logos/comunidad/
+                     (carpeta en la rama data; se borran los de torneos que ya no salen).
                      Solo próximos y en curso (secciones Upcoming/Running de la lista); en_curso primero, luego por inicio.
                      Lo que la página no da no se escribe. El año de «inicio» se deduce con el día de la semana (la web no
                      lo muestra). Si gamenex falla o cambia el HTML (tarjetas que no se leen), se conserva el anterior con
@@ -4460,6 +4463,8 @@ def partidos_probar():
 COMUNIDAD_URL = "https://gamenex.gg/game/aoe2/tournaments"
 COMUNIDAD_MUESTRA = os.path.join("pruebas", "gamenex_lista.html")
 COMUNIDAD_SALIDA = "torneos_comunidad.json"
+COMUNIDAD_LOGOS_DIR = "logos/comunidad"
+COMUNIDAD_LOGOS_MAX = 12        # logos nuevos por pasada (la primera vez bajan todos, luego 1-3 por edición)
 COMUNIDAD_MESES = {m: i + 1 for i, m in enumerate(
     ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"])}
 COMUNIDAD_DIAS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -4524,6 +4529,58 @@ def comunidad_html(html_txt, ahora_dt):
     return lista
 
 
+def comunidad_logos(lista, descargar, max_descargas=COMUNIDAD_LOGOS_MAX, carpeta=COMUNIDAD_LOGOS_DIR):
+    """Pone «logo_archivo» («logos/comunidad/<id>.png») a los torneos cuyo logo (WebP en gamenex; Java no lo lee) se pudo pasar a
+    PNG pequeño con Pillow, como los de Liquipedia. Caché por id: si el PNG ya está (recuperado de la rama data) no se baja;
+    como mucho max_descargas nuevas por pasada; uno que falla se queda sin logo y se reintenta en la siguiente. Borra los PNG
+    de torneos que ya no salen. descargar(url) → bytes|None. Devuelve (con logo, descargas). Nunca lanza."""
+    hechos = bajados = 0
+    try:
+        os.makedirs(carpeta, exist_ok=True)
+        usados = set()
+        for t in lista:
+            nombre = re.sub(r"[^0-9a-z]", "", t["id"]) + ".png"
+            ruta = carpeta + "/" + nombre
+            if not os.path.exists(ruta):
+                if not t.get("logo") or bajados >= max_descargas:
+                    continue
+                bajados += 1
+                try:
+                    raw = descargar(t["logo"])
+                    png = logos_png(raw) if raw else None
+                except Exception as ex:
+                    log(f"comunidad: logo de {t['id']} ilegible ({ex!r})")
+                    png = None
+                if not png:
+                    continue
+                with open(ruta, "wb") as f:
+                    f.write(png)
+            t["logo_archivo"] = ruta
+            usados.add(nombre)
+            hechos += 1
+        for a in os.listdir(carpeta):
+            if a.endswith(".png") and a not in usados:
+                os.remove(os.path.join(carpeta, a))
+    except Exception as ex:
+        print(f"::warning title=comunidad::sin logos de la comunidad ({ex!r})", flush=True)
+    return hechos, bajados
+
+
+def _descargar_comunidad(url, max_bytes=300_000):
+    """Un logo de gamenex.gg/storage (solo ese origen), con UA y tope de tamaño; una pausa de 1 s. None si falla."""
+    if not url.startswith("https://gamenex.gg/storage/"):
+        return None
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "image/*"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            raw = r.read(max_bytes + 1)
+        time.sleep(1)
+        return raw if len(raw) <= max_bytes else None
+    except Exception as ex:
+        log(f"comunidad: logo {url}: {ex!r}")
+        return None
+
+
 def comunidad_salida(lista, ahora_dt):
     return {"v": 1, "generado": ahora_dt.isoformat(timespec="seconds"),
             "fuente": {"nombre": "gamenex.gg", "url": COMUNIDAD_URL},
@@ -4548,6 +4605,12 @@ def comunidad():
     except Exception as ex:
         print(f"::warning title=comunidad::gamenex.gg no respondió bien ({ex!r}): se conserva el torneos_comunidad.json anterior", flush=True)
         return
+    try:
+        import PIL  # noqa: F401
+        conlogo, bajados = comunidad_logos(lista, _descargar_comunidad)
+        log(f"comunidad: {conlogo} logos ({bajados} descargas nuevas)")
+    except ImportError:
+        print("::warning title=comunidad::sin Pillow: los torneos de la comunidad salen sin logo", flush=True)
     escribir_json(COMUNIDAD_SALIDA, comunidad_salida(lista, ahora_dt))
     log(f"comunidad: {len(lista)} torneos de gamenex.gg ({sum(t['estado'] == 'en_curso' for t in lista)} en curso)")
 
@@ -4596,6 +4659,39 @@ def comunidad_probar():
         fallos.append("una hora que no es UTC no debería salir")
     if comunidad_inicio("Sun, 25th October 16:00 UTC", ahora_dt) != "2026-10-25T16:00:00Z":
         fallos.append("comunidad_inicio")
+    # logos: un WebP generado con Pillow → PNG pequeño; solo los nuevos, con tope, y uno roto se queda sin logo
+    try:
+        from PIL import Image
+        import tempfile
+        buf = io.BytesIO()
+        Image.new("RGBA", (400, 300), (200, 30, 30, 255)).save(buf, "WEBP")
+        webp = buf.getvalue()
+        with tempfile.TemporaryDirectory() as tmp:
+            carpeta = os.path.join(tmp, "logos", "comunidad").replace(os.sep, "/")
+            llamadas = []
+
+            def baja(url):
+                llamadas.append(url)
+                return b"no es una imagen" if "roto" in url else webp
+            ts = [{"id": "aaa1", "logo": "https://gamenex.gg/storage/x.webp"}, {"id": "bbb2", "logo": "https://gamenex.gg/storage/roto.webp"},
+                  {"id": "ccc3", "logo": "https://gamenex.gg/storage/y.webp"}, {"id": "ddd4"}]
+            n, b = comunidad_logos(ts, baja, 2, carpeta)
+            if (n, b) != (1, 2) or ts[0].get("logo_archivo") != carpeta + "/aaa1.png" or "logo_archivo" in ts[1] or "logo_archivo" in ts[2]:
+                fallos.append(f"logos: {n},{b} {ts}")
+            png = open(ts[0]["logo_archivo"], "rb").read() if ts[0].get("logo_archivo") else b""
+            if not png.startswith(b"\x89PNG") or Image.open(io.BytesIO(png)).height > LOGOS_ALTO:
+                fallos.append("logos: no es un PNG pequeño")
+            llamadas.clear()
+            ts2 = [{"id": "aaa1", "logo": "https://gamenex.gg/storage/x.webp"}, {"id": "ccc3", "logo": "https://gamenex.gg/storage/y.webp"}]
+            n, b = comunidad_logos(ts2, baja, 2, carpeta)
+            if (n, b) != (2, 1) or len(llamadas) != 1:
+                fallos.append(f"logos: la caché por id no evita bajar de nuevo ({n},{b},{llamadas})")
+            if os.path.exists(carpeta + "/bbb2.png") or sorted(os.listdir(carpeta)) != ["aaa1.png", "ccc3.png"]:
+                fallos.append("logos: sobra algún PNG")
+            if _descargar_comunidad("https://otro.example/x.webp") is not None:
+                fallos.append("solo se baja de gamenex.gg/storage")
+    except ImportError:
+        log("comunidad --probar: sin Pillow, se salta la prueba de logos")
     for f in fallos:
         log("FALLO", f)
     for t in lista:

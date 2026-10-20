@@ -27,6 +27,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - name: dependencias (Pillow, solo para los logos de la comunidad)
+        run: pip install pillow
+        continue-on-error: true    # sin Pillow, comunidad() sale sin logos y avisa
       - name: partidos.json anterior (rama data)
         id: previo
         run: |
@@ -35,6 +38,8 @@ jobs:
             git reset -q partidos.json 2>/dev/null || true
             git checkout origin/data -- torneos_comunidad.json 2>/dev/null && echo "recuperado torneos_comunidad.json anterior" || echo "la rama data aún no tiene torneos_comunidad.json"
             git reset -q torneos_comunidad.json 2>/dev/null || true
+            git checkout origin/data -- logos/comunidad 2>/dev/null && echo "recuperados los logos de la comunidad" || echo "la rama data aún no tiene logos/comunidad"
+            git reset -q logos/comunidad 2>/dev/null || true
             echo "hay_data=1" >> "$GITHUB_OUTPUT"
           else
             echo "::warning title=partidos::todavía no hay rama data: la crea el build nocturno (data.yml); no se publica nada"
@@ -51,13 +56,17 @@ jobs:
         run: |
           cp partidos.json "$RUNNER_TEMP/partidos.json"
           [ -f torneos_comunidad.json ] && cp torneos_comunidad.json "$RUNNER_TEMP/torneos_comunidad.json" || true
+          rm -rf "$RUNNER_TEMP/logos_comunidad"; [ -d logos/comunidad ] && cp -r logos/comunidad "$RUNNER_TEMP/logos_comunidad" || true
           git config user.name "sfr-data bot"
           git config user.email "bot@users.noreply.github.com"
           git checkout -q -f -B publicacion origin/data
           cp "$RUNNER_TEMP/partidos.json" partidos.json
           [ -f "$RUNNER_TEMP/torneos_comunidad.json" ] && cp "$RUNNER_TEMP/torneos_comunidad.json" torneos_comunidad.json || true
+          if [ -d "$RUNNER_TEMP/logos_comunidad" ]; then rm -rf logos/comunidad; mkdir -p logos; cp -r "$RUNNER_TEMP/logos_comunidad" logos/comunidad; fi
           # sin cambios salvo «generado» en NINGUNO de los dos archivos → no se publica (evita un commit cada 2 h que no cambia nada)
-          if python3 - <<'EOF'
+          # los logos nuevos (o los que sobran) también cuentan como cambio
+          if [ -n "$(git status --porcelain --untracked-files=all logos/comunidad)" ]; then cambio_logos=1; else cambio_logos=0; fi
+          if [ "$cambio_logos" = 0 ] && python3 - <<'EOF'
           import json, os, subprocess, sys
           for nombre in ("partidos.json", "torneos_comunidad.json"):
               if not os.path.exists(nombre):
@@ -77,6 +86,7 @@ jobs:
           then echo "partidos.json y torneos_comunidad.json sin cambios"; exit 0; fi
           git add -f partidos.json
           [ -f torneos_comunidad.json ] && git add -f torneos_comunidad.json || true
+          git add -A -f logos/comunidad 2>/dev/null || true
           git commit -q -m "partidos $(date -u '+%F %H:%M UTC')" || { echo "nada que publicar"; exit 0; }
           git push -q origin HEAD:data     # avance normal, sin --force: si la rama cambió entre medias, falla y no pisa nada
           echo "partidos.json (y torneos_comunidad.json) publicado en la rama data"
