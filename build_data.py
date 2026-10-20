@@ -137,6 +137,13 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                                   ["logo"] (URL absoluta, WebP), ["logo_archivo"] ("logos/comunidad/<id>.png": el logo pasado
                                   a PNG de ≤96 px con Pillow, como los de Liquipedia; solo el que se pudo bajar), "inicio":"AAAA-MM-DDTHH:MM:SSZ" (UTC), ["formato":"1v1"|"2v2"…],
                                   ["plazas", "plazas_max"], "estado":"proximo|en_curso", "fuente":"gamenex"}]}
+                     FICHA (una petición por torneo NUEVO, como mucho COMUNIDAD_FICHAS_MAX por pasada; se recuerda con "ficha":true en
+                     este mismo archivo y no se vuelve a pedir; si falla, se reintenta en la siguiente pasada). Campos opcionales:
+                     "premio_valor" (número) + "premio_moneda" (USD/EUR/GBP): el importe que cita el texto libre de la descripción
+                     (la web no tiene campo de premio); "premio_serie":true si es la bolsa de una serie repartida en varios torneos
+                     (Age of Amateurs: «total prize pool of $35 … split into 3 tournaments»), no de este solo; sin importe en el
+                     texto, no hay premio_*. "formato" (de «1vs1 Team Size», manda sobre el de la lista), "sistema" («Single
+                     Elimination», tal cual) e "inicio" con el año exacto de la ficha (manda sobre el deducido de la lista).
                      Los logos se bajan UNA vez por torneo (como mucho COMUNIDAD_LOGOS_MAX por pasada) a logos/comunidad/
                      (carpeta en la rama data; se borran los de torneos que ya no salen).
                      Solo próximos y en curso (secciones Upcoming/Running de la lista); en_curso primero, luego por inicio.
@@ -4464,6 +4471,8 @@ COMUNIDAD_URL = "https://gamenex.gg/game/aoe2/tournaments"
 COMUNIDAD_MUESTRA = os.path.join("pruebas", "gamenex_lista.html")
 COMUNIDAD_SALIDA = "torneos_comunidad.json"
 COMUNIDAD_LOGOS_DIR = "logos/comunidad"
+COMUNIDAD_FICHAS_MAX = 12       # fichas nuevas por pasada (una petición por torneo nuevo; luego se recuerdan en el JSON)
+COMUNIDAD_FICHA_CAMPOS = ("premio_valor", "premio_moneda", "premio_serie", "sistema", "formato", "inicio")
 COMUNIDAD_LOGOS_MAX = 12        # logos nuevos por pasada (la primera vez bajan todos, luego 1-3 por edición)
 COMUNIDAD_MESES = {m: i + 1 for i, m in enumerate(
     ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"])}
@@ -4527,6 +4536,105 @@ def comunidad_html(html_txt, ahora_dt):
         lista.append(t)
     lista.sort(key=lambda t: (t["estado"] != "en_curso", t["inicio"], t["nombre"]))
     return lista
+
+
+def comunidad_dinero(txt):
+    """Primer importe de dinero de un texto («the winner takes it all - $75!», «prize pool of $35», «100 EUR»):
+    (valor, moneda ISO) o None. Solo $, €, £ o USD/EUR/GBP pegados al importe; no se adivina nada más."""
+    simbolos = {"$": "USD", "€": "EUR", "£": "GBP"}
+    m = re.search(r"([$€£])\s?(\d{1,3}(?:[,.]\d{3})+|\d+)(?:\.(\d{1,2}))?\b", txt) or None
+    if m:
+        moneda, ent, dec = simbolos[m.group(1)], m.group(2), m.group(3)
+    else:
+        m = re.search(r"\b(\d{1,3}(?:[,.]\d{3})+|\d+)(?:\.(\d{1,2}))?\s?(USD|EUR|GBP)\b", txt, re.I)
+        if not m:
+            return None
+        ent, dec, moneda = m.group(1), m.group(2), m.group(3).upper()
+    valor = float(re.sub(r"[,.]", "", ent) + ("." + dec if dec else ""))
+    return (int(valor) if valor == int(valor) else valor), moneda
+
+
+def comunidad_ficha(html_txt, ahora_dt):
+    """HTML de la ficha de un torneo → dict con lo que la ficha da y la lista no (todo opcional), o None si no parece una ficha.
+    - premio_valor + premio_moneda: del texto libre de la descripción (la web no tiene un campo de premio). premio_serie=true
+      si ese importe es la bolsa de una serie repartida en varios torneos («total prize pool of $35 … split into 3 tournaments»).
+    - formato «1v1»/«2v2»/…: de «1vs1 Team Size». sistema: «Single Elimination»… tal cual.
+    - inicio: con el AÑO que da la ficha (meta description) y la hora de «Starts …»."""
+    import html as htmllib
+    if ">Details<" not in html_txt:
+        return None
+    t = re.sub(r"<!--.*?-->|<script.*?</script>|<style.*?</style>|<svg.*?</svg>", "", html_txt, flags=re.S)
+    out = {}
+    d = re.search(r">Details</p>(.*?)(?:>Game Settings<|$)", t, re.S)
+    det = htmllib.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " | ", d.group(1)))) if d else ""
+    fm = re.search(r"\b(\d)\s*vs\s*(\d)\s+Team Size", det)
+    if fm:
+        out["formato"] = f"{fm.group(1)}v{fm.group(2)}"
+    sis = re.search(r"\|\s*((?:Single|Double) Elimination|Round Robin|Swiss(?: System)?|Group Stage[^|]*)\s*\|", det, re.I)
+    if sis:
+        out["sistema"] = sis.group(1).strip()[:40]
+    meta = re.search(r'<meta name="description" content="[^"]*?tournament on ([A-Za-z]{3})[a-z]*,\s*(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})"', html_txt)
+    hora = re.search(r"Starts\s+[A-Za-z]{3}[a-z]*,\s*\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]+\s+(\d{1,2}):(\d{2})\s*UTC", det)
+    if meta and hora and COMUNIDAD_MESES.get(meta.group(3).lower()):
+        try:
+            f = datetime(int(meta.group(4)), COMUNIDAD_MESES[meta.group(3).lower()], int(meta.group(2)), int(hora.group(1)), int(hora.group(2)), tzinfo=timezone.utc)
+            if COMUNIDAD_DIAS[f.weekday()] == meta.group(1).lower():
+                out["inicio"] = f.strftime("%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            pass
+    desc = re.search(r">Description</p>\s*<div[^>]*>(.*?)</div>", t, re.S)
+    texto = htmllib.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", desc.group(1)))).strip() if desc else ""
+    din = comunidad_dinero(texto)
+    if din:
+        out["premio_valor"], out["premio_moneda"] = din
+        if re.search(r"split into|total prize pool|prize pool .* (?:every|each) week", texto, re.I):
+            out["premio_serie"] = True
+    return out
+
+
+def comunidad_fichas(lista, previo, descargar, max_descargas=COMUNIDAD_FICHAS_MAX, ahora_dt=None):
+    """Completa cada torneo con su ficha (premio, año exacto, formato, sistema). UNA petición por torneo nuevo: los que ya
+    tenían «ficha»:true en el torneos_comunidad.json anterior (previo) se copian de ahí y no se piden. Tope por pasada; una
+    ficha que falla o no se reconoce deja el torneo sin esos campos y se reintenta en la siguiente pasada. Nunca lanza.
+    Devuelve el número de fichas pedidas."""
+    ahora_dt = ahora_dt or datetime.now(timezone.utc)
+    antes = {t.get("id"): t for t in (previo or {}).get("torneos", []) if isinstance(t, dict) and t.get("ficha")}
+    pedidas = 0
+    for t in lista:
+        try:
+            if t["id"] in antes:
+                for k in COMUNIDAD_FICHA_CAMPOS:
+                    if k in antes[t["id"]]:
+                        t[k] = antes[t["id"]][k]
+                t["ficha"] = True
+                continue
+            if pedidas >= max_descargas:
+                continue
+            pedidas += 1
+            raw = descargar(t["url"])
+            datos = comunidad_ficha(raw, ahora_dt) if raw else None
+            if datos is None:
+                continue
+            t.update(datos)
+            t["ficha"] = True
+        except Exception as ex:
+            log(f"comunidad: ficha de {t.get('id')} ilegible ({ex!r})")
+    return pedidas
+
+
+def _descargar_ficha(url, max_bytes=400_000):
+    """La ficha HTML de un torneo (solo https://gamenex.gg/tournaments/…), con UA y tope; una pausa de 1 s. None si falla."""
+    if not url.startswith("https://gamenex.gg/tournaments/"):
+        return None
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Language": "en"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            raw = r.read(max_bytes + 1)
+        time.sleep(1)
+        return raw.decode("utf-8", "replace") if len(raw) <= max_bytes else None
+    except Exception as ex:
+        log(f"comunidad: ficha {url}: {ex!r}")
+        return None
 
 
 def comunidad_logos(lista, descargar, max_descargas=COMUNIDAD_LOGOS_MAX, carpeta=COMUNIDAD_LOGOS_DIR):
@@ -4605,6 +4713,8 @@ def comunidad():
     except Exception as ex:
         print(f"::warning title=comunidad::gamenex.gg no respondió bien ({ex!r}): se conserva el torneos_comunidad.json anterior", flush=True)
         return
+    pedidas = comunidad_fichas(lista, leer_json(COMUNIDAD_SALIDA, None), _descargar_ficha, ahora_dt=ahora_dt)
+    log(f"comunidad: {sum(1 for t in lista if t.get('ficha'))} fichas, {pedidas} pedidas ahora")
     try:
         import PIL  # noqa: F401
         conlogo, bajados = comunidad_logos(lista, _descargar_comunidad)
@@ -4659,6 +4769,51 @@ def comunidad_probar():
         fallos.append("una hora que no es UTC no debería salir")
     if comunidad_inicio("Sun, 25th October 16:00 UTC", ahora_dt) != "2026-10-25T16:00:00Z":
         fallos.append("comunidad_inicio")
+    # fichas: premio (dólares en el texto libre), serie, formato, sistema y año exacto, sobre fichas reales
+    with open(os.path.join("pruebas", "gamenex_ficha_solo.html"), encoding="utf-8") as f:
+        solo = comunidad_ficha(f.read(), ahora_dt)
+    if solo != {"formato": "1v1", "sistema": "Single Elimination", "inicio": "2026-10-24T16:00:00Z", "premio_valor": 50, "premio_moneda": "USD"}:
+        fallos.append(f"ficha Solo Clash: {solo}")
+    with open(os.path.join("pruebas", "gamenex_ficha_amateurs.html"), encoding="utf-8") as f:
+        ama = comunidad_ficha(f.read(), ahora_dt)
+    if ama != {"formato": "1v1", "sistema": "Single Elimination", "inicio": "2026-10-25T16:00:00Z", "premio_valor": 35, "premio_moneda": "USD", "premio_serie": True}:
+        fallos.append(f"ficha Amateurs (bolsa de la serie): {ama}")
+    sin = comunidad_ficha("<p>nada</p>", ahora_dt)
+    if sin is not None:
+        fallos.append(f"una página sin ficha debería dar None: {sin}")
+    sinpremio = comunidad_ficha('<p class="b">Details</p><span> | 8 Participants </span><span> 2vs2 Team Size </span>'
+                                '<p class="b">Description</p><div class="t"><p>Fun cup, no prize.</p></div>', ahora_dt)
+    if sinpremio != {"formato": "2v2"}:
+        fallos.append(f"ficha sin premio: {sinpremio}")
+    for txt, esp in {"winner takes it all - $75!": (75, "USD"), "prize 1,000 EUR": (1000, "EUR"), "€12.50 each": (12.5, "EUR"),
+                     "a $ sign only": None, "ganador 2026": None}.items():
+        if comunidad_dinero(txt) != esp:
+            fallos.append(f"dinero «{txt}» → {comunidad_dinero(txt)}, se esperaba {esp}")
+    # fichas: solo las nuevas, con tope, caché por id desde el JSON anterior, y una que falla no rompe nada
+    ts = [{"id": "a", "url": "https://gamenex.gg/tournaments/a/x"}, {"id": "b", "url": "https://gamenex.gg/tournaments/b/x"},
+          {"id": "c", "url": "https://gamenex.gg/tournaments/c/x"}, {"id": "d", "url": "https://gamenex.gg/tournaments/d/x"}]
+    previo = {"torneos": [{"id": "a", "ficha": True, "premio_valor": 9, "premio_moneda": "USD", "formato": "1v1"}, {"id": "z", "ficha": True}]}
+    pidos = []
+
+    def ficha_falsa(url):
+        pidos.append(url)
+        if "/b/" in url:
+            return None                      # falla: sin premio, se reintenta
+        if "/c/" in url:
+            return "<html>cambió la web</html>"
+        return open(os.path.join("pruebas", "gamenex_ficha_solo.html"), encoding="utf-8").read()
+    n = comunidad_fichas(ts, previo, ficha_falsa, 3, ahora_dt)
+    if n != 3 or [u[-4:] for u in pidos] != ["/b/x", "/c/x", "/d/x"]:
+        fallos.append(f"fichas: pedidas {n} {pidos}")
+    if ts[0].get("premio_valor") != 9 or not ts[0].get("ficha"):
+        fallos.append("fichas: el torneo ya conocido debe copiarse del JSON anterior sin pedirlo")
+    if "ficha" in ts[1] or "ficha" in ts[2] or ts[3].get("premio_valor") != 50 or not ts[3].get("ficha"):
+        fallos.append(f"fichas: fallo/ficha rota sin marcar, la buena con premio: {ts}")
+    n = comunidad_fichas([{"id": "q%d" % i, "url": "https://gamenex.gg/tournaments/q/x"} for i in range(5)], None, ficha_falsa, 2, ahora_dt)
+    if n != 2:
+        fallos.append(f"el tope por pasada no se respeta: {n}")
+    if _descargar_ficha("https://otro.example/x") is not None:
+        fallos.append("solo se piden fichas de gamenex.gg/tournaments")
     # logos: un WebP generado con Pillow → PNG pequeño; solo los nuevos, con tope, y uno roto se queda sin logo
     try:
         from PIL import Image
