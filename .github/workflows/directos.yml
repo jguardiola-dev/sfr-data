@@ -1,0 +1,90 @@
+name: directos
+
+# directos.json (quién emite AoE II ahora en Kick y en YouTube; Twitch lo lee la app en tiempo real) cada 15 minutos.
+# Ligero: sin dependencias, 1 token + 2-4 peticiones a Kick y ~N+3 unidades de cupo de YouTube por vuelta (el gasto
+# estimado está en la cabecera de la sección «directos» de build_data.py: ≈ 5.800 unidades/día con 30 canales, de 10.000).
+# Publica SOLO directos.json en la rama data, encima de su último commit (los demás archivos quedan tal cual).
+#
+# Grupo de concurrencia PROPIO (no «datos»): GitHub cancela el run PENDIENTE de un grupo cuando llega otro; con uno cada
+# 15 min en «datos», un partidos.yml o un data.yml en espera podrían cancelarse, y mientras el build nocturno corre (hasta
+# 5 h) los directos se quedarían parados. El choque con data.yml (que rehace la rama data con push --force) se resuelve
+# así: este push nunca es --force (si la rama cambió, se reintenta encima de la nueva), y el nocturno conserva el
+# directos.json que había al empezar; la app ignora las entradas de más de 30 min y la vuelta siguiente lo renueva.
+#
+# Secretos (Settings → Secrets and variables → Actions): KICK_CLIENT_ID, KICK_CLIENT_SECRET, YOUTUBE_API_KEY. Sin
+# ninguno, el paso avisa con ::notice y no se publica nada. Nunca se imprimen.
+
+on:
+  schedule:
+    - cron: "4,19,34,49 * * * *"   # cada 15 min, lejos de las horas en punto (GitHub retrasa esas)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: directos
+  cancel-in-progress: false
+
+jobs:
+  directos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: directos.json anterior (rama data)
+        id: previo
+        run: |
+          if git fetch -q origin data:refs/remotes/origin/data 2>/dev/null; then
+            git checkout origin/data -- directos.json 2>/dev/null && echo "recuperado directos.json anterior" || echo "la rama data aún no tiene directos.json"
+            git reset -q directos.json 2>/dev/null || true
+            echo "hay_data=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=directos::todavía no hay rama data: la crea el build nocturno (data.yml); no se publica nada"
+            echo "hay_data=0" >> "$GITHUB_OUTPUT"
+          fi
+      - name: generar directos.json
+        run: python build_data.py directos
+        env:
+          KICK_CLIENT_ID: ${{ secrets.KICK_CLIENT_ID }}
+          KICK_CLIENT_SECRET: ${{ secrets.KICK_CLIENT_SECRET }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        continue-on-error: true    # si falla, directos() ya deja el anterior y avisa
+      - name: publicar (solo directos.json, encima de la rama data)
+        if: steps.previo.outputs.hay_data == '1' && hashFiles('directos.json') != ''
+        run: |
+          cp directos.json "$RUNNER_TEMP/directos.json"
+          git config user.name "sfr-data bot"
+          git config user.email "bot@users.noreply.github.com"
+          for intento in 1 2 3; do
+            git fetch -q origin data:refs/remotes/origin/data
+            git checkout -q -f -B publicacion origin/data
+            cp "$RUNNER_TEMP/directos.json" directos.json
+            # nadie emite y nada cambia salvo las horas → no se publica (no hace falta un commit cada 15 min). Con algún
+            # directo se publica siempre: la app descarta lo que tiene más de 30 min. «estado» SÍ cuenta: si la hora de la
+            # búsqueda de YouTube no se guardara, la vuelta siguiente buscaría otra vez (100 unidades cada 15 min).
+            if git cat-file -e HEAD:directos.json 2>/dev/null && python3 - <<'EOF'
+          import json, subprocess, sys
+          viejo = json.loads(subprocess.run(["git", "show", "HEAD:directos.json"], capture_output=True, check=True).stdout)
+          nuevo = json.load(open("directos.json", encoding="utf-8"))
+          if nuevo.get("directos"):
+              sys.exit(1)
+          for d in (viejo, nuevo):
+              d.pop("generado", None)
+              for f in (d.get("fuentes") or {}).values():
+                  f.pop("generado", None)
+                  f.pop("unidades", None)
+          sys.exit(0 if viejo == nuevo else 1)
+          EOF
+            then echo "directos.json sin cambios"; exit 0; fi
+            git add -f directos.json
+            git commit -q -m "directos $(date -u '+%F %H:%M UTC')" || { echo "nada que publicar"; exit 0; }
+            # avance normal, sin --force: si la rama cambió entre medias (build nocturno), se reintenta encima de la nueva
+            if git push -q origin HEAD:data; then echo "directos.json publicado en la rama data"; exit 0; fi
+            echo "la rama data cambió mientras tanto: reintento $intento"
+            sleep $((5 * intento))
+          done
+          echo "::warning title=directos::no se pudo publicar tras 3 intentos (la vuelta siguiente lo intentará)"

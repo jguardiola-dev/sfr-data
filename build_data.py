@@ -121,11 +121,19 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      Si Liquipedia falla, el ticker viene vacío o con error, o nada cae en la ventana y el anterior tenía
                      partidos, se conserva el partidos.json anterior (rama data) con aviso ::warning::.
                      Prueba sin red: python build_data.py --probar [partidos]. Solo este paso: python build_data.py partidos
+- directos.json      quién emite AoE II AHORA en Kick (API pública, client_credentials) y en YouTube (API Data v3 con clave,
+                     sin search por canal: listas de subidas + videos.list, y una búsqueda general por hora). Twitch NO va
+                     aquí (la app lo lee en tiempo real del companion). Lo rehace .github/workflows/directos.yml cada 15 min;
+                     el nocturno solo lo conserva. Esquema, gasto de cupo, secretos (KICK_CLIENT_ID, KICK_CLIENT_SECRET,
+                     YOUTUBE_API_KEY) y normas en la sección «directos» (más abajo). Editables en el repo:
+                     youtube_canales.json (canales de YouTube a mirar) y canales_equivalentes.json (misma persona en varias
+                     plataformas: la app junta sus directos en una sola entrada).
+                     Prueba sin red: python -I build_data.py --probar directos. Solo este paso: python build_data.py directos
 Fuente: volcados diarios de aoe2companion (https://www.aoe2companion.com/more/api).
 Torneos y partidos: Liquipedia (https://liquipedia.net/ageofempires/), CC BY-SA 3.0; torneos.json y partidos.json se
 publican con la misma licencia.
 Logos de torneo: Liquipedia Commons; cada logo es marca de su titular (licencia de su ficha, casi siempre «fair use»).
-Avatares: Twitch (URL pública del CDN de Twitch, enlazando al canal).
+Avatares: Twitch (URL pública del CDN de Twitch, enlazando al canal). Directos: API pública de Kick y API Data v3 de YouTube.
 Noticias: titulares y enlaces de https://www.ageofempires.com/news/ (World's Edge / Microsoft); los artículos no se copian.
 Créditos: aoe2companion (Dennis Keil) · Liquipedia · Age of Empires II © Microsoft.
 """
@@ -4611,15 +4619,470 @@ def streamers_probar():
     return not fallos
 
 
+# ----------------------------------------------------------------------------- directos (Kick + YouTube)
+# directos.json: quién emite AoE II AHORA en Kick y en YouTube (Twitch no: la app lo lee en tiempo real del companion). Lo
+# genera .github/workflows/directos.yml cada 15 min (python build_data.py directos); el build nocturno solo lo conserva.
+# Credenciales SOLO en variables de entorno (secretos de Actions): KICK_CLIENT_ID + KICK_CLIENT_SECRET (app de
+# desarrollador de Kick, token de aplicación client_credentials) y YOUTUBE_API_KEY (clave de la API Data v3). Si faltan
+# todas: ::notice y se conserva el directos.json anterior. Si falta una plataforma o falla, esa plataforma reutiliza sus
+# entradas del anterior SOLO si tienen menos de DIRECTOS_CADUCA_S (si no, sale vacía) y lo dice en «fuentes».
+# NUNCA se imprimen los secretos ni las URL (la clave de YouTube va en la query string): en los avisos solo el tipo de
+# error y su código HTTP.
+#
+# Kick (API pública, https://docs.kick.com): 1 token + 1 categorías v2 (por nombre, como TWITCH_JUEGOS: no se fija un id
+# a ciegas) + 1-3 páginas de livestreams v2 por vuelta. Sin cupo diario publicado.
+# YouTube (API Data v3, cupo 10.000 unidades/día): NO se usa search?channelId=…&eventType=live por canal (100 unidades
+# cada uno). Por vuelta (cada 15 min = 96 vueltas/día):
+#   - playlistItems.list de la lista de subidas de cada canal de youtube_canales.json (UC… → UU…, sin channels.list): 1 u.
+#     por canal; un directo que empieza entra en las subidas del canal;
+#   - videos.list (part=snippet,liveStreamingDetails) de esas subidas y de los de la última búsqueda: 1 u. por 50 vídeos;
+#     en directo = snippet.liveBroadcastContent == "live";
+#   - channels.list de los canales que están en directo (avatar): 1 u. por 50 canales (0 si nadie emite);
+#   - y, si la última búsqueda tiene más de YT_BUSQUEDA_CADA_S (no se fía del minuto del cron: GitHub lo retrasa),
+#     search.list q="Age of Empires II" type=video eventType=live: 100 u. (≈ 1 vez por hora, 24/día). Los vídeos que
+#     encuentra se vuelven a comprobar en cada vuelta con videos.list (barato) hasta que dejan de estar en directo.
+#   - un @handle de youtube_canales.json o de canales_equivalentes.json se resuelve UNA vez (channels.list forHandle,
+#     1 u.) y se guarda en «estado.youtube.ids».
+# Gasto estimado con N canales: 96 · (N + ⌈(5N + 50) / 50⌉ + 1) + 24 · 100 unidades/día.
+#   N = 20 → 96 · 24 + 2.400 ≈ 4.700/día;  N = 30 → 96 · 35 + 2.400 ≈ 5.800/día;  N = 50 (tope YT_MAX_CANALES) → 96 · 57
+#   + 2.400 ≈ 7.900/día. Holgura para lanzarlo a mano (workflow_dispatch) unas cuantas veces.
+#
+# directos.json (esquema v1):
+#   {"v":1, "generado":ISO,
+#    "fuentes":{"kick":{"estado":"ok|error|sin_credenciales","generado":ISO|null},
+#               "youtube":{"estado":…,"generado":ISO|null,["unidades"]:número (gasto de cupo de la vuelta)}},
+#    "directos":[{"plataforma":"kick|youtube", "canal" (slug de Kick / id UC… de YouTube), "nombre", "url" (https),
+#                 "titulo", "espectadores":entero, "idioma":"en"|null (ISO 639-1), "miniatura":https|null,
+#                 "avatar":https|null, "inicio":ISO|null, "persona" (clave de unión multistream, ver persona_de)}],
+#    "equivalencias":[{"persona","nombre",["twitch":[login…]],["kick":[slug…]],["youtube":[UC…]]}],
+#    "estado":{"youtube":{"ids":{"@handle":"UC…"|null}, "busqueda_en":ISO|null, "busqueda_ids":[id de vídeo…]}}}
+#   Orden de «directos»: por espectadores, de más a menos; como mucho DIRECTOS_MAX_POR_PLATAFORMA de cada una.
+#   La app ignora las entradas de una plataforma cuyo fuentes.<p>.generado tenga más de 30 min.
+#   «equivalencias» = canales_equivalentes.json con los @handle ya resueltos: la app une Twitch (que no está aquí) con Kick
+#   y YouTube con esa tabla y, si no, por nombre normalizado (persona_normalizada: MISMA regla en la app, DirectosSfr).
+# Prueba sin red: python -I build_data.py --probar directos (pruebas/directos_muestra.json). Solo este paso:
+# python build_data.py directos
+KICK_TOKEN_URL = "https://id.kick.com/oauth/token"
+KICK_API = "https://api.kick.com/public/v2/"
+KICK_CATEGORIAS = ("Age of Empires II", "Age of Empires II: Definitive Edition")
+KICK_PAGINAS = 3
+YT_API = "https://www.googleapis.com/youtube/v3/"
+YT_BUSQUEDA = "Age of Empires II"
+YT_BUSQUEDA_CADA_S = 55 * 60
+YT_SUBIDAS_POR_CANAL = 5
+YT_MAX_CANALES = 50
+YT_CANALES = "youtube_canales.json"
+EQUIVALENCIAS = "canales_equivalentes.json"
+DIRECTOS = "directos.json"
+DIRECTOS_MUESTRA = os.path.join("pruebas", "directos_muestra.json")
+DIRECTOS_CADUCA_S = 30 * 60
+DIRECTOS_MAX_POR_PLATAFORMA = 60
+PERSONA_SUFIJOS = ("official", "oficial", "aoe2de", "aoe2", "aoe", "ttv", "tv", "yt", "live", "gaming", "games")
+PERSONA_PREFIJOS = ("ttv", "aoe2", "aoe")
+
+
+def persona_normalizada(nombre):
+    """Clave de unión por nombre: minúsculas sin acentos, solo [a-z0-9], sin sufijos/prefijos de canal («tv», «aoe2»,
+    «official»…) mientras quede algo de 3 o más letras. «T90Official» → t90; «MembTV» → memb; «survivalistaoe2de» →
+    survivalist. La app aplica la MISMA regla (sfrdata.DirectosSfr.personaNormalizada)."""
+    import re, unicodedata
+    t = unicodedata.normalize("NFKD", str(nombre or "")).encode("ascii", "ignore").decode().lower()
+    t = re.sub(r"[^a-z0-9]", "", t)
+    cambio = True
+    while cambio:
+        cambio = False
+        for s in PERSONA_SUFIJOS:
+            if t.endswith(s) and len(t) - len(s) >= 3:
+                t, cambio = t[:-len(s)], True
+        for p in PERSONA_PREFIJOS:
+            if t.startswith(p) and len(t) - len(p) >= 3:
+                t, cambio = t[len(p):], True
+    return t
+
+
+def kick_slug_ok(s):
+    import re
+    return bool(re.fullmatch(r"[A-Za-z0-9_-]{2,40}", s or ""))
+
+
+def yt_canal_id(v, ids_yt):
+    """«UC…» tal cual; «@handle» por la caché de handles resueltos; si no, None."""
+    import re
+    v = str(v or "").strip()
+    if re.fullmatch(r"UC[A-Za-z0-9_-]{22}", v):
+        return v
+    if v.startswith("@"):
+        cid = (ids_yt or {}).get(v.lower())
+        return cid if cid and re.fullmatch(r"UC[A-Za-z0-9_-]{22}", cid) else None
+    return None
+
+
+def equivalencias_cargar(tabla, ids_yt):
+    """canales_equivalentes.json → [{"persona","nombre","twitch","kick","youtube"}] con los @handle resueltos con ids_yt
+    (los que no se pudieron resolver se quitan). persona = la normalizada del nombre."""
+    out = []
+    for p in (tabla or {}).get("personas", []):
+        nombre = " ".join(str(p.get("nombre") or "").split())[:40]
+        if not nombre:
+            continue
+        e = {"persona": persona_normalizada(nombre) or nombre.lower(), "nombre": nombre}
+        tw = [l for l in (twitch_login(x) for x in p.get("twitch") or []) if l]
+        kk = [s.lower() for s in (str(x).strip() for x in p.get("kick") or []) if kick_slug_ok(s)]
+        yt = [c for c in (yt_canal_id(x, ids_yt) for x in p.get("youtube") or []) if c]
+        for k, v in (("twitch", tw), ("kick", kk), ("youtube", yt)):
+            if v:
+                e[k] = v
+        out.append(e)
+    return out
+
+
+def persona_de(plataforma, canal, nombre, equivalencias):
+    """La clave de persona de un directo: la de la tabla de equivalencias si su canal está ahí; si no, la del nombre."""
+    c = (canal or "").lower() if plataforma != "youtube" else (canal or "")
+    for e in equivalencias:
+        if c in (e.get(plataforma) or []):
+            return e["persona"]
+    return persona_normalizada(nombre) or persona_normalizada(canal) or c
+
+
+def _idioma2(v):
+    import re
+    v = str(v or "").strip().lower()
+    m = re.match(r"([a-z]{2})(?:[-_].*)?$", v)
+    return m.group(1) if m else None
+
+
+def _entero_no_neg(v):
+    try:
+        return max(0, int(v))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _texto(v, n=200):
+    return " ".join(str(v or "").split())[:n]
+
+
+def kick_directos(cid, secreto, get):
+    """Directos de AoE II en Kick → (lista de directos sin «persona», categorías vistas [(id, nombre)])."""
+    import urllib.parse
+    tok = get(KICK_TOKEN_URL, None, urllib.parse.urlencode(
+        {"grant_type": "client_credentials", "client_id": cid, "client_secret": secreto}).encode())
+    cab = {"Authorization": "Bearer " + tok["access_token"]}
+    cats = get(KICK_API + "categories?" + urllib.parse.urlencode([("name", n) for n in KICK_CATEGORIAS] + [("limit", 25)]), cab)
+    validos = {n.lower() for n in KICK_CATEGORIAS}
+    vistas = [(c.get("id"), c.get("name")) for c in cats.get("data", [])]
+    ids = [c["id"] for c in cats.get("data", []) if c.get("id") is not None and str(c.get("name") or "").lower() in validos]
+    if not ids:
+        raise RuntimeError(f"Kick no tiene la categoría de AoE II (vistas: {vistas})")
+    filas, cursor = [], None
+    for _ in range(KICK_PAGINAS):
+        q = [("category_id", i) for i in ids] + [("limit", 100)] + ([("cursor", cursor)] if cursor else [])
+        r = get(KICK_API + "livestreams?" + urllib.parse.urlencode(q), cab)
+        filas += r.get("data") or []
+        cursor = (r.get("pagination") or {}).get("next_cursor")
+        if not cursor:
+            break
+    out = []
+    for s in filas:
+        slug = str((s.get("channel") or {}).get("slug") or "").strip()
+        if not kick_slug_ok(slug):
+            continue
+        usuario = s.get("broadcaster_user") or {}
+        mini, avatar = s.get("thumbnail"), usuario.get("profile_picture")
+        out.append({"plataforma": "kick", "canal": slug.lower(), "nombre": _texto(usuario.get("username") or slug, 40),
+                    "url": f"https://kick.com/{slug.lower()}", "titulo": _texto(s.get("title")),
+                    "espectadores": _entero_no_neg(s.get("viewer_count")),
+                    "idioma": _idioma2(s.get("language_code") or s.get("language")),
+                    "miniatura": mini if url_https_ok(mini) else None, "avatar": avatar if url_https_ok(avatar) else None,
+                    "inicio": s.get("started_at") or None})
+    return out, vistas
+
+
+YT_AOE2 = r"age of empires (ii|2)(?![i\d])|\baoe ?2(?!\d)|\baoe2de\b"
+YT_OTRO_JUEGO = r"age of empires (iv|4|iii|3)(?![i\d])|\baoe ?(iv|4|iii|3)(?!\d)|mythology|\baom\b"
+
+
+def yt_directos(clave, canales, estado_prev, ahora_dt, get, handles_extra=()):
+    """Directos de AoE II en YouTube con poco cupo (ver arriba) → (directos, estado nuevo, unidades gastadas).
+    canales = [{"id":"UC…|@handle","idioma":"en"}] de youtube_canales.json."""
+    import re, urllib.parse
+    gasto = 0
+    estado = {"ids": dict((estado_prev or {}).get("ids") or {}), "busqueda_en": (estado_prev or {}).get("busqueda_en"),
+              "busqueda_ids": list((estado_prev or {}).get("busqueda_ids") or [])}
+
+    def api(recurso, params):
+        nonlocal gasto
+        gasto += 100 if recurso == "search" else 1
+        return get(YT_API + recurso + "?" + urllib.parse.urlencode(list(params) + [("key", clave)]), None)
+
+    # 1. @handles sin resolver (una vez cada uno; el que no existe se guarda como null y no se vuelve a pedir)
+    for h in dict.fromkeys([str(c.get("id") or "").strip() for c in canales[:YT_MAX_CANALES]] + list(handles_extra)):
+        if h.startswith("@") and h.lower() not in estado["ids"]:
+            r = api("channels", [("part", "id"), ("forHandle", h)])
+            items = r.get("items") or []
+            estado["ids"][h.lower()] = items[0].get("id") if items else None
+    # 2. subidas recientes de cada canal conocido
+    idioma_de_canal, videos = {}, []
+    for c in canales[:YT_MAX_CANALES]:
+        cid = yt_canal_id(c.get("id"), estado["ids"])
+        if not cid:
+            continue
+        idioma_de_canal[cid] = _idioma2(c.get("idioma"))
+        try:
+            r = api("playlistItems", [("part", "contentDetails"), ("playlistId", "UU" + cid[2:]),
+                                      ("maxResults", YT_SUBIDAS_POR_CANAL)])
+        except urllib.error.HTTPError as ex:      # la lista de un canal que ya no existe: 404, y se sigue con los demás
+            log(f"directos: YouTube, subidas de {cid}: HTTP {ex.code}")
+            continue
+        videos += [(it.get("contentDetails") or {}).get("videoId") for it in r.get("items") or []]
+    # 3. búsqueda general, si toca
+    toca = True
+    if estado["busqueda_en"]:
+        try:
+            previa = datetime.fromisoformat(str(estado["busqueda_en"]).replace("Z", "+00:00"))
+            toca = (ahora_dt - previa).total_seconds() >= YT_BUSQUEDA_CADA_S
+        except ValueError:
+            toca = True
+    de_busqueda = set(estado["busqueda_ids"])
+    if toca:
+        r = api("search", [("part", "id"), ("q", YT_BUSQUEDA), ("type", "video"), ("eventType", "live"), ("maxResults", 50)])
+        de_busqueda = {(it.get("id") or {}).get("videoId") for it in r.get("items") or []} - {None}
+        estado["busqueda_en"] = ahora_dt.isoformat(timespec="seconds")
+    ids = [v for v in dict.fromkeys(videos + sorted(de_busqueda)) if v and re.fullmatch(r"[A-Za-z0-9_-]{11}", v)]
+    # 4. ¿cuáles están en directo?
+    vivos = []
+    for i in range(0, len(ids), 50):
+        r = api("videos", [("part", "snippet,liveStreamingDetails"), ("id", ",".join(ids[i:i + 50]))])
+        vivos += [v for v in r.get("items") or [] if (v.get("snippet") or {}).get("liveBroadcastContent") == "live"]
+    out, sigue_busqueda = [], []
+    for v in vivos:
+        sn, det = v.get("snippet") or {}, v.get("liveStreamingDetails") or {}
+        cid = sn.get("channelId") or ""
+        titulo = (sn.get("title") or "").lower()
+        texto = f"{titulo} {sn.get('description') or ''} {' '.join(sn.get('tags') or [])}".lower()
+        if re.search(YT_OTRO_JUEGO, titulo) and not re.search(YT_AOE2, titulo):
+            continue                     # un canal de AoE II jugando hoy a otro AoE
+        if cid not in idioma_de_canal and not re.search(YT_AOE2, texto):
+            continue                     # de la búsqueda, solo si dice AoE II
+        if not re.fullmatch(r"UC[A-Za-z0-9_-]{22}", cid):
+            continue
+        if v.get("id") in de_busqueda:
+            sigue_busqueda.append(v["id"])
+        mini = ((sn.get("thumbnails") or {}).get("medium") or {}).get("url")
+        out.append({"plataforma": "youtube", "canal": cid, "nombre": _texto(sn.get("channelTitle") or cid, 40),
+                    "url": f"https://www.youtube.com/watch?v={v['id']}", "titulo": _texto(sn.get("title")),
+                    "espectadores": _entero_no_neg(det.get("concurrentViewers")),
+                    "idioma": _idioma2(sn.get("defaultAudioLanguage") or sn.get("defaultLanguage")) or idioma_de_canal.get(cid),
+                    "miniatura": mini if url_https_ok(mini) else None, "avatar": None,
+                    "inicio": det.get("actualStartTime") or None})
+    estado["busqueda_ids"] = sigue_busqueda
+    # 5. avatares de los canales en directo (1 u. por 50)
+    canales_vivos = sorted({d["canal"] for d in out})
+    avatares = {}
+    for i in range(0, len(canales_vivos), 50):
+        r = api("channels", [("part", "snippet"), ("id", ",".join(canales_vivos[i:i + 50]))])
+        for it in r.get("items") or []:
+            u = (((it.get("snippet") or {}).get("thumbnails") or {}).get("default") or {}).get("url")
+            if url_https_ok(u):
+                avatares[it.get("id")] = u
+    for d in out:
+        d["avatar"] = avatares.get(d["canal"])
+    return out, estado, gasto
+
+
+def directos_reutilizar(previo, plataforma, ahora_dt):
+    """Las entradas de una plataforma del directos.json anterior si tienen menos de DIRECTOS_CADUCA_S → (lista, generado);
+    si no, ([], None)."""
+    f = ((previo or {}).get("fuentes") or {}).get(plataforma) or {}
+    try:
+        edad = (ahora_dt - datetime.fromisoformat(str(f.get("generado")).replace("Z", "+00:00"))).total_seconds()
+    except ValueError:
+        return [], None
+    if edad > DIRECTOS_CADUCA_S:
+        return [], None
+    return [d for d in (previo or {}).get("directos", []) if d.get("plataforma") == plataforma], f.get("generado")
+
+
+def directos_componer(listas, equivalencias, fuentes, estado_yt, generado):
+    directos = []
+    for lista in listas:
+        for d in sorted(lista, key=lambda d: -d.get("espectadores", 0))[:DIRECTOS_MAX_POR_PLATAFORMA]:
+            d = dict(d)
+            d["persona"] = persona_de(d["plataforma"], d["canal"], d["nombre"], equivalencias)
+            directos.append(d)
+    directos.sort(key=lambda d: -d.get("espectadores", 0))
+    return {"v": 1, "generado": generado, "fuentes": fuentes, "directos": directos, "equivalencias": equivalencias,
+            "estado": {"youtube": estado_yt}}
+
+
+def _aviso_error(ex):
+    """Tipo y código del error, NUNCA su texto (podría llevar la URL con la clave de YouTube)."""
+    codigo = getattr(ex, "code", None)
+    return type(ex).__name__ + (f" HTTP {codigo}" if isinstance(codigo, int) else "")
+
+
+def directos_generar(env, previo, tabla_eq, canales_yt, ahora_dt, get):
+    """El directos.json nuevo, o None si no hay ninguna credencial (se conserva el anterior). La red solo por get()."""
+    kid, ksec = env.get("KICK_CLIENT_ID", "").strip(), env.get("KICK_CLIENT_SECRET", "").strip()
+    ytk = env.get("YOUTUBE_API_KEY", "").strip()
+    if not (kid and ksec) and not ytk:
+        print("::notice title=directos::sin KICK_CLIENT_ID / KICK_CLIENT_SECRET ni YOUTUBE_API_KEY: se salta (se conserva el directos.json anterior)",
+              flush=True)
+        return None
+    generado = ahora_dt.isoformat(timespec="seconds")
+    fuentes, listas = {}, []
+    estado_yt = ((previo or {}).get("estado") or {}).get("youtube") or {}
+    # Kick
+    if kid and ksec:
+        try:
+            k, vistas = kick_directos(kid, ksec, get)
+            log(f"directos: Kick, categorías {vistas}: {len(k)} directos")
+            fuentes["kick"] = {"estado": "ok", "generado": generado}
+        except Exception as ex:
+            print(f"::warning title=directos::Kick no respondió bien ({_aviso_error(ex)}): se reutiliza lo anterior si es reciente",
+                  flush=True)
+            k, cuando = directos_reutilizar(previo, "kick", ahora_dt)
+            fuentes["kick"] = {"estado": "error", "generado": cuando}
+    else:
+        print("::notice title=directos::sin KICK_CLIENT_ID / KICK_CLIENT_SECRET: Kick se salta", flush=True)
+        k, cuando = directos_reutilizar(previo, "kick", ahora_dt)
+        fuentes["kick"] = {"estado": "sin_credenciales", "generado": cuando}
+    listas.append(k)
+    # YouTube
+    handles_eq = [str(x).strip() for p in (tabla_eq or {}).get("personas", []) for x in p.get("youtube") or []
+                  if str(x).strip().startswith("@")]
+    if ytk:
+        try:
+            y, estado_yt, gasto = yt_directos(ytk, (canales_yt or {}).get("canales", []), estado_yt, ahora_dt, get, handles_eq)
+            log(f"directos: YouTube: {len(y)} directos, {gasto} unidades de cupo")
+            fuentes["youtube"] = {"estado": "ok", "generado": generado, "unidades": gasto}
+        except Exception as ex:
+            print(f"::warning title=directos::YouTube no respondió bien ({_aviso_error(ex)}): se reutiliza lo anterior si es reciente",
+                  flush=True)
+            y, cuando = directos_reutilizar(previo, "youtube", ahora_dt)
+            fuentes["youtube"] = {"estado": "error", "generado": cuando}
+    else:
+        print("::notice title=directos::sin YOUTUBE_API_KEY: YouTube se salta", flush=True)
+        y, cuando = directos_reutilizar(previo, "youtube", ahora_dt)
+        fuentes["youtube"] = {"estado": "sin_credenciales", "generado": cuando}
+    listas.append(y)
+    return directos_componer(listas, equivalencias_cargar(tabla_eq, estado_yt.get("ids")), fuentes, estado_yt, generado)
+
+
+def directos():
+    """directos.json (esquema y normas arriba)."""
+    sal = directos_generar(os.environ, leer_json(DIRECTOS, None), leer_json(EQUIVALENCIAS, None), leer_json(YT_CANALES, None),
+                           datetime.now(timezone.utc), lambda url, cab=None, datos=None: _twitch(url, cab, datos))
+    if sal is None:
+        return
+    escribir_json(DIRECTOS, sal)
+    resumen = ", ".join(f"{p}: {f.get('estado')}" for p, f in sal["fuentes"].items())
+    log(f"directos: {len(sal['directos'])} directos ({resumen})")
+
+
+def directos_probar():
+    """Prueba sin red: respuestas de Kick y YouTube recortadas con la forma de sus APIs (ver la «_nota» de la muestra),
+    servidas por un get() falso; comprueba también que los secretos nunca salen en el log."""
+    import contextlib, io as _io, urllib.parse
+    m = leer_json(DIRECTOS_MUESTRA)
+    fallos, pedidas = [], []
+    ahora_dt = datetime.fromisoformat(m["ahora"].replace("Z", "+00:00"))
+
+    def get_falso(url, cab=None, datos=None):
+        u = urllib.parse.urlsplit(url)
+        q = urllib.parse.parse_qs(u.query)
+        pedidas.append((u.netloc + u.path, q))
+        if url == KICK_TOKEN_URL:
+            return m["kick"]["token"]
+        if u.netloc == "api.kick.com" and u.path.endswith("/categories"):
+            return m["kick"]["categories"]
+        if u.path.endswith("/livestreams"):
+            return m["kick"]["livestreams_2"] if q.get("cursor") else m["kick"]["livestreams"]
+        if u.path.endswith("/channels") and q.get("forHandle"):
+            return m["youtube"]["channels_handle"].get(q["forHandle"][0], {"items": []})
+        if u.path.endswith("/playlistItems"):
+            return m["youtube"]["playlistItems"].get(q["playlistId"][0], {"items": []})
+        if u.path.endswith("/search"):
+            return m["youtube"]["search"]
+        if u.path.endswith("/videos"):
+            ids = q["id"][0].split(",")
+            return {"items": [v for v in m["youtube"]["videos"]["items"] if v["id"] in ids]}
+        if u.path.endswith("/channels"):
+            return m["youtube"]["channels"]
+        raise AssertionError(f"petición inesperada: {u.netloc}{u.path}")
+
+    env = {"KICK_CLIENT_ID": "id-de-prueba", "KICK_CLIENT_SECRET": "SECRETO-KICK", "YOUTUBE_API_KEY": "CLAVE-YT-SECRETA"}
+    with contextlib.redirect_stdout(_io.StringIO()) as s1:
+        sal = directos_generar(env, m["previo"], m["equivalencias"], m["youtube_canales"], ahora_dt, get_falso)
+    print(s1.getvalue(), end="")
+    if "SECRETO-KICK" in s1.getvalue() or "CLAVE-YT-SECRETA" in s1.getvalue():
+        fallos.append("un secreto salió en el log")
+    got = [[d["plataforma"], d["canal"], d["espectadores"], d["idioma"], d["persona"]] for d in sal["directos"]]
+    if got != m["esperado_directos"]:
+        fallos.append(f"directos {got}, se esperaba {m['esperado_directos']}")
+    for d in sal["directos"]:
+        if not d["url"].startswith("https://") or any(d.get(c) and not d[c].startswith("https://") for c in ("miniatura", "avatar")):
+            fallos.append(f"URL no https en {d['canal']}")
+    if [e["persona"] for e in sal["equivalencias"]] != m["esperado_personas"]:
+        fallos.append(f"equivalencias {sal['equivalencias']}")
+    if sal["fuentes"]["youtube"].get("unidades") != m["esperado_unidades"]:
+        fallos.append(f"unidades de YouTube {sal['fuentes']['youtube'].get('unidades')}, se esperaba {m['esperado_unidades']}")
+    if not any(p[0].endswith("/search") for p in pedidas):
+        fallos.append("la búsqueda horaria no se hizo (la anterior tenía más de 55 min)")
+    if sal["estado"]["youtube"]["busqueda_ids"] != m["esperado_busqueda_ids"]:
+        fallos.append(f"busqueda_ids {sal['estado']['youtube']['busqueda_ids']}")
+    # segunda vuelta 15 min después: ni búsqueda (la de hace 15 min vale) ni handles (ya resueltos)
+    pedidas.clear()
+    with contextlib.redirect_stdout(_io.StringIO()):
+        sal2 = directos_generar(env, sal, m["equivalencias"], m["youtube_canales"], ahora_dt + timedelta(minutes=15), get_falso)
+    if any(p[0].endswith("/search") for p in pedidas) or any("forHandle" in p[1] for p in pedidas):
+        fallos.append("la segunda vuelta repitió la búsqueda o la resolución de handles")
+    if sal2["fuentes"]["youtube"]["unidades"] != m["esperado_unidades_segunda"]:
+        fallos.append(f"unidades de la segunda vuelta {sal2['fuentes']['youtube']['unidades']}, se esperaba {m['esperado_unidades_segunda']}")
+    # sin credenciales: nada (se conserva el anterior); sin Kick: lo de Kick anterior solo si es reciente
+    with contextlib.redirect_stdout(_io.StringIO()) as s3:
+        nada = directos_generar({}, sal, None, None, ahora_dt, get_falso)
+    if nada is not None or "::notice" not in s3.getvalue():
+        fallos.append("sin credenciales debía conservar el anterior con ::notice")
+    with contextlib.redirect_stdout(_io.StringIO()):
+        solo_yt = directos_generar({"YOUTUBE_API_KEY": "x"}, sal, None, m["youtube_canales"], ahora_dt + timedelta(minutes=20), get_falso)
+        caducado = directos_generar({"YOUTUBE_API_KEY": "x"}, sal, None, m["youtube_canales"], ahora_dt + timedelta(minutes=40), get_falso)
+    if not any(d["plataforma"] == "kick" for d in solo_yt["directos"]) or solo_yt["fuentes"]["kick"]["estado"] != "sin_credenciales":
+        fallos.append("sin Kick a los 20 min debía reutilizar lo de Kick anterior")
+    if any(d["plataforma"] == "kick" for d in caducado["directos"]):
+        fallos.append("sin Kick a los 40 min lo de Kick anterior ya había caducado")
+
+    def get_roto(url, cab=None, datos=None):      # un fallo de YouTube nunca imprime la URL (lleva la clave)
+        if "googleapis" in url:
+            raise urllib.error.HTTPError(url, 403, f"Forbidden {url}", None, None)
+        return get_falso(url, cab, datos)
+    with contextlib.redirect_stdout(_io.StringIO()) as s4:
+        roto = directos_generar(env, sal, None, m["youtube_canales"], ahora_dt + timedelta(minutes=5), get_roto)
+    if "CLAVE-YT-SECRETA" in s4.getvalue() or "HTTP 403" not in s4.getvalue() or roto["fuentes"]["youtube"]["estado"] != "error":
+        fallos.append(f"fallo de YouTube mal avisado: {s4.getvalue()!r}")
+    if not any(d["plataforma"] == "youtube" for d in roto["directos"]):
+        fallos.append("con YouTube caído a los 5 min debía reutilizar lo anterior")
+    for v, esp in {"T90Official": "t90", "MembTV": "memb", "survivalistaoe2de": "survivalist", "Hera": "hera",
+                   "dragonstar_aoe": "dragonstar", "Ñandú TV": "nandu", "aoe": "aoe", "TTV_Viper": "viper"}.items():
+        if persona_normalizada(v) != esp:
+            fallos.append(f"persona_normalizada({v!r}) = {persona_normalizada(v)!r}, se esperaba {esp!r}")
+    for f in fallos:
+        log("FALLO", f)
+    log(f"directos --probar: {len(sal['directos'])} directos, {len(fallos)} fallos")
+    return not fallos
+
+
 if __name__ == "__main__":
     if "--probar" in sys.argv:          # sin red: torneos, noticias y partidos (o solo los nombrados: --probar noticias)
         pruebas = {"torneos": torneos_probar, "logos": logos_probar, "detalle": detalle_probar, "noticias": noticias_probar, "partidos": partidos_probar,
-                   "streamers": streamers_probar}
+                   "streamers": streamers_probar, "directos": directos_probar}
         pedidas = [a for a in sys.argv[1:] if a in pruebas] or list(pruebas)
         resultados = [pruebas[a]() for a in pedidas]
         sys.exit(0 if all(resultados) else 1)
     pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("detalle", detalle),
-             ("noticias", noticias), ("partidos", partidos), ("streamers", streamers), ("perfiles", perfiles))
+             ("noticias", noticias), ("partidos", partidos), ("streamers", streamers), ("perfiles", perfiles),
+             ("directos", directos))
     pedidos = [a for a in sys.argv[1:] if not a.startswith("-")]     # sin argumentos, todos (el build nocturno)
     ok = True
     for nombre, fn in pasos:
