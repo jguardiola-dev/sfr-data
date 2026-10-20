@@ -48,9 +48,9 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      que ya no usa ningún torneo de torneos.json/torneos_historico.json se borran. Carpeta en la rama data.
 - torneos/<slug>.json  detalle de los torneos importantes (S y A del histórico; B en curso o próximos; C en curso), de su página de
                      Liquipedia (action=parse; ver torneos_detalle()). slug = ruta de la página en minúsculas con «-»
-                     («Warlords/5» → warlords-5). Lo enlaza el campo «detalle» de torneos.json/torneos_historico.json. Esquema (v3; v2 = sin «tablas» ni
+                     («Warlords/5» → warlords-5). Lo enlaza el campo «detalle» de torneos.json/torneos_historico.json. Esquema (v4; v3 = sin «juegos»; v2 = sin «tablas» ni
                      «jornadas»; v1 = sin «cuadros»):
-                     {"v":3, "url", "nombre", "tier", "inicio", "fin", "obtenido":ISO, "estado_al_obtener",
+                     {"v":4, "url", "nombre", "tier", "inicio", "fin", "obtenido":ISO, "estado_al_obtener",
                       "formato":[{"texto","nivel"}] (lista de la sección Format; nivel = sangría, 0 = primera),
                       "calendario":[{"texto","nivel","desde":"AAAA-MM-DD"|null,["hasta"]}] (sección Schedule),
                       "mapas":["Arabia"…],
@@ -72,6 +72,9 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                                tabla tiene varias); ["jornadas":[{"nombre","partidos":[{"j1","j2",["p1","p2"],
                                ["ganador":1|2],["fecha":ISO UTC],["bo"]}]}]] los partidos por jornada o ronda (las
                                «matchlist»: Round 1, Week 3…), con su fecha y su Bo.
+                               v4: cada partido de «cuadros» y «jornadas» puede traer ["juegos":[{"mapa","ganador":1|2,
+                               ["c1"],["c2"] (civs de cada lado),["e1"],["e2"] (en equipos, quién jugó cada civ)}]]
+                               (la ventanita del partido en Liquipedia; los juegos no jugados no salen).
                       "resultados":{"puestos":[{"puesto","desde","hasta","jugadores":[…]}]}}
                      SIN SPOILERS: quién quedó en qué puesto va SOLO en «resultados» y «cuadros» (la app los esconde); «premios» nunca
                      lleva nombres. Los partidos no se repiten aquí: están en partidos.json (torneo_url). Como mucho
@@ -1907,6 +1910,145 @@ def torneos_infoboxes_logos(lq, filas, infob):
     return out
 
 
+LOGOS_ORGANIZADORES_MAX = 60   # organizadores por action=parse (uno por noche, solo los de torneos sin logo)
+
+
+def logos_organizadores(ib):
+    """Organizadores del infobox (organizer, organizer2…), en texto plano y sin repetir."""
+    import re
+    orgs = [wiki_limpiar(ib[k]) for k in sorted(ib, key=lambda k: (len(k), k)) if re.fullmatch(r"organizer\d*", k)]
+    return list(dict.fromkeys(o for o in orgs if o))
+
+
+def logos_de_equipos_html(html_txt):
+    """HTML de action=parse de «<div data-org="X">{{Team|X}}</div>…» → {organizador: (archivo claro, archivo oscuro)} de los que
+    tienen plantilla de equipo con imagen (la marca del equipo u organización en Liquipedia). Sin plantilla, no sale."""
+    import html as _h, re
+    out = {}
+    for trozo in re.split(r'<div data-org="', html_txt or "")[1:]:
+        org, _, cuerpo = trozo.partition('"')
+        claro = oscuro = None
+        for sp in re.finditer(r'<span class="team-template-image-icon([^"]*)"[^>]*>.*?<img [^>]*src="([^"]+)"', cuerpo, re.S):
+            nombre = logos_de_src(sp.group(2))
+            if not nombre:
+                continue
+            if "darkmode" in sp.group(1):
+                oscuro = oscuro or nombre
+            else:
+                claro = claro or nombre
+        if claro or oscuro:
+            out[_h.unescape(org)] = (claro or oscuro, oscuro if claro else None)
+    return out
+
+
+def torneos_logos_organizador(lq, filas, infob, ib_url):
+    """Para los torneos que siguen sin logo, la marca de su organizador si es un equipo u organización con plantilla en
+    Liquipedia (Template:Team: CN ZhongSheng, Uxmal Esports…): UN action=parse con {{Team|…}} de todos ellos. Los jugadores
+    que organizan no tienen plantilla (y su foto no es una marca): no salen. Cambia ib_url en su sitio. Nunca lanza."""
+    sin = [f for f in filas if f.get("url") and not logos_de_infobox(ib_url.get(f["url"]) or {})[0]]
+    orgs = list(dict.fromkeys(o for f in sin for o in logos_organizadores(infob.get(f.get("titulo")) or {})))[:LOGOS_ORGANIZADORES_MAX]
+    if not orgs:
+        return
+    import html as _h
+    texto = "\n".join(f'<div data-org="{_h.escape(o, quote=True)}">{{{{Team|{o}}}}}</div>' for o in orgs if "|" not in o and "}" not in o)
+    try:
+        d = lq.get({"action": "parse", "title": "Age_of_Empires_II/Tournaments", "contentmodel": "wikitext", "prop": "text",
+                    "text": texto, "disablelimitreport": "1", "disableeditsection": "1"})
+        marcas = logos_de_equipos_html((d.get("parse") or {}).get("text") or "")
+    except Exception as ex:
+        log(f"logos: sin plantillas de organizador ({ex!r})")
+        return
+    n = 0
+    for f in sin:
+        for o in logos_organizadores(infob.get(f.get("titulo")) or {}):
+            if o in marcas:
+                claro, oscuro = marcas[o]
+                ib_url[f["url"]] = {"image": claro, "imagedark": oscuro or ""}
+                n += 1
+                break
+    log(f"logos: {len(marcas)} de {len(orgs)} organizadores con marca en Liquipedia; {n} torneos con el logo de su organizador")
+
+
+LOGOS_TWITCH_MAX = 30           # avatares de Twitch nuevos por noche
+
+
+def logos_twitch_ruta(login, url):
+    import hashlib
+    return f"{LOGOS_DIR.replace(os.sep, '/')}/twitch-{login}-{hashlib.sha1(url.encode('utf-8')).hexdigest()[:8]}.png"
+
+
+def logos_twitch_asignar(listas, streamers, descargar, max_descargas=LOGOS_TWITCH_MAX):
+    """Último recurso para un torneo sin logo: la imagen de perfil de SU canal oficial de Twitch (enlaces.twitch del
+    infobox), tal como la da streamers.json (Get Users de Helix; solo https://static-cdn.jtvnw.net). Se descarga UNA vez
+    (miniatura de 96 px en PNG, como los de Liquipedia), con crédito al canal. Devuelve (torneos con ella, descargas)."""
+    import urllib.parse
+    canales = (streamers or {}).get("canales") or {}
+    hechos, bajados, n = {}, 0, 0
+    for lista in listas:
+        for t in lista:
+            if t.get("logo"):
+                continue
+            login = twitch_login((t.get("enlaces") or {}).get("twitch"))
+            c = canales.get(login) if login else None
+            url = (c or {}).get("avatar_url") or ""
+            try:
+                host = urllib.parse.urlsplit(url).hostname
+            except ValueError:
+                host = None
+            if not c or not url_https_ok(url) or host != TWITCH_HOST_AVATAR:
+                continue
+            if login not in hechos:
+                ruta = logos_twitch_ruta(login, url)
+                if not os.path.exists(ruta):
+                    if bajados >= max_descargas:
+                        continue
+                    bajados += 1
+                    raw = descargar(url)
+                    try:
+                        png = logos_png(raw) if raw else None
+                    except Exception as ex:
+                        log(f"logos: avatar de Twitch de {login} ilegible ({ex!r})")
+                        png = None
+                    if not png:
+                        hechos[login] = None
+                        continue
+                    os.makedirs(os.path.dirname(ruta), exist_ok=True)
+                    with open(ruta, "wb") as fh:
+                        fh.write(png)
+                hechos[login] = ruta
+            if not hechos.get(login):
+                continue
+            nombre = c.get("nombre") or login
+            t["logo"] = {"archivo": hechos[login], "fuente": f"https://twitch.tv/{login}",
+                         "credito": f"Imagen del canal oficial de Twitch del torneo ({nombre}), © su titular. Vía Twitch; no es CC BY-SA.",
+                         "licencia": "twitch"}
+            n += 1
+    return n, bajados
+
+
+def _descargar_twitch(url, max_bytes=LOGOS_MAX_BYTES):
+    """Un avatar del CDN de Twitch (static-cdn.jtvnw.net), con User-Agent y tope de tamaño. None si falla."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "image/*"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            raw = r.read(max_bytes + 1)
+        time.sleep(1)
+        return raw if len(raw) <= max_bytes else None
+    except Exception as ex:
+        log(f"logos: avatar {url}: {ex!r}")
+        return None
+
+
+def torneos_logos_twitch(listas, streamers):
+    """Ver logos_twitch_asignar. Nunca lanza."""
+    try:
+        import PIL  # noqa: F401
+        n, bajados = logos_twitch_asignar(listas, streamers, _descargar_twitch)
+        log(f"logos: {n} torneos con la imagen de su canal de Twitch ({bajados} descargas)")
+    except Exception as ex:
+        print(f"::warning title=logos::sin avatares de Twitch ({ex!r})", flush=True)
+
+
 def torneos_infoboxes(lq, titulos):
     """Wikitexto de los torneos (action=query, 50 títulos por petición) → {título como sale en la tabla: params del infobox}."""
     out = {}
@@ -2234,7 +2376,9 @@ def torneos():
             raise RuntimeError(f"{len(filas)} filas pero ninguna en la ventana")
         historico = torneos_componer(filas, infob, hoy, previo_h or previo, todo=True)
         ib_url = torneos_infoboxes_logos(lq, filas, infob)
+        torneos_logos_organizador(lq, filas, infob, ib_url)
         torneos_logos(lq, [lista, historico], ib_url)
+        torneos_logos_twitch([lista, historico], leer_json("streamers.json", None))
     except Exception as ex:
         print(f"::warning title=torneos::Liquipedia no respondió bien ({ex!r}): se conserva el torneos.json anterior", flush=True)
         return
@@ -2409,6 +2553,38 @@ def logos_probar():
                                      ({}, {"image": "<!--x.png-->"}, None, None, ({"image": "<!--x.png-->"}, None))):
         if logos_respaldo(fila, ib, sup, serie) != esp:
             fallos.append(f"logos_respaldo({fila}, {ib}) = {logos_respaldo(fila, ib, sup, serie)}, se esperaba {esp}")
+    marcas = logos_de_equipos_html(m["equipos_html"])
+    if marcas != {"Uxmal Esports": ("Uxmal Esports allmode.png", None), "CN ZhongSheng": ("CN ZhongSheng allmode.png", None)}:
+        fallos.append(f"marcas de organizador: {marcas}")
+    import shutil as _sh, tempfile as _tf
+    dir_tw, cwd_tw = _tf.mkdtemp(), os.getcwd()
+    try:
+        os.chdir(dir_tw)
+        av = "https://static-cdn.jtvnw.net/jtv_user_pictures/x-profile_image-300x300.png"
+        st = {"canales": {"aoe2danmark": {"nombre": "AoE2Danmark", "avatar_url": av, "url": "https://twitch.tv/aoe2danmark"},
+                          "malo": {"nombre": "Malo", "avatar_url": "https://evil.com/x.png"}}}
+        ts = [{"nombre": "DM", "enlaces": {"twitch": "https://www.twitch.tv/aoe2danmark"}},
+              {"nombre": "Con logo", "logo": {"archivo": "x.png"}, "enlaces": {"twitch": "https://www.twitch.tv/aoe2danmark"}},
+              {"nombre": "Malo", "enlaces": {"twitch": "https://www.twitch.tv/malo"}}, {"nombre": "Sin canal"}]
+        pedidas_tw = []
+
+        def bajar_tw(url):
+            pedidas_tw.append(url)
+            b = io.BytesIO()
+            Image.new("RGBA", (300, 300), (10, 200, 30, 255)).save(b, "PNG")
+            return b.getvalue()
+        n_tw, b_tw = logos_twitch_asignar([ts], st, bajar_tw)
+        lg = ts[0].get("logo") or {}
+        if n_tw != 1 or b_tw != 1 or pedidas_tw != [av] or not os.path.exists(lg.get("archivo", "")) or lg.get("licencia") != "twitch" \
+                or ts[1]["logo"] != {"archivo": "x.png"} or "logo" in ts[2] or "logo" in ts[3]:
+            fallos.append(f"twitch: {n_tw} {b_tw} {ts}")
+        ts2 = [{"nombre": "DM", "enlaces": {"twitch": "https://www.twitch.tv/aoe2danmark"}}]
+        logos_twitch_asignar([ts2], st, bajar_tw)
+        if len(pedidas_tw) != 1 or not ts2[0].get("logo"):
+            fallos.append("twitch: la segunda noche no debería volver a bajarlo")
+    finally:
+        os.chdir(cwd_tw)
+        _sh.rmtree(dir_tw, ignore_errors=True)
     iconos = [(f["nombre"], f.get("icono_claro"), f.get("icono_oscuro")) for f in torneos_tabla(m["lista_html"])]
     if iconos != [("Rusaoc Cup 192", "Rusaoc cup icon.png", None),
                   ("The Bastion", "The Bastion logo lightmode.png", "The Bastion logo darkmode.png"), ("CNZS Invitational 8", None, None)]:
@@ -2438,7 +2614,7 @@ def logos_probar():
 # nunca. Las que aún no se tienen van antes que las renovaciones. Lo ya obtenido se conserva (rama data).
 # Contenido CC BY-SA 3.0, como torneos.json.
 TORNEOS_DETALLE_DIR = "torneos"
-DETALLE_VERSION = 3             # v3: «tablas» y «jornadas»; v2: «cuadros». Un detalle de versión anterior se vuelve a pedir
+DETALLE_VERSION = 4             # v4: «juegos» de cada partido; v3: «tablas» y «jornadas»; v2: «cuadros». Una anterior se vuelve a pedir
 TORNEOS_DETALLE_POR_NOCHE = 20  # ≈31 s cada una (action=parse: <= 1 cada 30 s): ≈10 min por noche
 TORNEOS_DETALLE_TIEMPO_S = 11 * 60
 DETALLE_TABLAS_MAX = 16         # clasificaciones por página (grupos)
@@ -2725,6 +2901,58 @@ def _arbol_html(html_txt):
     return p.raiz
 
 
+DETALLE_JUEGOS_MAX = 15         # juegos por partido (un Bo13 como mucho)
+
+
+def _tiene_tag(nodo, tag):
+    return any(isinstance(h, _Nodo) and (h.tag == tag or _tiene_tag(h, tag)) for h in nodo.hijos)
+
+
+def _civs(nodo):
+    out = []
+    for ci in nodo.buscar("brkts-champion-icon"):
+        a = next((h for h in ci.hijos if isinstance(h, _Nodo) and h.tag == "a"), None)
+        civ = " ".join(((a.attrs.get("title") if a is not None else "") or "").split())
+        if civ and civ.lower() != "unknown":
+            out.append(civ[:30])
+    return out
+
+
+def detalle_juegos(partido):
+    """Nodo de un partido (brkts-match o brkts-matchlist-match) → [{"mapa","ganador":1|2,["c1"],["c2"],["e1"],["e2"]}] de su
+    ventanita (brkts-popup): por juego, el mapa, quién lo ganó y las civs de cada lado (en partidas de equipo, también quién
+    jugó: «e1»/«e2», en el orden de sus civs). Los juegos no jugados (mapa tachado, sin ganador) no salen. [] si no hay."""
+    pops = partido.buscar("brkts-popup")
+    if not pops:
+        return []
+    out = []
+    for fila in pops[0].buscar("brkts-popup-body-grid-row"):
+        hijos = [h for h in fila.hijos if isinstance(h, _Nodo)]
+        etiquetas = [h.attrs.get("data-label-type") or "" for h in hijos if h.tiene("generic-label")]
+        det = next((h for h in hijos if h.tiene("brkts-popup-body-grid-row-detail")), None)
+        if det is None or len(etiquetas) < 2:
+            continue
+        sp = [h for h in det.hijos if isinstance(h, _Nodo) and h.tiene("brkts-popup-spaced")]
+        medio = next((i for i, h in enumerate(sp) if not h.buscar("brkts-champion-icon") and _html_texto(h.texto())), None)
+        if medio is None or _tiene_tag(sp[medio], "s"):
+            continue
+        ganador = 1 if etiquetas[0] == "result-win" else 2 if etiquetas[-1] == "result-win" else 0
+        if not ganador:
+            continue
+        j = {"mapa": _html_texto(sp[medio].texto())[:40], "ganador": ganador}
+        for lado, trozos in (("1", sp[:medio]), ("2", sp[medio + 1:])):
+            civs = [c for h in trozos for c in _civs(h)]
+            if civs:
+                j["c" + lado] = civs[:8]
+            jug = [" ".join(n.texto().split())[:40] for h in trozos for n in h.buscar("name")]
+            if len(jug) > 1:
+                j["e" + lado] = jug[:8]
+        out.append(j)
+        if len(out) >= DETALLE_JUEGOS_MAX:
+            break
+    return out
+
+
 def _cuadro_lado(entrada):
     """Un lado de un partido (brkts-opponent-entry) → ({"nombre",["pais"]} o None si TBD/vacío, marcador o None, ¿ganó?)."""
     import re
@@ -2790,6 +3018,9 @@ def detalle_cuadros(html_fase):
                     pa["p1"], pa["p2"] = p1, p2
                 if g1 != g2:
                     pa["ganador"] = 1 if g1 else 2
+                juegos = detalle_juegos(m)
+                if juegos:
+                    pa["juegos"] = juegos
                 partidos.append((prof, pa))
             if not partidos:
                 continue
@@ -3018,6 +3249,9 @@ def detalle_jornadas(html_txt):
             bo = re.search(r"\(\s*Bo\s*(\d+)\s*\)", "".join(x.texto() for x in m.buscar("match-info-header-scoreholder-lower")))
             if bo:
                 pa["bo"] = int(bo.group(1))
+            juegos = detalle_juegos(m)
+            if juegos:
+                pa["juegos"] = juegos
             partidos.append(pa)
             total += 1
             if total >= DETALLE_JORNADAS_MAX_PARTIDOS:
@@ -3206,13 +3440,13 @@ def detalle_probar():
     ahora_dt = datetime(2026, 10, 19, 5, 0, tzinfo=timezone.utc)
     base = {"url": "u", "inicio": "2026-10-01", "fin": "2026-10-30", "estado": "en_curso"}
     for t, previo, esp in ((base, None, True), (base, {"obtenido": "2026-10-18T05:00:00+00:00"}, True),
-                           (base, {"v": 3, "obtenido": "2026-10-19T01:00:00+00:00"}, False),
+                           (base, {"v": 4, "obtenido": "2026-10-19T01:00:00+00:00"}, False),
                            (base, {"v": 2, "obtenido": "2026-10-19T01:00:00+00:00"}, True),      # v2: sin tablas ni jornadas
-                           (dict(base, estado="proximo", inicio="2026-11-20"), {"v": 3, "obtenido": "2026-10-17T05:00:00+00:00"}, False),
+                           (dict(base, estado="proximo", inicio="2026-11-20"), {"v": 4, "obtenido": "2026-10-17T05:00:00+00:00"}, False),
                            (dict(base, estado="proximo", inicio="2026-10-20"), {"obtenido": "2026-10-18T05:00:00+00:00"}, True),
                            (dict(base, estado="terminado", fin="2026-10-17"), {"obtenido": "2026-10-17T05:00:00+00:00", "estado_al_obtener": "en_curso"}, True),
                            (dict(base, estado="terminado", fin="2026-10-17"), {"obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "terminado"}, True),
-                           (dict(base, estado="terminado", fin="2026-10-17"), {"v": 3, "obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "terminado"}, False)):
+                           (dict(base, estado="terminado", fin="2026-10-17"), {"v": 4, "obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "terminado"}, False)):
         if detalle_toca(t, previo, ahora_dt) != esp:
             fallos.append(f"toca {t['estado']} {previo} → {not esp}")
     hist = [{"url": "a", "tier": "S", "estado": "terminado", "inicio": "2026-01-01", "fin": "2026-01-05"},
@@ -3277,11 +3511,18 @@ def detalle_probar():
     jd = detalle_jornadas(mt["casos"][1]["html"])
     if [j["nombre"] for j in jd] != [f"Round {i}" for i in range(1, 10)] or jd[0]["partidos"][0] != {
             "j1": {"nombre": "Ciskhan", "pais": "FR"}, "j2": {"nombre": "VarVarus", "pais": "AR"}, "p1": "3", "p2": "0",
-            "ganador": 1, "fecha": "2026-08-19T22:00:00Z", "bo": 5}:
+            "ganador": 1, "fecha": "2026-08-19T22:00:00Z", "bo": 5, "juegos": [
+                {"mapa": "Bypass", "ganador": 1, "c1": ["Mongols"], "c2": ["Muisca"]},
+                {"mapa": "Land Madness", "ganador": 1, "c1": ["Armenians"], "c2": ["Hindustanis"]},
+                {"mapa": "Atacama", "ganador": 1, "c1": ["Magyars"], "c2": ["Romans"]}]}:
         fallos.append(f"jornadas de DS_League: {json.dumps(jd[:1], ensure_ascii=False)[:300]}")
     tl = detalle_tablas(mt["casos"][2]["html"])
     if not tl or tl[0].get("tras") != "Week 9" or len(tl[0]["filas"]) != 9 or any("\u25b2" in f["nombre"] or "\u25bc" in f["nombre"] for f in tl[0]["filas"]):
         fallos.append(f"tabla de The League (semana por defecto, sin ▲▼): {json.dumps(tl, ensure_ascii=False)[:300]}")
+    # partidas de equipo: quién jugó cada civ (The League, 3v3)
+    eq = [j for x in detalle_jornadas(mt["casos"][2]["html"]) for pa in x["partidos"] for j in pa.get("juegos", [])]
+    if eq and not all(len(j.get("e1", [])) == len(j.get("c1", [])) for j in eq if j.get("e1")):
+        fallos.append(f"juegos por equipos: {json.dumps(eq[:1], ensure_ascii=False)}")
     gc = detalle_tablas(mt["casos"][3]["html"])
     if not gc or any("pos" in f for f in gc[0]["filas"]) or len(gc[0]["filas"]) != 4:
         fallos.append(f"grupo sin empezar: {json.dumps(gc, ensure_ascii=False)[:300]}")
