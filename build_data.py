@@ -83,8 +83,12 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
 - noticias.json      titulares recientes de AoE II de la web oficial (API REST pública de ageofempires.com, juegos AoE II DE/HD).
                      Solo titular, fecha, fuente, enlace, categoría y miniatura; nunca el cuerpo. Ver noticias(). Esquema (v1):
                      {"v":1, "generado":ISO, "fuentes":[{"nombre","url"}],
-                      "noticias":[{"titulo", "fecha":"AAAA-MM-DDTHH:MM:SSZ", "fuente", "url", ["categoria"], ["imagen"]}]}
+                      "noticias":[{"titulo", "fecha":"AAAA-MM-DDTHH:MM:SSZ", "fuente", "url", ["categoria"], ["imagen"], ["portada"]}]}
                      Como mucho NOTICIAS_MAX, la más reciente primero. «imagen» = URL de la miniatura 288x162 del CDN de la web.
+                     «portada» = "noticias/<sha1[:12]>.jpg": la imagen destacada pasada a JPEG 16:9 (NOTICIAS_PORTADA_W x
+                     NOTICIAS_PORTADA_H) con Pillow, ruta relativa a la raíz de la rama data (la web sirve WebP y Java no lo lee).
+- noticias/*.jpg     portadas de noticias.json (ver noticias_portadas()): bajadas UNA vez del CDN de la web (nombre = sha1 de la
+                     URL de origen) y borradas cuando ya no las usa ninguna noticia. Carpeta en la rama data.
                      Si la web falla o no sale ninguna noticia, se conserva el noticias.json anterior (rama data).
                      Prueba sin red: python build_data.py --probar [noticias]. Solo este paso: python build_data.py noticias
 - partidos.json      partidos de torneos de AoE II según el «match ticker» de Liquipedia: terminados de las últimas 24 h, en curso
@@ -2992,6 +2996,11 @@ AOE_HOSTS_IMG = {"cdn.ageofempires.com", "www.ageofempires.com"}
 NOTICIAS_MAX = 30
 NOTICIAS_MUESTRA = os.path.join("pruebas", "noticias_muestra.json")
 NOTICIAS_FUENTE = {"nombre": "Age of Empires (web oficial)", "url": "https://www.ageofempires.com/news/"}
+NOTICIAS_DIR = "noticias"                 # portadas JPEG en la rama data (noticias/<sha1[:12]>.jpg)
+NOTICIAS_PORTADA_W, NOTICIAS_PORTADA_H = 576, 324   # 16:9, el doble de la tarjeta de la app (nítida a 125-200 %)
+NOTICIAS_PORTADA_CALIDAD = 82
+NOTICIAS_PORTADA_MAX_BYTES = 6_000_000    # una imagen destacada más grande no se baja
+NOTICIAS_PORTADA_MAX_PIXELES = 40_000_000 # tope para Pillow (bomba de descompresión)
 
 
 class WebAoE:
@@ -3068,6 +3077,16 @@ def noticias_imagen(media):
     return None
 
 
+def noticias_imagen_grande(media):
+    """La versión de la imagen destacada para la portada: «medium_large» (768 de ancho) → «large» → «medium»; nunca el original."""
+    tam = (media.get("media_details") or {}).get("sizes") or {}
+    for k in ("medium_large", "large", "medium"):
+        url = (tam.get(k) or {}).get("source_url")
+        if noticias_url_ok(url, AOE_HOSTS_IMG):
+            return url
+    return None
+
+
 def noticias_componer(posts, categorias, medios, previo=None):
     """Entradas de la API → lista de noticias (más reciente primero, sin duplicados, máx. NOTICIAS_MAX).
     categorias: {id: nombre}; medios: {id: url miniatura}. Si no hay categorías o miniaturas (petición caída: dict vacío),
@@ -3110,13 +3129,105 @@ def noticias_salida(lista, fuentes):
     return {"v": 1, "generado": ahora(), "fuentes": fuentes, "noticias": lista}
 
 
+def noticias_portada_ruta(url):
+    """noticias/<sha1 de la URL de origen[:12]>.jpg (con «/», como va en el JSON): la misma imagen, el mismo archivo."""
+    import hashlib
+    return f"{NOTICIAS_DIR}/{hashlib.sha1(url.encode('utf-8')).hexdigest()[:12]}.jpg"
+
+
+def noticias_portada_jpg(raw):
+    """Bytes de imagen (WebP, PNG, JPEG…) → JPEG RGB 16:9 de NOTICIAS_PORTADA_W x NOTICIAS_PORTADA_H (recorte centrado), sin
+    metadatos. Lanza si no es una imagen o es enorme."""
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = NOTICIAS_PORTADA_MAX_PIXELES
+    im = Image.open(io.BytesIO(raw))
+    if im.width * im.height > NOTICIAS_PORTADA_MAX_PIXELES:
+        raise ValueError(f"imagen enorme {im.width}x{im.height}")
+    im.seek(0)
+    if im.mode in ("RGBA", "LA", "P"):
+        im = im.convert("RGBA")
+        fondo = Image.new("RGB", im.size, (255, 255, 255))
+        fondo.paste(im, mask=im.getchannel("A"))
+        im = fondo
+    else:
+        im = im.convert("RGB")
+    w, h = im.size                              # recorte centrado a 16:9 y, después, a su tamaño
+    if w * 9 > h * 16:
+        nw = h * 16 // 9
+        im = im.crop(((w - nw) // 2, 0, (w - nw) // 2 + nw, h))
+    elif w * 9 < h * 16:
+        nh = w * 9 // 16
+        im = im.crop((0, (h - nh) // 2, w, (h - nh) // 2 + nh))
+    im = im.resize((NOTICIAS_PORTADA_W, NOTICIAS_PORTADA_H), Image.LANCZOS)
+    out = io.BytesIO()
+    im.save(out, "JPEG", quality=NOTICIAS_PORTADA_CALIDAD, optimize=True, progressive=True)
+    return out.getvalue()
+
+
+def noticias_descargar(url):
+    """Una imagen del CDN de la web (solo https de AOE_HOSTS_IMG y como mucho NOTICIAS_PORTADA_MAX_BYTES), o None."""
+    if not noticias_url_ok(url, AOE_HOSTS_IMG):
+        return None
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "sfr-data (aoe2radar; +https://github.com/jguardiola-dev/sfr-data)"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            raw = r.read(NOTICIAS_PORTADA_MAX_BYTES + 1)
+        if len(raw) > NOTICIAS_PORTADA_MAX_BYTES:
+            log(f"noticias: portada demasiado grande ({url})")
+            return None
+        time.sleep(0.5)                         # sin prisa con el CDN
+        return raw
+    except Exception as ex:
+        log(f"noticias: portada {url}: {ex!r}")
+        return None
+
+
+def noticias_portadas(lista, origenes, descargar, previo=None):
+    """Pone «portada» a cada noticia: la imagen de origenes[url de la noticia] (la grande) o, si no, su «imagen», pasada a JPEG
+    en noticias/ (si el archivo ya está, no se baja). Si una descarga falla, se queda la portada del noticias.json anterior
+    (misma URL) si su archivo sigue en disco. Después borra de noticias/ los JPEG que no usa nadie. Nunca lanza por una
+    imagen: esa noticia sale sin portada. Devuelve (con portada, descargas, bytes nuevos)."""
+    previos = {n.get("url"): n.get("portada") for n in (previo or {}).get("noticias", []) if n.get("url")}
+    bajadas = nbytes = 0
+    for n in lista:
+        n.pop("portada", None)
+        fuente = origenes.get(n["url"]) or n.get("imagen")
+        if fuente and noticias_url_ok(fuente, AOE_HOSTS_IMG):
+            ruta = noticias_portada_ruta(fuente)
+            if not os.path.exists(ruta):
+                raw = descargar(fuente)
+                bajadas += 1
+                if raw:
+                    try:
+                        jpg = noticias_portada_jpg(raw)
+                        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+                        with open(ruta, "wb") as f:
+                            f.write(jpg)
+                        nbytes += len(jpg)
+                    except Exception as ex:
+                        log(f"noticias: portada ilegible ({fuente}): {ex!r}")
+            if os.path.exists(ruta):
+                n["portada"] = ruta
+                continue
+        ant = previos.get(n["url"])
+        if ant and os.path.exists(ant):
+            n["portada"] = ant
+    usadas = {os.path.normpath(n["portada"]) for n in lista if n.get("portada")}
+    if os.path.isdir(NOTICIAS_DIR):
+        for a in os.listdir(NOTICIAS_DIR):
+            ruta = os.path.join(NOTICIAS_DIR, a)
+            if os.path.normpath(ruta) not in usadas:
+                os.remove(ruta)
+    return sum(1 for n in lista if n.get("portada")), bajadas, nbytes
+
+
 def noticias():
     """noticias.json: titulares de AoE II de la web oficial (esquema en la cabecera, normas arriba). Si la fuente falla o no da
     ninguna noticia, no se escribe: se queda el anterior (recuperado de la rama data) con aviso ::warning::. Si solo fallan
     categorías o miniaturas, se publica igual y esos campos salen del noticias.json anterior (misma URL) o se omiten."""
     previo = leer_json("noticias.json", None)
     web = WebAoE()
-    categorias, medios = {}, {}
+    categorias, medios, grandes = {}, {}, {}
     try:
         posts = web.get("posts", {"game": ",".join(map(str, AOE_GAMES_AOE2)), "per_page": NOTICIAS_MAX, "orderby": "date",
                                   "order": "desc", "_fields": "id,date_gmt,link,title,categories,featured_media,game,status"})
@@ -3134,6 +3245,7 @@ def noticias():
             if ids:
                 d = web.get("media", {"include": ",".join(map(str, ids)), "per_page": 100, "_fields": "id,media_details"})
                 medios = {m["id"]: noticias_imagen(m) for m in d if noticias_imagen(m)}
+                grandes = {m["id"]: noticias_imagen_grande(m) for m in d if noticias_imagen_grande(m)}
         except Exception as ex:
             print(f"::warning title=noticias::sin miniaturas ({ex!r}): se toman del noticias.json anterior", flush=True)
         lista = noticias_componer(posts, categorias, medios, previo)
@@ -3144,9 +3256,19 @@ def noticias():
         return
     finally:
         web.cerrar()
+    portadas = "sin portadas"
+    try:
+        import PIL  # noqa: F401
+        origenes = {p.get("link"): grandes.get(p.get("featured_media")) for p in posts if grandes.get(p.get("featured_media"))}
+        con, bajadas, nbytes = noticias_portadas(lista, origenes, noticias_descargar, previo)
+        portadas = f"{con} con portada ({bajadas} descargas, {nbytes / 1024:.0f} KB nuevos)"
+    except ImportError:
+        print("::warning title=noticias::falta Pillow (pip install pillow): noticias sin portada", flush=True)
+    except Exception as ex:
+        print(f"::warning title=noticias::portadas ({ex!r}): se publican sin las que fallaron", flush=True)
     escribir_json("noticias.json", noticias_salida(lista, [NOTICIAS_FUENTE]))
     log(f"noticias: {len(lista)} noticias (la más reciente {lista[0]['fecha'][:10]}); "
-        f"{sum('imagen' in n for n in lista)} con imagen; {web.peticiones} peticiones a ageofempires.com")
+        f"{sum('imagen' in n for n in lista)} con imagen, {portadas}; {web.peticiones} peticiones a ageofempires.com")
 
 
 def noticias_probar():
@@ -3176,8 +3298,12 @@ def noticias_probar():
         fallos.append("orden: no va de la más reciente a la más antigua")
     if len({n["url"] for n in lista}) != len(lista):
         fallos.append("hay URLs duplicadas")
-    if any(set(n) - {"titulo", "fecha", "fuente", "url", "categoria", "imagen"} for n in lista):
+    if any(set(n) - {"titulo", "fecha", "fuente", "url", "categoria", "imagen", "portada"} for n in lista):
         fallos.append("campos de más en alguna noticia")
+    grandes = {x["id"]: noticias_imagen_grande(x) for x in m["medios"] if noticias_imagen_grande(x)}
+    if any(not noticias_url_ok(u, AOE_HOSTS_IMG) for u in grandes.values()):
+        fallos.append("una imagen grande que no es del CDN de la web")
+    fallos += noticias_portadas_probar(lista)
     # categorías y miniaturas caídas: se heredan del noticias.json anterior por URL
     previo = noticias_salida(lista, [NOTICIAS_FUENTE])
     sin = noticias_componer(m["posts"], {}, {}, previo)
@@ -3195,6 +3321,83 @@ def noticias_probar():
         log("FALLO", f)
     log(f"noticias --probar: {len(lista)} noticias, {len(fallos)} fallos")
     return not fallos
+
+
+def noticias_portadas_probar(lista):
+    """Portadas sin red: las «descargas» son imágenes WebP/PNG generadas con Pillow en memoria, en una carpeta temporal.
+    Devuelve la lista de fallos."""
+    import copy, shutil, tempfile
+    from PIL import Image
+    fallos, pedidas = [], []
+    lista = copy.deepcopy(lista)
+    con_imagen = [n for n in lista if n.get("imagen")]
+    if len(con_imagen) < 2:
+        return ["la muestra necesita al menos 2 noticias con imagen"]
+    rota = con_imagen[1]["imagen"]
+
+    def descargar(url):
+        pedidas.append(url)
+        if url == rota:
+            return b"<html>esto no es una imagen</html>"
+        im = Image.new("RGBA", (800, 600), (30, 90, 200, 255))      # 4:3 con alfa → recorte a 16:9, fondo blanco
+        b = io.BytesIO()
+        im.save(b, "WEBP" if len(pedidas) % 2 else "PNG")
+        return b.getvalue()
+
+    tmp, cwd = tempfile.mkdtemp(), os.getcwd()
+    try:
+        os.chdir(tmp)
+        con, bajadas, _ = noticias_portadas(lista, {}, descargar)
+        if bajadas != len(con_imagen) or con != len(con_imagen) - 1:
+            fallos.append(f"portadas: {con} con portada y {bajadas} descargas, se esperaban {len(con_imagen) - 1} y {len(con_imagen)}")
+        for n in lista:
+            p = n.get("portada")
+            if n.get("imagen") == rota or not n.get("imagen"):
+                if p:
+                    fallos.append(f"{n['url']}: no debería tener portada")
+                continue
+            if p != noticias_portada_ruta(n["imagen"]):
+                fallos.append(f"{n['url']}: portada {p!r}")
+                continue
+            with Image.open(p) as im:
+                if im.format != "JPEG" or im.size != (NOTICIAS_PORTADA_W, NOTICIAS_PORTADA_H) or im.mode != "RGB":
+                    fallos.append(f"{p}: {im.format} {im.size} {im.mode}")
+        # segunda pasada: en caché (solo se reintenta la rota); una portada anterior se hereda si su descarga falla
+        antes = len(pedidas)
+        previo = {"noticias": copy.deepcopy(lista)}
+        lista2 = copy.deepcopy(lista)
+        noticias_portadas(lista2, {}, descargar, previo)
+        if len(pedidas) - antes != 1:
+            fallos.append(f"caché: {len(pedidas) - antes} descargas en la segunda pasada, se esperaba 1 (la rota)")
+        sin_red = copy.deepcopy(lista)
+        for n in sin_red:
+            if n.get("imagen"):
+                n["imagen"] = n["imagen"] + "?nueva"                   # otra URL: no está en caché y la descarga falla
+        noticias_portadas(sin_red, {}, lambda url: None, previo)
+        if [n.get("portada") for n in sin_red] != [n.get("portada") for n in lista]:
+            fallos.append("si la descarga falla no se hereda la portada anterior")
+        # la grande manda sobre la miniatura; y lo que no usa nadie se borra
+        n0 = con_imagen[0]
+        lista3 = [dict(n0)]
+        noticias_portadas(lista3, {n0["url"]: n0["imagen"].replace(".webp", "-768x432.webp")}, descargar)
+        if lista3[0].get("portada") != noticias_portada_ruta(n0["imagen"].replace(".webp", "-768x432.webp")):
+            fallos.append(f"origen grande: {lista3[0].get('portada')!r}")
+        if sorted(os.listdir(NOTICIAS_DIR)) != [os.path.basename(lista3[0]["portada"])]:
+            fallos.append(f"podar: quedan {sorted(os.listdir(NOTICIAS_DIR))}")
+        if noticias_portadas([{"url": "https://www.ageofempires.com/x", "imagen": "https://evil.example.com/x.webp"}], {}, descargar)[1] != 0:
+            fallos.append("una imagen de fuera del CDN no se baja")
+    finally:
+        os.chdir(cwd)
+        shutil.rmtree(tmp, ignore_errors=True)
+    try:
+        noticias_portada_jpg(b"<html>no</html>")
+        fallos.append("noticias_portada_jpg debería fallar con algo que no es una imagen")
+    except Exception:
+        pass
+    if not noticias_portada_ruta("https://cdn.ageofempires.com/a.webp").startswith("noticias/") or \
+            noticias_portada_ruta("https://cdn.ageofempires.com/a.webp") != noticias_portada_ruta("https://cdn.ageofempires.com/a.webp"):
+        fallos.append("ruta de portada")
+    return fallos
 
 
 # ----------------------------------------------------------------------------- partidos (Liquipedia)
