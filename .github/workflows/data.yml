@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: "17 5 * * *"     # todos los días a las 05:17 UTC
   workflow_dispatch:         # y a mano, con el botón "Run workflow"
+    inputs:
+      reparar:
+        description: "Perfiles: reparar de una pasada los huecos de huecos_shard (relleno sin límite de días)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -39,6 +44,7 @@ jobs:
           # app de desarrollador de Twitch (solo para streamers.json); si faltan los secretos, el paso se salta con ::notice
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
+          PERFILES_REPARAR: ${{ inputs.reparar && '1' || '' }}
         continue-on-error: true    # si una parte falla, se publica lo que haya salido bien y lo recuperado
       - name: publicar perfiles (releases «perfiles» y base)
         if: hashFiles('perfiles/index.json') != ''
@@ -58,9 +64,10 @@ jobs:
             n=$(gh release view "$tag" --json assets -q '[.assets[].name | select(test("^shard-[0-9]{4}[.]json[.]gz$"))] | length')
             if [ "$n" != "256" ]; then echo "::error::base $tag incompleta ($n/256 paquetes): no se publica el índice ni se borra la base anterior"; exit 1; fi
           fi
-          for m in perfiles/BORRAR-*; do [ -e "$m" ] || continue; a=$(basename "$m"); a=${a#BORRAR-}; gh release delete-asset perfiles "$a" -y || true; rm -f "$m"; sleep 2; done
           subir perfiles $(ls perfiles/*.json.gz)
           gh release upload perfiles perfiles/index.json --clobber
+          # los deltas ya fundidos se borran solo cuando el índice nuevo (que ya no los lista) está publicado
+          for m in perfiles/BORRAR-*; do [ -e "$m" ] || continue; a=$(basename "$m"); a=${a#BORRAR-}; gh release delete-asset perfiles "$a" -y || true; rm -f "$m"; sleep 2; done
           # la release base anterior se borra entera (una sola llamada) una vez publicado el índice nuevo
           ant=$(python3 -c "import json;print(json.load(open('perfiles/index.json')).get('base_release_anterior') or '')")
           act=$(python3 -c "import json;print(json.load(open('perfiles/index.json')).get('base_release') or '')")
