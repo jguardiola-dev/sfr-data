@@ -26,6 +26,9 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                                   "participantes", "url", ["enlaces"], ["logo", "logo_oscuro"], ["detalle"],
                                   ["ganador", "finalista"]}]}
                      «detalle» (opcional): "torneos/<slug>.json" si hay ficha de detalle de ese torneo (ver más abajo).
+                     «inscripcion_url» (opcional): enlace https de inscripción del infobox; «inscripcion_hasta»
+                     (opcional): cierre de inscripción, "AAAA-MM-DD" o "AAAA-MM-DDTHH:MM:SSZ" (UTC) si se sabe la hora
+                     (del infobox o del calendario del detalle; ver inscripcion_de_texto). Casi nunca está en Liquipedia.
                      «enlaces» (opcional, del infobox): {"web","discord","twitch","youtube","x","bracket","reglamento"}
                      (reglamento = el «rulebook»/handbook del organizador: PDF, Google Drive…), cada uno solo si
                      Liquipedia lo da y es una URL https válida (los identificadores sueltos se completan: twitch.tv/…, x.com/…).
@@ -1738,6 +1741,11 @@ def torneos_enriquecer(t, ib):
     enlaces = torneos_enlaces(ib)
     if enlaces:
         t["enlaces"] = enlaces
+    url, hasta = torneos_inscripcion(ib, t.get("inicio"))
+    if url:
+        t["inscripcion_url"] = url
+    if hasta:
+        t["inscripcion_hasta"] = hasta
 
 
 # parámetro del infobox → (clave en «enlaces», prefijo para un identificador suelto; None = solo URL completa). Prefijos
@@ -1759,6 +1767,55 @@ def url_https_ok(url):
                 and re.fullmatch(r"[a-z0-9-]+(?:\.[a-z0-9-]+)+", u.hostname or "") is not None)
     except ValueError:
         return False
+
+
+# Inscripción (fecha límite y enlace). En la wiki de AoE II casi nunca está: en octubre de 2026, 0 de 34 torneos próximos o
+# en curso y 1 de 248 del histórico (Showdown Cup: «Registration closes: March 20, 00:01 GMT» en su Schedule). Se lee de
+# parámetros del infobox si algún día se usan y de las líneas del calendario/formato con una frase de CIERRE explícita
+# («Registration closes», «Sign-ups close», «Sign up until», «Registration deadline»); nunca de «opens» ni de frases sin
+# fecha clara. Sin año, el del torneo (como el calendario). Con hora y zona GMT/UTC, la hora; si no, solo el día.
+INSCRIPCION_PARAMS_URL = ("signup", "sign-up", "signups", "registration", "register", "signuplink", "registrationlink")
+INSCRIPCION_PARAMS_FECHA = ("signupdeadline", "registrationdeadline", "regdeadline", "signupend", "registrationend", "regdate",
+                            "deadline")
+
+
+def inscripcion_de_texto(texto, anio_base, mes_base=1):
+    """«Registration closes: March 20, 00:01 GMT» → "AAAA-03-20T00:01:00Z"; «Sign-ups close March 20» → "AAAA-03-20";
+    sin frase de cierre o sin fecha, None."""
+    import re
+    m = re.search(r"\b(?:registrations?|sign[\s-]?ups?|signups?)\b[^.;]{0,25}?\b(?:clos(?:e|es|ing)|ends?|deadline|until|due)\b"
+                  r"|\bsign[\s-]?up\s+(?:until|by|before)\b|\bregister\s+(?:until|by|before)\b", texto or "", re.I)
+    if not m:
+        return None
+    resto = texto[m.end():]
+    desde, _ = detalle_fechas(resto, anio_base, mes_base)
+    if not desde:
+        return None
+    if re.match(r"\s*[:\-–]?\s*\d{1,2}[./]\d{1,2}", resto):      # «20/03»: día y mes ambiguos, fuera
+        return None
+    h = re.search(r"\b(\d{1,2}):(\d{2})\s*(?:GMT|UTC)\b", resto[:60])
+    if h and int(h.group(1)) < 24 and int(h.group(2)) < 60:
+        return f"{desde}T{int(h.group(1)):02d}:{h.group(2)}:00Z"
+    return desde
+
+
+def torneos_inscripcion(ib, inicio):
+    """(inscripcion_url, inscripcion_hasta) del infobox: un enlace https de alguno de INSCRIPCION_PARAMS_URL y una fecha ISO
+    (AAAA-MM-DD) de INSCRIPCION_PARAMS_FECHA. (None, None) si no hay."""
+    import re
+    url = hasta = None
+    for k in INSCRIPCION_PARAMS_URL:
+        v = wiki_limpiar(ib.get(k, ""))
+        m = re.search(r"https://\S+", ib.get(k, "") or "") or re.search(r"https://\S+", v)
+        if m and url_https_ok(m.group(0).rstrip("]")):
+            url = m.group(0).rstrip("]")
+            break
+    for k in INSCRIPCION_PARAMS_FECHA:
+        v = wiki_limpiar(ib.get(k, ""))
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+            hasta = v
+            break
+    return url, hasta
 
 
 def torneos_enlaces(ib):
@@ -1831,7 +1888,7 @@ def torneos_componer(filas, infoboxes, hoy, previo=None, todo=False):
         if ib:
             torneos_enriquecer(f, ib)
         elif f.get("url") in previos:
-            for k in ("organizador", "formato", "formato_texto", "bolsa_local", "moneda_local", "enlaces"):
+            for k in ("organizador", "formato", "formato_texto", "bolsa_local", "moneda_local", "enlaces", "inscripcion_url"):
                 if previos[f["url"]].get(k) is not None and f.get(k) is None:
                     f[k] = previos[f["url"]][k]
         f["fin"] = f.get("fin") or f["inicio"]
@@ -1843,6 +1900,9 @@ def torneos_componer(filas, infoboxes, hoy, previo=None, todo=False):
         t.update({k: f.get(k) for k in ("formato", "formato_texto", "organizador", "lugar", "participantes", "url")})
         if f.get("enlaces"):
             t["enlaces"] = f["enlaces"]
+        for k in ("inscripcion_url", "inscripcion_hasta"):
+            if f.get(k):
+                t[k] = f[k]
         for k in ("ganador", "finalista"):
             if f.get(k):
                 t[k] = f[k]
@@ -3290,7 +3350,24 @@ def detalle_componer(html_txt, t, obtenido):
          "participantes": detalle_participantes(detalle_seccion(sec, "participants")),
          "fases": detalle_fases(sec),
          "resultados": {"puestos": resultados}}
+    hasta = detalle_inscripcion(d["calendario"] + d["formato"], t.get("inicio"))
+    if hasta:
+        d["inscripcion_hasta"] = hasta
     return d
+
+
+def detalle_inscripcion(lineas, inicio):
+    """La fecha de cierre de inscripción de las líneas del calendario y del formato (ver inscripcion_de_texto), o None."""
+    try:
+        d0 = date.fromisoformat(inicio)
+        anio, mes = d0.year, d0.month
+    except (TypeError, ValueError):
+        return None                         # sin fecha del torneo, el año de «March 20» sería una suposición
+    for l in lineas:
+        hasta = inscripcion_de_texto(l.get("texto"), anio, mes)
+        if hasta:
+            return hasta
+    return None
 
 
 def detalle_candidatos(historico, hoy):
@@ -3408,6 +3485,10 @@ def torneos_marcar_detalle():
             if arch and os.path.exists(arch):
                 cambia |= t.get("detalle") != arch
                 t["detalle"] = arch
+                hasta = (leer_json(arch, {}) or {}).get("inscripcion_hasta")
+                if hasta and not t.get("inscripcion_hasta"):
+                    t["inscripcion_hasta"] = hasta
+                    cambia = True
             elif t.pop("detalle", None):
                 cambia = True
         if cambia:
@@ -3439,6 +3520,21 @@ def detalle_probar():
                      "Feb 30": (None, None)}.items():
         if detalle_fechas(txt, 2026, 5) != esp:
             fallos.append(f"fechas {txt!r} → {detalle_fechas(txt, 2026, 5)}, se esperaba {esp}")
+    for txt, esp in {"Registration closes: March 20, 00:01 GMT": "2026-03-20T00:01:00Z",
+                     "Registration opens: March 7": None, "Sign-ups close on April 2nd": "2026-04-02",
+                     "Sign up until May 5": "2026-05-05", "Registration deadline: 20/03": None,
+                     "Group stage deadline: March 27, 23:59 GMT": None, "Registration closes soon": None,
+                     "Each team must have at least one Swedish player registered": None}.items():
+        if inscripcion_de_texto(txt, 2026, 3) != esp:
+            fallos.append(f"inscripción {txt!r} → {inscripcion_de_texto(txt, 2026, 3)!r}, se esperaba {esp!r}")
+    if detalle_inscripcion([{"texto": "Registration opens: March 7"}, {"texto": "Registration closes: March 20, 00:01 GMT"}],
+                           "2026-03-21") != "2026-03-20T00:01:00Z" or detalle_inscripcion([{"texto": "Sign up until May 5"}], None):
+        fallos.append("detalle_inscripcion")
+    for ib, esp in (({"signup": "[https://forms.gle/abc Sign up]"}, ("https://forms.gle/abc", None)),
+                    ({"registration": "http://inseguro.com", "regdeadline": "2026-11-02"}, (None, "2026-11-02")),
+                    ({"deadline": "next week"}, (None, None)), ({}, (None, None))):
+        if torneos_inscripcion(ib, "2026-11-10") != esp:
+            fallos.append(f"torneos_inscripcion({ib}) = {torneos_inscripcion(ib, '2026-11-10')}, se esperaba {esp}")
     if detalle_fechas("January 3: Final", 2026, 11) != ("2027-01-03", None):
         fallos.append(f"cambio de año: {detalle_fechas('January 3: Final', 2026, 11)}")
     if detalle_slug("https://liquipedia.net/ageofempires/Svenska_TG-ligan/2026/H%C3%B6st") != "svenska-tg-ligan-2026-host":
