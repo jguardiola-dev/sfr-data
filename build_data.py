@@ -129,6 +129,18 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      youtube_canales.json (canales de YouTube a mirar) y canales_equivalentes.json (misma persona en varias
                      plataformas: la app junta sus directos en una sola entrada).
                      Prueba sin red: python -I build_data.py --probar directos. Solo este paso: python build_data.py directos
+- torneos_comunidad.json  torneos pequeños de la comunidad (CastleRush, Age of Amateurs Cup…) que no salen en Liquipedia, de la lista
+                     pública de https://gamenex.gg/game/aoe2/tournaments (robots.txt lo permite; UNA petición por ejecución, con
+                     el UA de este proyecto). Ver comunidad(). Se regenera con partidos (cada 2 h) y de noche. Esquema (v1):
+                     {"v":1, "generado":ISO, "fuente":{"nombre":"gamenex.gg","url"},
+                      "torneos":[{"id" (ULID de gamenex), "nombre", "url" (ficha en gamenex, donde se apunta uno),
+                                  ["logo"] (URL absoluta), "inicio":"AAAA-MM-DDTHH:MM:SSZ" (UTC), ["formato":"1v1"|"2v2"…],
+                                  ["plazas", "plazas_max"], "estado":"proximo|en_curso", "fuente":"gamenex"}]}
+                     Solo próximos y en curso (secciones Upcoming/Running de la lista); en_curso primero, luego por inicio.
+                     Lo que la página no da no se escribe. El año de «inicio» se deduce con el día de la semana (la web no
+                     lo muestra). Si gamenex falla o cambia el HTML (tarjetas que no se leen), se conserva el anterior con
+                     ::warning::; sin torneos próximos se escribe la lista vacía.
+                     Prueba sin red: python build_data.py --probar [comunidad]. Solo este paso: python build_data.py comunidad
 Fuente: volcados diarios de aoe2companion (https://www.aoe2companion.com/more/api).
 Torneos y partidos: Liquipedia (https://liquipedia.net/ageofempires/), CC BY-SA 3.0; torneos.json y partidos.json se
 publican con la misma licencia.
@@ -137,7 +149,7 @@ Avatares: Twitch (URL pública del CDN de Twitch, enlazando al canal). Directos:
 Noticias: titulares y enlaces de https://www.ageofempires.com/news/ (World's Edge / Microsoft); los artículos no se copian.
 Créditos: aoe2companion (Dennis Keil) · Liquipedia · Age of Empires II © Microsoft.
 """
-import gzip, io, json, os, sys, time, urllib.error, urllib.request
+import gzip, io, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
@@ -4440,6 +4452,158 @@ def partidos_probar():
     return not fallos
 
 
+# ----------------------------------------------------------------------------- torneos de la comunidad (gamenex.gg)
+# Torneos pequeños (CastleRush, Age of Amateurs Cup…) que no salen en Liquipedia. Fuente: la lista pública de
+# https://gamenex.gg/game/aoe2/tournaments (HTML de servidor, Laravel Livewire; robots.txt lo permite). UNA petición por
+# ejecución, en inglés (la fecha lleva el día de la semana, no el año: el año se deduce con él). No se pide la ficha de cada
+# torneo: no trae fecha ISO ni JSON-LD, y serían N peticiones más. La app lee este archivo, nunca llama a gamenex.
+COMUNIDAD_URL = "https://gamenex.gg/game/aoe2/tournaments"
+COMUNIDAD_MUESTRA = os.path.join("pruebas", "gamenex_lista.html")
+COMUNIDAD_SALIDA = "torneos_comunidad.json"
+COMUNIDAD_MESES = {m: i + 1 for i, m in enumerate(
+    ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"])}
+COMUNIDAD_DIAS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+
+
+def comunidad_inicio(txt, ahora_dt):
+    """«Tue, 20th October 16:00 UTC» → «2026-10-20T16:00:00Z». La página no da el año: se toma el que hace coincidir el día de
+    la semana y deja la fecha más cerca de hoy. None si no cuadra (hora que no es UTC, mes raro, ningún año encaja)."""
+    m = re.search(r"\b([A-Za-z]{3})[a-z]*\.?,\s*(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{1,2}):(\d{2})\s*UTC\b", txt or "")
+    if not m:
+        return None
+    dia, mes = m.group(1).lower(), COMUNIDAD_MESES.get(m.group(3).lower())
+    if mes is None or dia not in COMUNIDAD_DIAS:
+        return None
+    candidatos = []
+    for anio in (ahora_dt.year - 1, ahora_dt.year, ahora_dt.year + 1):
+        try:
+            d = datetime(anio, mes, int(m.group(2)), int(m.group(4)), int(m.group(5)), tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        if COMUNIDAD_DIAS[d.weekday()] == dia:
+            candidatos.append(d)
+    if not candidatos:
+        return None
+    return min(candidatos, key=lambda d: abs((d - ahora_dt).total_seconds())).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def comunidad_html(html_txt, ahora_dt):
+    """HTML de la lista → [{id, nombre, url, logo, inicio, formato, plazas, plazas_max, estado, fuente}] de los torneos
+    «Running» (en_curso) y «Upcoming» (proximo). Lo que no esté en la página (plazas, formato) no se escribe. Una tarjeta
+    sin enlace, nombre o fecha legible se salta."""
+    import html as htmllib
+    en_curso = set(re.findall(r"tournament-running-([0-9a-z]+)", htmllib.unescape(html_txt)))   # del snapshot de Livewire
+    lista, vistos = [], set()
+    for m in re.finditer(r"<a\b[^>]*\bhref=\"(https://gamenex\.gg/tournaments/([0-9a-z]+)/[^\"]*)\"[^>]*>(.*?)</a>", html_txt, re.S):
+        url, tid, cuerpo = m.group(1), m.group(2), m.group(3)
+        if tid in vistos:
+            continue
+        img = re.search(r"<img\b[^>]*>", cuerpo)
+        src = re.search(r"\bsrc=\"([^\"]+)\"", img.group(0)) if img else None
+        nom = re.search(r"<p[^>]*font-semibold[^>]*>(.*?)</p>", cuerpo, re.S)
+        nombre = htmllib.unescape(re.sub(r"<[^>]+>", "", nom.group(1))).strip() if nom else ""
+        inicio = comunidad_inicio(htmllib.unescape(re.sub(r"<[^>]+>", " ", cuerpo)), ahora_dt)
+        if not nombre or not inicio:
+            continue
+        vistos.add(tid)
+        t = {"id": tid, "nombre": nombre[:120], "url": url}
+        if src and src.group(1).startswith(("/storage/", "https://gamenex.gg/storage/")):
+            t["logo"] = urllib.parse.urljoin("https://gamenex.gg/", htmllib.unescape(src.group(1)))
+        t["inicio"] = inicio
+        texto = re.sub(r"<!--.*?-->|<[^>]+>", " ", cuerpo, flags=re.S)
+        fm = re.search(r"\b(\d)\s*vs\s*(\d)\b", texto)
+        if fm:
+            t["formato"] = f"{fm.group(1)}v{fm.group(2)}"
+        pl = re.search(r"(?<![\d/:])(\d{1,3})\s*/\s*(\d{1,3})(?![\d/])", texto)
+        if pl:
+            t["plazas"], t["plazas_max"] = int(pl.group(1)), int(pl.group(2))
+        t["estado"] = "en_curso" if tid in en_curso else "proximo"
+        t["fuente"] = "gamenex"
+        lista.append(t)
+    lista.sort(key=lambda t: (t["estado"] != "en_curso", t["inicio"], t["nombre"]))
+    return lista
+
+
+def comunidad_salida(lista, ahora_dt):
+    return {"v": 1, "generado": ahora_dt.isoformat(timespec="seconds"),
+            "fuente": {"nombre": "gamenex.gg", "url": COMUNIDAD_URL},
+            "torneos": lista}
+
+
+def comunidad():
+    """torneos_comunidad.json desde la lista pública de gamenex.gg (esquema en la cabecera). Una sola petición, con el UA del
+    proyecto. Si la web falla, no responde 200 o hay tarjetas que no se pueden leer, no se escribe: se queda el anterior (rama
+    data) con aviso ::warning::. Si la lista se reconoce pero ya no hay torneos próximos, SÍ se escribe vacío (lo normal
+    entre ediciones). El paso nunca rompe el build."""
+    ahora_dt = datetime.now(timezone.utc)
+    try:
+        req = urllib.request.Request(COMUNIDAD_URL, headers={"User-Agent": UA, "Accept-Language": "en"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            html_txt = r.read().decode("utf-8", "replace")
+        lista = comunidad_html(html_txt, ahora_dt)
+        if "Upcoming" not in html_txt and "Running" not in html_txt:
+            raise RuntimeError("la página no tiene las secciones Running/Upcoming (¿cambió el HTML?)")
+        if not lista and "/tournaments/" in html_txt.replace("/game/aoe2/tournaments", ""):
+            raise RuntimeError("hay tarjetas pero ninguna se pudo leer (¿cambió el HTML?)")
+    except Exception as ex:
+        print(f"::warning title=comunidad::gamenex.gg no respondió bien ({ex!r}): se conserva el torneos_comunidad.json anterior", flush=True)
+        return
+    escribir_json(COMUNIDAD_SALIDA, comunidad_salida(lista, ahora_dt))
+    log(f"comunidad: {len(lista)} torneos de gamenex.gg ({sum(t['estado'] == 'en_curso' for t in lista)} en curso)")
+
+
+def comunidad_probar():
+    """Prueba sin red: copia real de la lista (pruebas/gamenex_lista.html) con una hora fija, y casos límite."""
+    with open(COMUNIDAD_MUESTRA, encoding="utf-8") as f:
+        html_txt = f.read()
+    ahora_dt = datetime(2026, 10, 20, 18, 0, tzinfo=timezone.utc)
+    lista = comunidad_html(html_txt, ahora_dt)
+    fallos = []
+    if len(lista) != 10:
+        fallos.append(f"{len(lista)} torneos, se esperaban 10")
+    por_id = {t["id"]: t for t in lista}
+    esperado = {"id": "01m58qfanf55kb5ajbmafxfkxq", "nombre": "CastleRush Duo Clash #14",
+                "url": "https://gamenex.gg/tournaments/01m58qfanf55kb5ajbmafxfkxq/castlerush-duo-clash-14",
+                "logo": "https://gamenex.gg/storage/play/tournaments/logos/MTc5MjM2ODE1OUt0Q1VKN243Rzc=.webp",
+                "inicio": "2026-10-20T16:00:00Z", "formato": "2v2", "plazas": 4, "plazas_max": 4, "estado": "en_curso",
+                "fuente": "gamenex"}
+    if por_id.get(esperado["id"]) != esperado:
+        fallos.append(f"primera tarjeta: {por_id.get(esperado['id'])}")
+    s = por_id.get("01m58rnmjfvkg5swpkmyz93ke6", {})
+    if (s.get("nombre"), s.get("inicio"), s.get("formato"), s.get("plazas"), s.get("plazas_max"), s.get("estado")) != \
+            ("CastleRush Solo Clash #14", "2026-10-24T16:00:00Z", "1v1", 4, 16, "proximo"):
+        fallos.append(f"Solo Clash #14: {s}")
+    if [t["estado"] for t in lista] != ["en_curso"] + ["proximo"] * 9:
+        fallos.append("orden/estados: " + str([t["estado"] for t in lista]))
+    if [t["inicio"] for t in lista[1:]] != sorted(t["inicio"] for t in lista[1:]):
+        fallos.append("los próximos no van por fecha")
+    if any(set(t) - {"id", "nombre", "url", "logo", "inicio", "formato", "plazas", "plazas_max", "estado", "fuente"} for t in lista):
+        fallos.append("campos de más")
+    if not any(t["nombre"] == "Age of Amateurs Cup #13 (1100-1699)" for t in lista):
+        fallos.append("falta el nombre con paréntesis")
+    # casos límite
+    if comunidad_html("<p>nada</p>", ahora_dt) != []:
+        fallos.append("HTML sin tarjetas debería dar []")
+    tarjeta = ('<a href="https://gamenex.gg/tournaments/abc1/x"><p class="font-semibold">Sin plazas &amp; sin logo</p>'
+               '<p>in 2 days - Fri, 1st January 09:30 UTC</p></a>')
+    t = comunidad_html(tarjeta, datetime(2026, 12, 30, tzinfo=timezone.utc))
+    if t != [{"id": "abc1", "nombre": "Sin plazas & sin logo", "url": "https://gamenex.gg/tournaments/abc1/x",
+              "inicio": "2027-01-01T09:30:00Z", "estado": "proximo", "fuente": "gamenex"}]:
+        fallos.append(f"tarjeta mínima (año siguiente, sin logo/formato/plazas): {t}")
+    if comunidad_html(tarjeta.replace("Fri, 1st January", "Mon, 1st January"), ahora_dt) != []:
+        fallos.append("un día de la semana que no cuadra con ningún año no debería salir")
+    if comunidad_html(tarjeta.replace("UTC", "CEST"), ahora_dt) != []:
+        fallos.append("una hora que no es UTC no debería salir")
+    if comunidad_inicio("Sun, 25th October 16:00 UTC", ahora_dt) != "2026-10-25T16:00:00Z":
+        fallos.append("comunidad_inicio")
+    for f in fallos:
+        log("FALLO", f)
+    for t in lista:
+        log(f"  {t['estado']:8} {t['inicio']}  {t.get('formato', '-'):4} {t.get('plazas', '-')}/{t.get('plazas_max', '-')}  {t['nombre']}")
+    log(f"comunidad --probar: {len(lista)} torneos, {len(fallos)} fallos")
+    return not fallos
+
+
 # ----------------------------------------------------------------------------- streamers (Twitch Helix)
 # Imagen de perfil pública de los canales de Twitch que enseña la app: los creadores de las build orders (lista fija), el top
 # de directos de AoE II en este momento y los canales que salen en partidos.json (stream) y torneos.json (enlaces.twitch).
@@ -5076,13 +5240,13 @@ def directos_probar():
 
 if __name__ == "__main__":
     if "--probar" in sys.argv:          # sin red: torneos, noticias y partidos (o solo los nombrados: --probar noticias)
-        pruebas = {"torneos": torneos_probar, "logos": logos_probar, "detalle": detalle_probar, "noticias": noticias_probar, "partidos": partidos_probar,
+        pruebas = {"torneos": torneos_probar, "logos": logos_probar, "detalle": detalle_probar, "noticias": noticias_probar, "partidos": partidos_probar, "comunidad": comunidad_probar,
                    "streamers": streamers_probar, "directos": directos_probar}
         pedidas = [a for a in sys.argv[1:] if a in pruebas] or list(pruebas)
         resultados = [pruebas[a]() for a in pedidas]
         sys.exit(0 if all(resultados) else 1)
     pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("detalle", detalle),
-             ("noticias", noticias), ("partidos", partidos), ("streamers", streamers), ("perfiles", perfiles),
+             ("noticias", noticias), ("partidos", partidos), ("comunidad", comunidad), ("streamers", streamers), ("perfiles", perfiles),
              ("directos", directos))
     pedidos = [a for a in sys.argv[1:] if not a.startswith("-")]     # sin argumentos, todos (el build nocturno)
     ok = True

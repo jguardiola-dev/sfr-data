@@ -4,6 +4,7 @@ name: partidos
 # (action=parse), sin dependencias. Publica SOLO partidos.json en la rama data, encima de su último commit (los demás
 # archivos quedan tal cual). Comparte grupo de concurrencia con data.yml: nunca corren a la vez, así que el build nocturno
 # (que rehace la rama data con un commit huérfano y push --force) no pisa ni es pisado por esta publicación.
+# Además publica torneos_comunidad.json (torneos pequeños de gamenex.gg): UNA petición más a gamenex, en el mismo paso.
 
 on:
   schedule:
@@ -32,6 +33,8 @@ jobs:
           if git fetch -q origin data:refs/remotes/origin/data 2>/dev/null; then
             git checkout origin/data -- partidos.json 2>/dev/null && echo "recuperado partidos.json anterior" || echo "la rama data aún no tiene partidos.json"
             git reset -q partidos.json 2>/dev/null || true
+            git checkout origin/data -- torneos_comunidad.json 2>/dev/null && echo "recuperado torneos_comunidad.json anterior" || echo "la rama data aún no tiene torneos_comunidad.json"
+            git reset -q torneos_comunidad.json 2>/dev/null || true
             echo "hay_data=1" >> "$GITHUB_OUTPUT"
           else
             echo "::warning title=partidos::todavía no hay rama data: la crea el build nocturno (data.yml); no se publica nada"
@@ -40,27 +43,40 @@ jobs:
       - name: generar partidos.json
         run: python build_data.py partidos
         continue-on-error: true    # si falla, partidos() ya deja el anterior y avisa
+      - name: generar torneos_comunidad.json (gamenex.gg)
+        run: python build_data.py comunidad
+        continue-on-error: true    # si falla, comunidad() ya deja el anterior y avisa; nunca rompe el workflow
       - name: publicar (solo partidos.json, encima de la rama data)
         if: steps.previo.outputs.hay_data == '1' && hashFiles('partidos.json') != ''
         run: |
           cp partidos.json "$RUNNER_TEMP/partidos.json"
+          [ -f torneos_comunidad.json ] && cp torneos_comunidad.json "$RUNNER_TEMP/torneos_comunidad.json" || true
           git config user.name "sfr-data bot"
           git config user.email "bot@users.noreply.github.com"
           git checkout -q -f -B publicacion origin/data
           cp "$RUNNER_TEMP/partidos.json" partidos.json
-          # sin cambios salvo «generado» → no se publica (evita un commit cada 2 h que no cambia nada)
-          if git cat-file -e HEAD:partidos.json 2>/dev/null && python3 - <<'EOF'
-          import json, subprocess, sys
-          viejo = json.loads(subprocess.run(["git", "show", "HEAD:partidos.json"], capture_output=True, check=True).stdout)
-          nuevo = json.load(open("partidos.json", encoding="utf-8"))
-          for d in (viejo, nuevo):
-              d.pop("generado", None)
-              d.pop("ventana", None)
-              (d.get("fuente") or {}).pop("generado", None)
-          sys.exit(0 if viejo == nuevo else 1)
+          [ -f "$RUNNER_TEMP/torneos_comunidad.json" ] && cp "$RUNNER_TEMP/torneos_comunidad.json" torneos_comunidad.json || true
+          # sin cambios salvo «generado» en NINGUNO de los dos archivos → no se publica (evita un commit cada 2 h que no cambia nada)
+          if python3 - <<'EOF'
+          import json, os, subprocess, sys
+          for nombre in ("partidos.json", "torneos_comunidad.json"):
+              if not os.path.exists(nombre):
+                  continue
+              r = subprocess.run(["git", "show", "HEAD:" + nombre], capture_output=True)
+              if r.returncode != 0:
+                  sys.exit(1)          # el archivo aún no está en la rama data: hay que publicarlo
+              viejo, nuevo = json.loads(r.stdout), json.load(open(nombre, encoding="utf-8"))
+              for d in (viejo, nuevo):
+                  d.pop("generado", None)
+                  d.pop("ventana", None)
+                  (d.get("fuente") or {}).pop("generado", None)
+              if viejo != nuevo:
+                  sys.exit(1)
+          sys.exit(0)
           EOF
-          then echo "partidos.json sin cambios"; exit 0; fi
+          then echo "partidos.json y torneos_comunidad.json sin cambios"; exit 0; fi
           git add -f partidos.json
+          [ -f torneos_comunidad.json ] && git add -f torneos_comunidad.json || true
           git commit -q -m "partidos $(date -u '+%F %H:%M UTC')" || { echo "nada que publicar"; exit 0; }
           git push -q origin HEAD:data     # avance normal, sin --force: si la rama cambió entre medias, falla y no pisa nada
-          echo "partidos.json publicado en la rama data"
+          echo "partidos.json (y torneos_comunidad.json) publicado en la rama data"
