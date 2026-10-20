@@ -1986,6 +1986,8 @@ def logos_twitch_asignar(listas, streamers, descargar, max_descargas=LOGOS_TWITC
     hechos, bajados, n = {}, 0, 0
     for lista in listas:
         for t in lista:
+            if (t.get("logo") or {}).get("licencia") == "twitch":
+                t.pop("logo")                   # el de la noche anterior (copiado del JSON previo): se vuelve a decidir
             if t.get("logo"):
                 continue
             login = twitch_login((t.get("enlaces") or {}).get("twitch"))
@@ -1995,7 +1997,7 @@ def logos_twitch_asignar(listas, streamers, descargar, max_descargas=LOGOS_TWITC
                 host = urllib.parse.urlsplit(url).hostname
             except ValueError:
                 host = None
-            if not c or not url_https_ok(url) or host != TWITCH_HOST_AVATAR:
+            if not c or not url_https_ok(url) or host != TWITCH_HOST_AVATAR or login in ("tbd", "tba", "none")                     or "user-default-pictures" in url:     # «twitch.tv/TBD» o un canal sin imagen propia: no es un logo
                 continue
             if login not in hechos:
                 ruta = logos_twitch_ruta(login, url)
@@ -2562,10 +2564,12 @@ def logos_probar():
         os.chdir(dir_tw)
         av = "https://static-cdn.jtvnw.net/jtv_user_pictures/x-profile_image-300x300.png"
         st = {"canales": {"aoe2danmark": {"nombre": "AoE2Danmark", "avatar_url": av, "url": "https://twitch.tv/aoe2danmark"},
-                          "malo": {"nombre": "Malo", "avatar_url": "https://evil.com/x.png"}}}
+                          "malo": {"nombre": "Malo", "avatar_url": "https://evil.com/x.png"},
+                          "tbd": {"nombre": "TBD", "avatar_url": "https://static-cdn.jtvnw.net/user-default-pictures-uv/x-profile_image-300x300.png"}}}
         ts = [{"nombre": "DM", "enlaces": {"twitch": "https://www.twitch.tv/aoe2danmark"}},
               {"nombre": "Con logo", "logo": {"archivo": "x.png"}, "enlaces": {"twitch": "https://www.twitch.tv/aoe2danmark"}},
-              {"nombre": "Malo", "enlaces": {"twitch": "https://www.twitch.tv/malo"}}, {"nombre": "Sin canal"}]
+              {"nombre": "Malo", "enlaces": {"twitch": "https://www.twitch.tv/malo"}}, {"nombre": "Sin canal"},
+              {"nombre": "Por anunciar", "enlaces": {"twitch": "https://www.twitch.tv/TBD"}}]
         pedidas_tw = []
 
         def bajar_tw(url):
@@ -2576,11 +2580,12 @@ def logos_probar():
         n_tw, b_tw = logos_twitch_asignar([ts], st, bajar_tw)
         lg = ts[0].get("logo") or {}
         if n_tw != 1 or b_tw != 1 or pedidas_tw != [av] or not os.path.exists(lg.get("archivo", "")) or lg.get("licencia") != "twitch" \
-                or ts[1]["logo"] != {"archivo": "x.png"} or "logo" in ts[2] or "logo" in ts[3]:
+                or ts[1]["logo"] != {"archivo": "x.png"} or "logo" in ts[2] or "logo" in ts[3] or "logo" in ts[4]:
             fallos.append(f"twitch: {n_tw} {b_tw} {ts}")
-        ts2 = [{"nombre": "DM", "enlaces": {"twitch": "https://www.twitch.tv/aoe2danmark"}}]
+        ts2 = [{"nombre": "DM", "enlaces": {"twitch": "https://www.twitch.tv/aoe2danmark"}},
+               {"nombre": "Viejo", "logo": {"archivo": "v.png", "licencia": "twitch"}, "enlaces": {"twitch": "https://www.twitch.tv/TBD"}}]
         logos_twitch_asignar([ts2], st, bajar_tw)
-        if len(pedidas_tw) != 1 or not ts2[0].get("logo"):
+        if len(pedidas_tw) != 1 or not ts2[0].get("logo") or "logo" in ts2[1]:
             fallos.append("twitch: la segunda noche no debería volver a bajarlo")
     finally:
         os.chdir(cwd_tw)
