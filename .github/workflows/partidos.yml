@@ -1,7 +1,7 @@
 name: partidos
 
 # partidos.json (próximos, en curso y recientes de AoE II, de Liquipedia) cada 2 horas. Ligero: 1 petición a Liquipedia
-# (action=parse), sin dependencias. Publica SOLO partidos.json en la rama data, encima de su último commit (los demás
+# (action=parse; lee torneos.json de la rama data para la sección «torneos»), sin dependencias. Publica SOLO partidos.json en la rama data, encima de su último commit (los demás
 # archivos quedan tal cual). Comparte grupo de concurrencia con data.yml: nunca corren a la vez, así que el build nocturno
 # (que rehace la rama data con un commit huérfano y push --force) no pisa ni es pisado por esta publicación.
 # Además publica torneos_comunidad.json (torneos pequeños de gamenex.gg): UNA petición más a gamenex, en el mismo paso.
@@ -36,6 +36,9 @@ jobs:
           if git fetch -q origin data:refs/remotes/origin/data 2>/dev/null; then
             git checkout origin/data -- partidos.json 2>/dev/null && echo "recuperado partidos.json anterior" || echo "la rama data aún no tiene partidos.json"
             git reset -q partidos.json 2>/dev/null || true
+            # torneos.json del build nocturno (solo se lee: sección «torneos» de partidos.json; no se publica)
+            git checkout origin/data -- torneos.json 2>/dev/null && echo "recuperado torneos.json" || echo "la rama data aún no tiene torneos.json"
+            git reset -q torneos.json 2>/dev/null || true
             git checkout origin/data -- torneos_comunidad.json 2>/dev/null && echo "recuperado torneos_comunidad.json anterior" || echo "la rama data aún no tiene torneos_comunidad.json"
             git reset -q torneos_comunidad.json 2>/dev/null || true
             git checkout origin/data -- logos/comunidad 2>/dev/null && echo "recuperados los logos de la comunidad" || echo "la rama data aún no tiene logos/comunidad"
