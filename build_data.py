@@ -4664,7 +4664,8 @@ def streamers_probar():
 # python build_data.py directos
 KICK_TOKEN_URL = "https://id.kick.com/oauth/token"
 KICK_API = "https://api.kick.com/public/v2/"
-KICK_CATEGORIAS = ("Age of Empires II", "Age of Empires II: Definitive Edition")
+# Kick tiene dos categorías de la DE (ids 18858 y 518, «… (AoE2)»), vistas en la primera vuelta real (20-10-2026).
+KICK_CATEGORIAS = ("Age of Empires II", "Age of Empires II: Definitive Edition", "Age of Empires II: Definitive Edition (AoE2)")
 KICK_PAGINAS = 3
 YT_API = "https://www.googleapis.com/youtube/v3/"
 YT_BUSQUEDA = "Age of Empires II"
