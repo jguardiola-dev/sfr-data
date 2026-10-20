@@ -107,9 +107,11 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      Prueba sin red: python build_data.py --probar [noticias]. Solo este paso: python build_data.py noticias
 - partidos.json      partidos de torneos de AoE II según el «match ticker» de Liquipedia: terminados de las últimas 24 h, en curso
                      y próximos 7 días. Ver partidos(). Se regenera también cada 2 h (.github/workflows/partidos.yml). Esquema (v1):
-                     {"v":1, "generado":ISO, "ventana":{"desde","hasta"} (ISO UTC),
+                     {"v":1, "generado":ISO, "ventana":{"desde","hasta","torneos_hasta"} (ISO UTC),
+                      "torneos":[{"torneo","torneo_url","fechas":"con_hora|solo_dia|sin_fecha",
+                                  ["proximo":{"inicio",["sin_hora":true],"estado":"en_curso|proximo","j1","j2",["fase"]}]}],
                       "fuente":{"nombre":"Liquipedia","url","licencia":"CC BY-SA 3.0","licencia_url","atribucion","generado"},
-                      "partidos":[{"torneo", "torneo_url", ["fase"], "inicio":"AAAA-MM-DDTHH:MM:SSZ" (UTC),
+                      "partidos":[{"torneo", "torneo_url", ["fase"], "inicio":"AAAA-MM-DDTHH:MM:SSZ" (UTC), ["sin_hora":true],
                                    "estado":"proximo|en_curso|terminado", "j1", "j2", ["j1_pais", "j2_pais"] (ISO2, solo
                                    jugador individual), ["formato":"Bo3"…], ["stream"] (https://www.twitch.tv/… o canal de
                                    YouTube /live; solo si no ha terminado), ["resultado":"2-1"|"W-L"…], ["ganador"]}]}
@@ -118,6 +120,12 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      van SOLO en esos campos (la app los esconde: sin spoilers); en empate no hay ganador. en_curso = sin
                      terminar y empezado hace <= PARTIDOS_EN_CURSO_MAX_H h (más viejo = nadie lo cerró en la wiki: fuera).
                      Orden: en_curso y proximo por inicio, terminado el más reciente primero.
+                     sin_hora = la wiki solo da el día (dateexact=0): «inicio» es ese día a las 00:00 UTC y no es una hora;
+                     siempre «proximo» (de hoy en adelante), nunca en_curso. «torneos»: cada torneo en curso o próximo de
+                     torneos.json (su orden) y, detrás, los que solo salen en el ticker, con su próximo partido sin terminar
+                     hasta PARTIDOS_DIAS_HORIZONTE días (TBD contra TBD incluidos: lo que cuenta es la fecha). fechas:
+                     con_hora / solo_dia (según ese partido) o sin_fecha = Liquipedia no anuncia ninguno en ese plazo
+                     («sin fecha anunciada» en la app). Un partido es del torneo cuya URL es el prefijo más largo de la suya.
                      Si Liquipedia falla, el ticker viene vacío o con error, o nada cae en la ventana y el anterior tenía
                      partidos, se conserva el partidos.json anterior (rama data) con aviso ::warning::.
                      Prueba sin red: python build_data.py --probar [partidos]. Solo este paso: python build_data.py partidos
@@ -4100,22 +4108,50 @@ def noticias_portadas_probar(lista):
 # type=recent (terminados, del más reciente al más antiguo). 1 petición por ejecución; ni HTML fuera de la API ni
 # LiquipediaDB directa. El HTML del ticker trae fecha (timestamp UNIX), rivales con bandera, marcador, Bo-N, torneo con su
 # sección y, a veces, botón de stream (Special:Stream/twitch/<canal>). Contenido CC BY-SA 3.0.
-PARTIDOS_LIMITE_PROXIMOS = 80    # partidos sin terminar que devuelve el ticker (hoy ≈15 de AoE II; aviso si se llena)
+# El ticker, por defecto, solo saca partidos con hora exacta (onlyExact=true en Module:MatchTicker): los que en la wiki solo
+# tienen día («|date=October 24, 2026», dateexact=0: muchas copas y finales de liga) no salían nunca. Por eso «upcoming» va
+# con onlyExact=false y acotado por fecha (additionalConditions: de hace PARTIDOS_EN_CURSO_MAX_H h a PARTIDOS_DIAS_HORIZONTE
+# días; sin la cota, los partidos viejos que nadie cerró coparían el límite). Esos llegan como «timer-object-datetime-only»
+# con data-timestamp="error" y el día en texto: salen con "sin_hora": true. Los torneos que no publican ninguna fecha (ligas
+# con jornadas sin día, cuadros sin rellenar) quedan en la sección «torneos» con "fechas": "sin_fecha".
+PARTIDOS_LIMITE_PROXIMOS = 300   # sin terminar en el horizonte (hoy ≈120 de AoE II con los de solo día; aviso si se llena)
+PARTIDOS_DIAS_HORIZONTE = 60     # «torneos»: próximo partido de cada torneo hasta 60 días vista
 PARTIDOS_LIMITE_RECIENTES = 100  # terminados (ordenados del más reciente): hacen falta los de 24 h (≈40 un domingo)
 PARTIDOS_HORAS_PASADO = 24       # terminados de las últimas 24 h
 PARTIDOS_DIAS_FUTURO = 7         # próximos 7 días
 PARTIDOS_EN_CURSO_MAX_H = 12     # sin terminar y empezado hace más de 12 h = nadie lo cerró en la wiki: fuera
 PARTIDOS_MUESTRA = os.path.join("pruebas", "partidos_muestra.json")
+PARTIDOS_DIA_MUESTRA = os.path.join("pruebas", "partidos_dia_muestra.json")
 PARTIDOS_GAME = "Age of Empires II"
 PARTIDOS_FASES_VACIAS = {"results", "resultados"}    # ancla genérica de la página: no es una fase
 
 
-def partidos_wikitexto():
-    def ticker(clase, tipo, limite):
+def partidos_wikitexto(ahora_dt):
+    """Wikitexto del action=parse: «upcoming» con los de solo día (onlyExact=false) entre hace PARTIDOS_EN_CURSO_MAX_H h y
+    PARTIDOS_DIAS_HORIZONTE días (condición LPDB añadida a la del módulo, en UTC como su NOW); «recent» como siempre."""
+    fmt = "%Y-%m-%d %H:%M"
+    desde = (ahora_dt - timedelta(hours=PARTIDOS_EN_CURSO_MAX_H)).strftime(fmt)
+    hasta = (ahora_dt + timedelta(days=PARTIDOS_DIAS_HORIZONTE)).strftime(fmt)
+
+    def ticker(clase, tipo, limite, extra=""):
         return (f'<div class="{clase}">{{{{#invoke:Lua|invoke|module=MatchTicker/Custom|fn=mainPage|type={tipo}'
-                f'|limit={limite}|filterbuttons-game={PARTIDOS_GAME}}}}}</div>')
-    return "\n".join((ticker("sfr-proximos", "upcoming", PARTIDOS_LIMITE_PROXIMOS),
+                f'|limit={limite}{extra}|filterbuttons-game={PARTIDOS_GAME}}}}}</div>')
+    return "\n".join((ticker("sfr-proximos", "upcoming", PARTIDOS_LIMITE_PROXIMOS,
+                             f"|onlyExact=false|additionalConditions= AND [[date::>{desde}]] AND [[date::<{hasta}]]"),
                       ticker("sfr-recientes", "recent", PARTIDOS_LIMITE_RECIENTES)))
+
+
+def partidos_dia(texto):
+    """«October 24, 2026» (timer de solo día del ticker) → timestamp de ese día a las 00:00 UTC, o None."""
+    import re
+    m = re.search(r"([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})", texto or "")
+    mes = MESES_LARGOS.get(m.group(1).lower()) if m else None
+    if not mes:
+        return None
+    try:
+        return int(datetime(int(m.group(3)), mes, int(m.group(2)), tzinfo=timezone.utc).timestamp())
+    except ValueError:
+        return None
 
 
 def partidos_pais(src):
@@ -4175,14 +4211,16 @@ def partidos_html(html_txt):
                 if self.seccion not in self.errores:
                     self.errores.append(self.seccion)
             elif self.seccion and tag == "div" and "match-info" in cls:
-                self.m = {"ts": None, "terminado": self.seccion == "recientes", "rivales": [], "marcador": [], "bo": None,
-                          "torneo_txt": None, "href": None, "streams": []}
+                self.m = {"ts": None, "sin_hora": False, "terminado": self.seccion == "recientes", "rivales": [],
+                          "marcador": [], "bo": None, "torneo_txt": None, "href": None, "streams": []}
                 self.secciones[self.seccion].append(self.m)
             elif self.m is not None:
                 if tag == "span" and "timer-object" in cls and a.get("data-timestamp", "").isdigit():
                     self.m["ts"] = int(a["data-timestamp"])
                     if a.get("data-finished"):
                         self.m["terminado"] = True
+                elif tag == "span" and "timer-object" in cls and self.m["ts"] is None:
+                    papel = "dia"           # solo día (dateexact=0): data-timestamp="error" y la fecha en texto
                 elif tag == "div" and "match-info-header-opponent" in cls:
                     self.m["rivales"].append({"nombres": [], "paises": [], "equipo": False,
                                               "gana": "match-info-header-winner" in cls})
@@ -4211,7 +4249,7 @@ def partidos_html(html_txt):
                     self.m["streams"].append(a["href"])
                 elif tag == "a" and self.txt and self.txt[0] == "nombre" and a.get("title"):
                     self.titulo = a["title"].replace(" (page does not exist)", "").strip()     # equipos: nombre completo («Team Ceepki», «Canada») en vez del corto
-                if papel in ("nombre", "marcador", "bo", "torneo"):
+                if papel in ("nombre", "marcador", "bo", "torneo", "dia"):
                     self.txt, self.titulo = (papel, []), None
             if tag not in VACIAS:
                 self.pila.append((tag, papel))
@@ -4251,6 +4289,10 @@ def partidos_html(html_txt):
                 self.m["bo"] = texto
             elif papel == "torneo":
                 self.m["torneo_txt"] = texto
+            elif papel == "dia":
+                ts = partidos_dia(texto)
+                if ts is not None:
+                    self.m["ts"], self.m["sin_hora"] = ts, True
 
         def handle_data(self, data):
             if self.txt is not None:
@@ -4269,26 +4311,34 @@ def partidos_iso(ts):
 def partidos_lado(r):
     """Rival del ticker → (texto, país ISO2 | None). Varios jugadores (2v2 sin equipo) se unen con « & »."""
     nombres = [n for n in r["nombres"] if n]
-    if not nombres:
+    if not nombres or all(n.upper() == "TBD" for n in nombres):     # «TBD & TBD & TBD» (3v3 sin rellenar) = TBD
         return "TBD", None
     pais = r["paises"][0] if len(nombres) == 1 and not r["equipo"] and r["paises"] else None
     return " & ".join(nombres), pais
 
 
-def partidos_componer(secciones, ahora_dt):
-    """Bloques del ticker → lista final en la ventana (terminados 24 h, en curso, próximos 7 días), sin duplicados y ordenada:
-    en_curso (por inicio), proximo (por inicio), terminado (el más reciente primero)."""
+def partidos_componer(secciones, ahora_dt, dias=PARTIDOS_DIAS_FUTURO, con_tbd=False):
+    """Bloques del ticker → lista final en la ventana (terminados 24 h, en curso, próximos `dias` días), sin duplicados y
+    ordenada: en_curso (por inicio), proximo (por inicio), terminado (el más reciente primero). Los de solo día
+    ("sin_hora") van por fecha de calendario UTC: de hoy en adelante son «proximo» (nunca «en_curso»: no se sabe la hora);
+    de ayer o antes, fuera. con_tbd=True deja también los TBD contra TBD (para la fecha del próximo partido de un torneo)."""
     import re, urllib.parse
     t_ahora = ahora_dt.timestamp()
     desde = t_ahora - PARTIDOS_HORAS_PASADO * 3600
-    hasta = t_ahora + PARTIDOS_DIAS_FUTURO * 86400
+    hasta = t_ahora + dias * 86400
+    hoy = ahora_dt.astimezone(timezone.utc).date()
     out, vistos = [], set()
     for b in secciones.get("proximos", []) + secciones.get("recientes", []):
         try:
             if b.get("ts") is None or len(b.get("rivales") or []) != 2 or not b.get("href"):
                 continue
             ts = b["ts"]
-            if b["terminado"]:
+            if b.get("sin_hora"):
+                dia = datetime.fromtimestamp(ts, timezone.utc).date()
+                if b["terminado"] or not hoy <= dia <= datetime.fromtimestamp(hasta, timezone.utc).date():
+                    continue
+                estado = "proximo"
+            elif b["terminado"]:
                 if not desde <= ts <= t_ahora + 3600:
                     continue
                 estado = "terminado"
@@ -4301,7 +4351,7 @@ def partidos_componer(secciones, ahora_dt):
             else:
                 continue
             (j1, p1), (j2, p2) = partidos_lado(b["rivales"][0]), partidos_lado(b["rivales"][1])
-            if j1 == "TBD" and j2 == "TBD":
+            if j1 == "TBD" and j2 == "TBD" and not con_tbd:
                 continue
             ruta, _, ancla = b["href"].partition("#")
             if not ruta.startswith("/ageofempires/") or "redlink=1" in ruta or "action=edit" in ruta:
@@ -4314,7 +4364,10 @@ def partidos_componer(secciones, ahora_dt):
             p = {"torneo": torneo, "torneo_url": LQ_BASE + ruta}
             if fase:
                 p["fase"] = fase
-            p.update(inicio=partidos_iso(ts), estado=estado, j1=j1, j2=j2)
+            p["inicio"] = partidos_iso(ts)
+            if b.get("sin_hora"):
+                p["sin_hora"] = True
+            p.update(estado=estado, j1=j1, j2=j2)
             if p1:
                 p["j1_pais"] = p1
             if p2:
@@ -4345,11 +4398,57 @@ def partidos_componer(secciones, ahora_dt):
     return vivos + term
 
 
-def partidos_salida(lista, ahora_dt):
+def partidos_ruta(url):
+    """URL o href de Liquipedia → ruta normalizada para cruzar ticker y torneos.json («/ageofempires/Coma_Cup/4», sin ancla,
+    sin %xx, con _ en vez de espacios)."""
+    import urllib.parse
+    ruta = urllib.parse.unquote((url or "").split("#", 1)[0].split("?", 1)[0])
+    if ruta.startswith(LQ_BASE):
+        ruta = ruta[len(LQ_BASE):]
+    return ruta.replace(" ", "_").rstrip("/")
+
+
+def partidos_torneos(vivos, torneos_lista, ahora_dt):
+    """Próximo partido de cada torneo en curso o próximo: [{"torneo","torneo_url","fechas":"con_hora|solo_dia|sin_fecha",
+    ["proximo":{"inicio",["sin_hora"],"estado","j1","j2",["fase"]}]}]. vivos = partidos sin terminar del horizonte (con los
+    TBD contra TBD). Torneos: los de torneos.json en curso o próximos (su orden) y, detrás, los que solo salen en el ticker.
+    Un partido es del torneo cuya URL es el prefijo más largo de la suya (los partidos pueden vivir en subpáginas)."""
+    hoy = ahora_dt.astimezone(timezone.utc).date().isoformat()
+    out, por_ruta = [], {}
+    for t in torneos_lista or []:
+        if t.get("url") and t.get("estado") in ("en_curso", "proximo") and (t.get("fin") or "9999") >= hoy:
+            r = partidos_ruta(t["url"])
+            if r not in por_ruta:
+                por_ruta[r] = {"torneo": t.get("nombre") or r.rsplit("/", 1)[-1], "torneo_url": t["url"]}
+                out.append(por_ruta[r])
+    orden = {"en_curso": 0, "proximo": 1}
+    for p in sorted(vivos, key=lambda p: (p["inicio"][:10], p.get("sin_hora", False), orden.get(p["estado"], 2), p["inicio"])):
+        if p["estado"] not in orden:
+            continue
+        r = partidos_ruta(p["torneo_url"])
+        dueno = max((k for k in por_ruta if r == k or r.startswith(k + "/")), key=len, default=None)
+        if dueno is None:                        # torneo que no está en torneos.json (Misc, semanal…): por su propia URL
+            dueno = r
+            por_ruta[r] = {"torneo": p["torneo"], "torneo_url": p["torneo_url"]}
+            out.append(por_ruta[r])
+        t = por_ruta[dueno]
+        if "proximo" not in t:
+            t["proximo"] = {k: p[k] for k in ("inicio", "sin_hora", "estado", "j1", "j2", "fase") if k in p}
+    for t in out:
+        prox = t.get("proximo")
+        t["fechas"] = "sin_fecha" if not prox else "solo_dia" if prox.get("sin_hora") else "con_hora"
+        if prox:                                 # "fechas" antes que "proximo" en el JSON
+            t["proximo"] = t.pop("proximo")
+    return out
+
+
+def partidos_salida(lista, ahora_dt, torneos=None):
     g = ahora()
     return {"v": 1, "generado": g,
             "ventana": {"desde": partidos_iso(ahora_dt.timestamp() - PARTIDOS_HORAS_PASADO * 3600),
-                        "hasta": partidos_iso(ahora_dt.timestamp() + PARTIDOS_DIAS_FUTURO * 86400)},
+                        "hasta": partidos_iso(ahora_dt.timestamp() + PARTIDOS_DIAS_FUTURO * 86400),
+                        "torneos_hasta": partidos_iso(ahora_dt.timestamp() + PARTIDOS_DIAS_HORIZONTE * 86400)},
+            "torneos": torneos or [],
             "fuente": {"nombre": "Liquipedia", "url": "https://liquipedia.net/ageofempires/Liquipedia:Upcoming_and_ongoing_matches",
                        "licencia": "CC BY-SA 3.0", "licencia_url": "https://creativecommons.org/licenses/by-sa/3.0/",
                        "atribucion": "Partidos de Liquipedia (liquipedia.net/ageofempires), licencia CC BY-SA 3.0. "
@@ -4362,13 +4461,17 @@ def partidos():
     """partidos.json desde el ticker de Liquipedia (esquema en la cabecera, normas arriba). Si la petición falla, alguna
     sección viene con error de Lua o el ticker no trae ningún partido, no se escribe: se queda el anterior (rama data) con
     aviso ::warning::. Si el ticker responde pero nada cae en la ventana y el anterior tenía partidos, tampoco se escribe
-    (nunca se publica vacío encima de datos); el paso no rompe el build."""
+    (nunca se publica vacío encima de datos); el paso no rompe el build. La sección «torneos» cruza el ticker con los torneos
+    en curso y próximos de torneos.json (el del build nocturno; en partidos.yml, el de la rama data)."""
     ahora_dt = datetime.now(timezone.utc)
     previo = leer_json("partidos.json", None)
+    torneos_lista = (leer_json("torneos.json", None) or {}).get("torneos")
+    if not torneos_lista:
+        print("::warning title=partidos::sin torneos.json: la sección «torneos» solo lleva los del ticker", flush=True)
     lq = Liquipedia()
     try:
         d = lq.get({"action": "parse", "title": "Liquipedia:Upcoming and ongoing matches", "contentmodel": "wikitext",
-                    "prop": "text", "text": partidos_wikitexto(), "disablelimitreport": "1", "disableeditsection": "1"})
+                    "prop": "text", "text": partidos_wikitexto(ahora_dt), "disablelimitreport": "1", "disableeditsection": "1"})
         sec = partidos_html(d.get("parse", {}).get("text", ""))
         if sec["errores"]:
             raise RuntimeError(f"error de Lua en {sec['errores']}")
@@ -4376,13 +4479,14 @@ def partidos():
             raise RuntimeError("el ticker no trae ningún partido")
         # ticker lleno y su último partido aún dentro de la ventana → puede faltar alguno (se publica igual)
         t0 = ahora_dt.timestamp()
-        for k, lim, dentro in (("proximos", PARTIDOS_LIMITE_PROXIMOS, lambda ts: ts <= t0 + PARTIDOS_DIAS_FUTURO * 86400),
+        for k, lim, dentro in (("proximos", PARTIDOS_LIMITE_PROXIMOS, lambda ts: ts <= t0 + PARTIDOS_DIAS_HORIZONTE * 86400),
                                ("recientes", PARTIDOS_LIMITE_RECIENTES, lambda ts: ts >= t0 - PARTIDOS_HORAS_PASADO * 3600)):
             tss = [b["ts"] for b in sec[k] if b.get("ts") is not None]
             if len(sec[k]) >= lim and tss and dentro(tss[-1]):
                 print(f"::warning title=partidos::el ticker «{k}» llegó al límite ({lim}) dentro de la ventana: "
                       "puede faltar algún partido", flush=True)
         lista = partidos_componer(sec, ahora_dt)
+        torneos = partidos_torneos(partidos_componer(sec, ahora_dt, PARTIDOS_DIAS_HORIZONTE, con_tbd=True), torneos_lista, ahora_dt)
         if not lista and (previo or {}).get("partidos"):
             raise RuntimeError(f"{len(sec['proximos'])}+{len(sec['recientes'])} bloques pero ninguno en la ventana")
     except Exception as ex:
@@ -4390,12 +4494,67 @@ def partidos():
         return
     finally:
         lq.cerrar()
-    escribir_json("partidos.json", partidos_salida(lista, ahora_dt))
-    cuenta = defaultdict(int)
+    escribir_json("partidos.json", partidos_salida(lista, ahora_dt, torneos))
+    cuenta, fechas = defaultdict(int), defaultdict(int)
     for p in lista:
         cuenta[p["estado"]] += 1
+    for t in torneos:
+        fechas[t["fechas"]] += 1
     log(f"partidos: {len(lista)} partidos ({dict(cuenta)}) de {len(sec['proximos'])}+{len(sec['recientes'])} bloques; "
-        f"{lq.peticiones} peticiones a Liquipedia")
+        f"{len({p['torneo_url'] for p in lista})} torneos con partidos en la ventana; {len(torneos)} torneos "
+        f"({dict(fechas)}); {lq.peticiones} peticiones a Liquipedia")
+
+
+def partidos_probar_dia():
+    """Partidos de solo día (onlyExact=false) y sección «torneos»: HTML real recortado (pruebas/partidos_dia_muestra.json)
+    con un recorte de torneos.json. Devuelve la lista de fallos."""
+    m = leer_json(PARTIDOS_DIA_MUESTRA)
+    ahora_dt = datetime.fromisoformat(m["ahora"].replace("Z", "+00:00"))
+    sec = partidos_html(m["html"])
+    fallos = []
+    if len(sec["proximos"]) != 10 or len(sec["recientes"]) != 1 or any(b["ts"] is None for b in sec["proximos"]):
+        fallos.append(f"día: {len(sec['proximos'])}+{len(sec['recientes'])} bloques o alguno sin fecha")
+    lista = partidos_componer(sec, ahora_dt)
+    got = [(p["torneo_url"].rsplit("/ageofempires/", 1)[1], p["inicio"], p.get("sin_hora", False), p["estado"], p["j1"], p["j2"])
+           for p in lista]
+    esp = [("Coma_Cup/4", "2026-10-24T20:00:00Z", False, "proximo", "Team Ceepki", "Team Coolcat23"),
+           ("The_League/Division_2/Playoffs", "2026-10-26T00:00:00Z", True, "proximo", "Headless Horseman", "La Llorona"),
+           ("Shrouded_Deathmatch", "2026-10-31T00:00:00Z", True, "proximo", "Bloody Mary", "Blinky")]
+    if got != esp:
+        fallos.append(f"día: lista {got}")
+    if partidos_dia("October 24, 2026") != 1792800000 or partidos_dia("TBA") is not None or partidos_dia("February 30, 2026") is not None:
+        fallos.append("partidos_dia mal")
+    tor = partidos_torneos(partidos_componer(sec, ahora_dt, PARTIDOS_DIAS_HORIZONTE, con_tbd=True), m["torneos"], ahora_dt)
+    res = {t["torneo_url"].rsplit("/ageofempires/", 1)[1]: (t["fechas"], (t.get("proximo") or {}).get("inicio"),
+                                                          (t.get("proximo") or {}).get("estado"), (t.get("proximo") or {}).get("j1"))
+           for t in tor}
+    esp_t = {"DS_League": ("sin_fecha", None, None, None), "Vanguard": ("sin_fecha", None, None, None),
+             "Sudden_Dessaster/3": ("sin_fecha", None, None, None),           # su único partido, sin cerrar hace > 12 h
+             "Coma_Cup/4": ("con_hora", "2026-10-24T20:00:00Z", "proximo", "Team Ceepki"),
+             "The_League": ("solo_dia", "2026-11-28T00:00:00Z", "proximo", "Onimaru Capybaras"),
+             "The_League/Division_2": ("solo_dia", "2026-10-26T00:00:00Z", "proximo", "Headless Horseman"),
+             "Rusaoc_Cup/192": ("solo_dia", "2026-10-24T00:00:00Z", "proximo", "TBD"),     # HOY, solo día: no en_curso
+             "Rusaoc_Cup/194": ("solo_dia", "2026-11-28T00:00:00Z", "proximo", "TBD"),     # «TBD & TBD & TBD» = TBD
+             "Shrouded_Deathmatch": ("solo_dia", "2026-10-31T00:00:00Z", "proximo", "Bloody Mary")}
+    if res != esp_t:
+        fallos.append(f"día: torneos {res}")
+    if [t["torneo_url"] for t in tor][:3] != [t["url"] for t in m["torneos"]][:3]:
+        fallos.append("día: «torneos» no sigue el orden de torneos.json")
+    solo = partidos_torneos(partidos_componer(sec, ahora_dt, PARTIDOS_DIAS_HORIZONTE, con_tbd=True), None, ahora_dt)
+    if {t["torneo_url"].rsplit("/ageofempires/", 1)[1] for t in solo} != {"Coma_Cup/4", "The_League", "Rusaoc_Cup/192",
+                                                                          "Rusaoc_Cup/194", "Shrouded_Deathmatch",
+                                                                          "The_League/Division_2/Playoffs"}:
+        fallos.append(f"día: sin torneos.json {[t['torneo_url'] for t in solo]}")
+    w = partidos_wikitexto(ahora_dt)
+    if "onlyExact=false" not in w or "[[date::>2026-10-24 03:00]]" not in w or "[[date::<2026-12-23 15:00]]" not in w \
+            or w.count("onlyExact") != 1:
+        fallos.append(f"día: wikitexto {w}")
+    sal = partidos_salida(lista, ahora_dt, tor)
+    if sal["ventana"].get("torneos_hasta") != "2026-12-23T15:00:00Z" or sal["torneos"] != tor:
+        fallos.append("día: salida sin «torneos» o «torneos_hasta»")
+    for t in tor:
+        log(f"  {t['fechas']:9} {(t.get('proximo') or {}).get('inicio', '-'):20} {t['torneo']}")
+    return fallos
 
 
 def partidos_probar():
@@ -4431,7 +4590,7 @@ def partidos_probar():
         if ini != sorted(ini, reverse=rev):
             fallos.append(f"orden de {est}: {ini}")
     if any(set(p) - {"torneo", "torneo_url", "fase", "inicio", "estado", "j1", "j2", "j1_pais", "j2_pais", "formato",
-                     "stream", "resultado", "ganador"} for p in lista):
+                     "stream", "resultado", "ganador", "sin_hora"} for p in lista):
         fallos.append("campos de más en algún partido")
     if any(not p["inicio"].endswith("Z") for p in lista):
         fallos.append("alguna hora no va en UTC con Z")
@@ -4458,6 +4617,7 @@ def partidos_probar():
             f"{' · ' + p['fase'] if p.get('fase') else ''}")
     for f in fallos:
         log("FALLO", f)
+    fallos += partidos_probar_dia()
     log(f"partidos --probar: {len(lista)} partidos, {len(fallos)} fallos")
     return not fallos
 
