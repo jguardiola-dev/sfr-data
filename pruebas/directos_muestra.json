@@ -1,0 +1,534 @@
+{
+ "_nota": "Respuestas RECORTADAS con la forma documentada de la API pública de Kick (https://docs.kick.com: token OAuth client_credentials, GET /public/v2/categories y /public/v2/livestreams) y de la API Data v3 de YouTube (channels.list forHandle/id, playlistItems.list, search.list eventType=live, videos.list snippet+liveStreamingDetails). Los ids, canales, títulos y URLs son de ejemplo: sin credenciales no se pueden capturar respuestas reales; cuando estén los secretos, conviene sustituirlas por una captura recortada. Formato: kick.{token, categories, livestreams, livestreams_2 (la página del cursor)}; youtube.{channels_handle (por @handle), playlistItems (por id de lista UU…), search, videos (todos: el get falso devuelve los pedidos), channels (avatares)}; previo = directos.json anterior; equivalencias = canales_equivalentes.json; youtube_canales = youtube_canales.json; esperado_* = lo que debe salir. Para python -I build_data.py --probar directos.",
+ "ahora": "2026-10-20T18:00:00Z",
+ "previo": {
+  "v": 1,
+  "generado": "2026-10-20T16:50:00+00:00",
+  "fuentes": {},
+  "directos": [],
+  "equivalencias": [],
+  "estado": {
+   "youtube": {
+    "ids": {},
+    "busqueda_en": "2026-10-20T16:50:00+00:00",
+    "busqueda_ids": []
+   }
+  }
+ },
+ "equivalencias": {
+  "personas": [
+   {
+    "nombre": "T90Official",
+    "twitch": [
+     "t90official"
+    ],
+    "youtube": [
+     "@T90Official"
+    ]
+   },
+   {
+    "nombre": "Hera",
+    "twitch": [
+     "hera"
+    ],
+    "kick": [
+     "HeraAoE"
+    ]
+   }
+  ]
+ },
+ "youtube_canales": {
+  "canales": [
+   {
+    "id": "@T90Official",
+    "idioma": "en"
+   },
+   {
+    "id": "UCespdemoxxxxxxxxxxxxxxx",
+    "idioma": "es"
+   },
+   {
+    "id": "@noexiste"
+   }
+  ]
+ },
+ "kick": {
+  "token": {
+   "access_token": "token-de-ejemplo",
+   "token_type": "Bearer",
+   "expires_in": 3600
+  },
+  "categories": {
+   "data": [
+    {
+     "id": 10021,
+     "name": "Age of Empires II",
+     "tags": [
+      "Strategy"
+     ],
+     "thumbnail": "https://files.kick.com/images/subcategories/10021/banner/ejemplo.webp"
+    },
+    {
+     "id": 10024,
+     "name": "Age of Empires IV",
+     "tags": [
+      "Strategy"
+     ],
+     "thumbnail": "https://files.kick.com/images/subcategories/10024/banner/ejemplo.webp"
+    }
+   ],
+   "message": "OK",
+   "pagination": {
+    "next_cursor": ""
+   }
+  },
+  "livestreams": {
+   "data": [
+    {
+     "broadcaster_user": {
+      "id": 111,
+      "profile_picture": "https://files.kick.com/images/user/111/profile_image/conversion/ejemplo-fullsize.webp",
+      "username": "HeraAoE"
+     },
+     "category": {
+      "id": 10021,
+      "name": "Age of Empires II",
+      "thumbnail": "https://files.kick.com/x.webp"
+     },
+     "channel": {
+      "slug": "heraaoe"
+     },
+     "has_mature_content": false,
+     "id": "00000000-0000-0000-0000-000000000111",
+     "language_code": "en",
+     "started_at": "2026-10-20T15:00:00Z",
+     "tags": [
+      "English"
+     ],
+     "thumbnail": "https://images.kick.com/video_thumbnails/ejemplo111/720.webp",
+     "title": "ranked 1v1",
+     "viewer_count": 1900
+    },
+    {
+     "broadcaster_user": {
+      "id": 222,
+      "profile_picture": "",
+      "username": "MembTV"
+     },
+     "category": {
+      "id": 10021,
+      "name": "Age of Empires II",
+      "thumbnail": ""
+     },
+     "channel": {
+      "slug": "membtv"
+     },
+     "has_mature_content": false,
+     "id": "00000000-0000-0000-0000-000000000222",
+     "language_code": "en-US",
+     "started_at": "2026-10-20T17:00:00Z",
+     "tags": [],
+     "thumbnail": "https://images.kick.com/video_thumbnails/ejemplo222/720.webp",
+     "title": "casting",
+     "viewer_count": 300
+    },
+    {
+     "broadcaster_user": {
+      "id": 333,
+      "profile_picture": null,
+      "username": "malo"
+     },
+     "category": {
+      "id": 10021
+     },
+     "channel": {
+      "slug": "no vale!"
+     },
+     "language_code": "en",
+     "title": "x",
+     "viewer_count": 9999
+    }
+   ],
+   "message": "OK",
+   "pagination": {
+    "next_cursor": "cursor-ejemplo"
+   }
+  },
+  "livestreams_2": {
+   "data": [
+    {
+     "broadcaster_user": {
+      "id": 444,
+      "profile_picture": "https://files.kick.com/images/user/444/ejemplo.webp",
+      "username": "Ñandú TV"
+     },
+     "category": {
+      "id": 10021,
+      "name": "Age of Empires II"
+     },
+     "channel": {
+      "slug": "nandu_tv"
+     },
+     "language_code": "es",
+     "started_at": "2026-10-20T17:30:00Z",
+     "thumbnail": "http://images.kick.com/no-https.webp",
+     "title": "partidas en español",
+     "viewer_count": 50
+    }
+   ],
+   "message": "OK",
+   "pagination": {
+    "next_cursor": ""
+   }
+  }
+ },
+ "youtube": {
+  "channels_handle": {
+   "@T90Official": {
+    "kind": "youtube#channelListResponse",
+    "pageInfo": {
+     "totalResults": 1,
+     "resultsPerPage": 5
+    },
+    "items": [
+     {
+      "kind": "youtube#channel",
+      "etag": "x",
+      "id": "UCt90demoxxxxxxxxxxxxxxx"
+     }
+    ]
+   },
+   "@noexiste": {
+    "kind": "youtube#channelListResponse",
+    "pageInfo": {
+     "totalResults": 0,
+     "resultsPerPage": 5
+    }
+   }
+  },
+  "playlistItems": {
+   "UUt90demoxxxxxxxxxxxxxxx": {
+    "kind": "youtube#playlistItemListResponse",
+    "items": [
+     {
+      "kind": "youtube#playlistItem",
+      "id": "pi1",
+      "contentDetails": {
+       "videoId": "t90live____",
+       "videoPublishedAt": "2026-10-20T16:30:00Z"
+      }
+     },
+     {
+      "kind": "youtube#playlistItem",
+      "id": "pi2",
+      "contentDetails": {
+       "videoId": "t90old_____",
+       "videoPublishedAt": "2026-10-19T16:30:00Z"
+      }
+     }
+    ]
+   },
+   "UUespdemoxxxxxxxxxxxxxxx": {
+    "kind": "youtube#playlistItemListResponse",
+    "items": [
+     {
+      "kind": "youtube#playlistItem",
+      "id": "pi3",
+      "contentDetails": {
+       "videoId": "eslive_____"
+      }
+     }
+    ]
+   }
+  },
+  "search": {
+   "kind": "youtube#searchListResponse",
+   "regionCode": "ES",
+   "pageInfo": {
+    "totalResults": 3,
+    "resultsPerPage": 50
+   },
+   "items": [
+    {
+     "kind": "youtube#searchResult",
+     "id": {
+      "kind": "youtube#video",
+      "videoId": "busq1______"
+     }
+    },
+    {
+     "kind": "youtube#searchResult",
+     "id": {
+      "kind": "youtube#video",
+      "videoId": "busq2aoe4__"
+     }
+    },
+    {
+     "kind": "youtube#searchResult",
+     "id": {
+      "kind": "youtube#video",
+      "videoId": "busq3fin___"
+     }
+    }
+   ]
+  },
+  "videos": {
+   "kind": "youtube#videoListResponse",
+   "items": [
+    {
+     "kind": "youtube#video",
+     "etag": "x",
+     "id": "t90live____",
+     "snippet": {
+      "publishedAt": "2026-10-20T16:29:00Z",
+      "channelId": "UCt90demoxxxxxxxxxxxxxxx",
+      "title": "Ranked AoE2 with chat",
+      "description": "",
+      "thumbnails": {
+       "default": {
+        "url": "https://i.ytimg.com/vi/t90live____/default_live.jpg",
+        "width": 120,
+        "height": 90
+       },
+       "medium": {
+        "url": "https://i.ytimg.com/vi/t90live____/mqdefault_live.jpg",
+        "width": 320,
+        "height": 180
+       }
+      },
+      "channelTitle": "T90Official - Age Of Empires 2",
+      "liveBroadcastContent": "live",
+      "defaultAudioLanguage": "en"
+     },
+     "liveStreamingDetails": {
+      "actualStartTime": "2026-10-20T16:30:00Z",
+      "concurrentViewers": "3200"
+     }
+    },
+    {
+     "kind": "youtube#video",
+     "etag": "x",
+     "id": "t90old_____",
+     "snippet": {
+      "publishedAt": "2026-10-20T16:29:00Z",
+      "channelId": "UCt90demoxxxxxxxxxxxxxxx",
+      "title": "Yesterday stream",
+      "description": "",
+      "thumbnails": {
+       "default": {
+        "url": "https://i.ytimg.com/vi/t90old_____/default_live.jpg",
+        "width": 120,
+        "height": 90
+       },
+       "medium": {
+        "url": "https://i.ytimg.com/vi/t90old_____/mqdefault_live.jpg",
+        "width": 320,
+        "height": 180
+       }
+      },
+      "channelTitle": "T90Official - Age Of Empires 2",
+      "liveBroadcastContent": "none"
+     }
+    },
+    {
+     "kind": "youtube#video",
+     "etag": "x",
+     "id": "eslive_____",
+     "snippet": {
+      "publishedAt": "2026-10-20T16:29:00Z",
+      "channelId": "UCespdemoxxxxxxxxxxxxxxx",
+      "title": "Partidas en español",
+      "description": "",
+      "thumbnails": {
+       "default": {
+        "url": "https://i.ytimg.com/vi/eslive_____/default_live.jpg",
+        "width": 120,
+        "height": 90
+       },
+       "medium": {
+        "url": "https://i.ytimg.com/vi/eslive_____/mqdefault_live.jpg",
+        "width": 320,
+        "height": 180
+       }
+      },
+      "channelTitle": "Canal Español AoE",
+      "liveBroadcastContent": "live"
+     },
+     "liveStreamingDetails": {
+      "actualStartTime": "2026-10-20T16:30:00Z",
+      "concurrentViewers": "120"
+     }
+    },
+    {
+     "kind": "youtube#video",
+     "etag": "x",
+     "id": "busq1______",
+     "snippet": {
+      "publishedAt": "2026-10-20T16:29:00Z",
+      "channelId": "UCrnddemoxxxxxxxxxxxxxxx",
+      "title": "Age of Empires II: Definitive Edition ladder",
+      "description": "",
+      "thumbnails": {
+       "default": {
+        "url": "https://i.ytimg.com/vi/busq1______/default_live.jpg",
+        "width": 120,
+        "height": 90
+       },
+       "medium": {
+        "url": "https://i.ytimg.com/vi/busq1______/mqdefault_live.jpg",
+        "width": 320,
+        "height": 180
+       }
+      },
+      "channelTitle": "Random Streamer",
+      "liveBroadcastContent": "live"
+     },
+     "liveStreamingDetails": {
+      "actualStartTime": "2026-10-20T16:30:00Z",
+      "concurrentViewers": "450"
+     }
+    },
+    {
+     "kind": "youtube#video",
+     "etag": "x",
+     "id": "busq2aoe4__",
+     "snippet": {
+      "publishedAt": "2026-10-20T16:29:00Z",
+      "channelId": "UCaoe4demoxxxxxxxxxxxxxx",
+      "title": "Age of Empires IV ranked",
+      "description": "",
+      "thumbnails": {
+       "default": {
+        "url": "https://i.ytimg.com/vi/busq2aoe4__/default_live.jpg",
+        "width": 120,
+        "height": 90
+       },
+       "medium": {
+        "url": "https://i.ytimg.com/vi/busq2aoe4__/mqdefault_live.jpg",
+        "width": 320,
+        "height": 180
+       }
+      },
+      "channelTitle": "Otro Canal",
+      "liveBroadcastContent": "live"
+     },
+     "liveStreamingDetails": {
+      "actualStartTime": "2026-10-20T16:30:00Z",
+      "concurrentViewers": "800"
+     }
+    },
+    {
+     "kind": "youtube#video",
+     "etag": "x",
+     "id": "busq3fin___",
+     "snippet": {
+      "publishedAt": "2026-10-20T16:29:00Z",
+      "channelId": "UCrnddemoxxxxxxxxxxxxxxx",
+      "title": "Age of Empires II finished",
+      "description": "",
+      "thumbnails": {
+       "default": {
+        "url": "https://i.ytimg.com/vi/busq3fin___/default_live.jpg",
+        "width": 120,
+        "height": 90
+       },
+       "medium": {
+        "url": "https://i.ytimg.com/vi/busq3fin___/mqdefault_live.jpg",
+        "width": 320,
+        "height": 180
+       }
+      },
+      "channelTitle": "Random Streamer",
+      "liveBroadcastContent": "none"
+     }
+    }
+   ]
+  },
+  "channels": {
+   "kind": "youtube#channelListResponse",
+   "items": [
+    {
+     "kind": "youtube#channel",
+     "id": "UCt90demoxxxxxxxxxxxxxxx",
+     "snippet": {
+      "title": "T90Official",
+      "thumbnails": {
+       "default": {
+        "url": "https://yt3.ggpht.com/ejemplo-t90=s88-c-k-c0x00ffffff-no-rj",
+        "width": 88,
+        "height": 88
+       }
+      }
+     }
+    },
+    {
+     "kind": "youtube#channel",
+     "id": "UCespdemoxxxxxxxxxxxxxxx",
+     "snippet": {
+      "title": "Canal Español AoE",
+      "thumbnails": {
+       "default": {
+        "url": "https://yt3.ggpht.com/ejemplo-es=s88",
+        "width": 88,
+        "height": 88
+       }
+      }
+     }
+    }
+   ]
+  }
+ },
+ "esperado_directos": [
+  [
+   "youtube",
+   "UCt90demoxxxxxxxxxxxxxxx",
+   3200,
+   "en",
+   "t90"
+  ],
+  [
+   "kick",
+   "heraaoe",
+   1900,
+   "en",
+   "hera"
+  ],
+  [
+   "youtube",
+   "UCrnddemoxxxxxxxxxxxxxxx",
+   450,
+   null,
+   "randomstreamer"
+  ],
+  [
+   "kick",
+   "membtv",
+   300,
+   "en",
+   "memb"
+  ],
+  [
+   "youtube",
+   "UCespdemoxxxxxxxxxxxxxxx",
+   120,
+   "es",
+   "canalespanol"
+  ],
+  [
+   "kick",
+   "nandu_tv",
+   50,
+   "es",
+   "nandu"
+  ]
+ ],
+ "esperado_personas": [
+  "t90",
+  "hera"
+ ],
+ "esperado_unidades": 106,
+ "esperado_unidades_segunda": 4,
+ "esperado_busqueda_ids": [
+  "busq1______"
+ ]
+}

@@ -1,0 +1,12 @@
+{
+ "_nota": "Canales de YouTube de AoE II que directos.yml mira cada 15 min (1 unidad de cupo por canal y vuelta: 96/día cada uno; tope 50). «id»: el id del canal (UC…, 24 caracteres) o su @handle (se resuelve UNA vez con 1 unidad). «idioma»: ISO 639-1, para el filtro de idioma de la app si el vídeo no lo dice. Los marcados «dudoso» no se han comprobado: si el handle no existe, se apunta como null en estado.youtube.ids de directos.json y no se vuelve a pedir. Los que no estén aquí los encuentra la búsqueda general (1 vez por hora) si su título dice Age of Empires II.",
+ "canales": [
+  {"id": "@T90Official", "idioma": "en"},
+  {"id": "@SpiritOfTheLaw", "idioma": "en", "dudoso": true},
+  {"id": "@Hera_AoE", "idioma": "en", "dudoso": true},
+  {"id": "@MembTV", "idioma": "en", "dudoso": true},
+  {"id": "@TheViper", "idioma": "en", "dudoso": true},
+  {"id": "@DauT", "idioma": "en", "dudoso": true},
+  {"id": "@Survivalist", "idioma": "en", "dudoso": true}
+ ]
+}

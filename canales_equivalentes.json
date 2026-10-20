@@ -1,0 +1,10 @@
+{
+ "_nota": "Equivalencias de canales entre plataformas (la misma persona en Twitch, Kick y YouTube): la app junta sus directos en UNA entrada (multistream). twitch = logins; kick = slugs (kick.com/<slug>); youtube = ids UC… o @handles (sfr-data los resuelve y publica ya los ids en directos.json → «equivalencias»). Sin entrada aquí, la app une por nombre normalizado (minúsculas, sin acentos ni símbolos, sin «tv», «aoe2», «official»…: «T90Official» y «t90official» son la misma persona). Los marcados «dudoso» no se han comprobado.",
+ "personas": [
+  {"nombre": "T90Official", "twitch": ["t90official"], "youtube": ["@T90Official"]},
+  {"nombre": "Hera", "twitch": ["hera"], "youtube": ["@Hera_AoE"], "dudoso": true},
+  {"nombre": "Memb", "twitch": ["membtv"], "youtube": ["@MembTV"], "dudoso": true},
+  {"nombre": "TheViper", "twitch": ["theviper"], "youtube": ["@TheViper"], "dudoso": true},
+  {"nombre": "DauT", "twitch": ["daut"], "youtube": ["@DauT"], "dudoso": true}
+ ]
+}
