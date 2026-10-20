@@ -2962,7 +2962,8 @@ def _cuadro_lado(entrada):
     """Un lado de un partido (brkts-opponent-entry) → ({"nombre",["pais"]} o None si TBD/vacío, marcador o None, ¿ganó?)."""
     import re
     nombres = [" ".join(n.texto().split()) for n in entrada.buscar("name")]
-    nombre = " ".join((entrada.attrs.get("aria-label") or "").split()) or " & ".join(x for x in nombres if x)
+    equipo = entrada.buscar("team-name")      # el equipo que juega («Onimaru Capybaras»), no su organización (aria-label)
+    nombre = (" ".join(equipo[0].texto().split()) if equipo else "") or         " ".join((entrada.attrs.get("aria-label") or "").split()) or " & ".join(x for x in nombres if x)
     nombre = nombre.replace("\u200b", "").strip()          # un hueco sin rival (TBD) trae solo un espacio de anchura cero
     marcador = "".join(" ".join(m.texto().split()) for m in entrada.buscar("brkts-opponent-score-inner")).strip()
     marcador = marcador if re.fullmatch(r"\d{1,3}|[WLDF]|FF", marcador) else None
