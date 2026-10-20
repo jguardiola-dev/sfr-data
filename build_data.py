@@ -46,10 +46,11 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      Commons (no se enlazan: Liquipedia pide no hacer hotlink). Nombre = archivo de Liquipedia en minúsculas +
                      sha1[:8] del archivo (clave de caché: un logo nuevo en la wiki cambia el hash y se baja otra vez). Los
                      que ya no usa ningún torneo de torneos.json/torneos_historico.json se borran. Carpeta en la rama data.
-- torneos/<slug>.json  detalle de los torneos importantes (S y A del histórico; B en curso o próximos), de su página de
+- torneos/<slug>.json  detalle de los torneos importantes (S y A del histórico; B en curso o próximos; C en curso), de su página de
                      Liquipedia (action=parse; ver torneos_detalle()). slug = ruta de la página en minúsculas con «-»
-                     («Warlords/5» → warlords-5). Lo enlaza el campo «detalle» de torneos.json/torneos_historico.json. Esquema (v2; v1 = sin «cuadros»):
-                     {"v":2, "url", "nombre", "tier", "inicio", "fin", "obtenido":ISO, "estado_al_obtener",
+                     («Warlords/5» → warlords-5). Lo enlaza el campo «detalle» de torneos.json/torneos_historico.json. Esquema (v3; v2 = sin «tablas» ni
+                     «jornadas»; v1 = sin «cuadros»):
+                     {"v":3, "url", "nombre", "tier", "inicio", "fin", "obtenido":ISO, "estado_al_obtener",
                       "formato":[{"texto","nivel"}] (lista de la sección Format; nivel = sangría, 0 = primera),
                       "calendario":[{"texto","nivel","desde":"AAAA-MM-DD"|null,["hasta"]}] (sección Schedule),
                       "mapas":["Arabia"…],
@@ -64,11 +65,18 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                                de izquierda a derecha y los partidos de arriba abajo; j1/j2 = {"nombre",["pais"]} o null
                                (TBD); p1/p2 = marcador como texto («4», «W», «FF»). SPOILER: quién llega a cada ronda,
                                marcadores y ganador (la app los esconde hasta que el usuario pide el resultado).
+                               ["tablas":[{"nombre",["tras"],"filas":[{["pos"],"nombre",["pais"],["partidos"],["juegos"],
+                                          ["dif"],["puntos"],["zona":"sube|sigue|baja"]}]}]] clasificación de la fase (la
+                               «grouptable» de Liquipedia, tal como está: «partidos» = «6-0-0» o «2-1», «juegos» = «18-4»,
+                               «dif» = «+14», «puntos» = 18; «tras» = la jornada a la que corresponde, «Week 9», si la
+                               tabla tiene varias); ["jornadas":[{"nombre","partidos":[{"j1","j2",["p1","p2"],
+                               ["ganador":1|2],["fecha":ISO UTC],["bo"]}]}]] los partidos por jornada o ronda (las
+                               «matchlist»: Round 1, Week 3…), con su fecha y su Bo.
                       "resultados":{"puestos":[{"puesto","desde","hasta","jugadores":[…]}]}}
                      SIN SPOILERS: quién quedó en qué puesto va SOLO en «resultados» y «cuadros» (la app los esconde); «premios» nunca
                      lleva nombres. Los partidos no se repiten aquí: están en partidos.json (torneo_url). Como mucho
-                     TORNEOS_DETALLE_POR_NOCHE páginas por noche; en curso se renueva cada noche, próximo cada 3 días,
-                     terminado una vez tras acabar. Lo anterior se conserva si una página falla.
+                     TORNEOS_DETALLE_POR_NOCHE páginas por noche, los torneos EN CURSO primero; en curso se renueva
+                     cada noche, próximo cada 3 días, terminado una vez tras acabar. Lo anterior se conserva si una página falla.
                      Prueba sin red: python build_data.py --probar detalle. Solo este paso: python build_data.py detalle
 - streamers.json     imagen de perfil pública de canales de Twitch (API Helix; ver streamers()). Esquema (v1):
                      {"v":1, "generado":ISO, "fuente":"Twitch (imagen de perfil pública, solo para dar crédito y enlazar al canal)",
@@ -1560,10 +1568,16 @@ def torneos_tabla(html_txt):
             super().__init__(convert_charrefs=True)
             self.filas, self.fila, self.celda = [], None, None
             self.pila = []          # etiquetas abiertas dentro de la celda: (tag, es_nombre)
+            self.modo_icono = None  # dentro de un <span class="league-icon-small-image [lightmode|darkmode]">
 
         def handle_starttag(self, tag, attrs):
             a = dict(attrs)
             cls = a.get("class") or ""
+            if self.celda is not None and tag == "span" and "league-icon-small-image" in cls.split():
+                self.modo_icono = "oscuro" if "darkmode" in cls.split() else "claro"
+            if self.celda is not None and tag == "img" and self.modo_icono and a.get("src"):
+                self.celda.setdefault("iconos", []).append((self.modo_icono, a["src"]))
+                self.modo_icono = None
             if tag == "tr":
                 self.fila = [] if "row--body" in cls else None
             elif tag == "td" and self.fila is not None:
@@ -1614,6 +1628,10 @@ def torneos_tabla(html_txt):
             ini, fin = torneos_fechas(t[i_t + 1])
             fila = {"nombre": t[i_t], "titulo": titulo, "url": url, "tier": tier, "tipo": tipo, "inicio": ini, "fin": fin,
                     "bolsa": torneos_dinero(t[i_t + 2]), "lugar": None, "participantes": None}
+            for modo, src in (x for c in celdas[:i_t] for x in c.get("iconos", [])):
+                nombre_icono = logos_de_src(src)
+                if nombre_icono and ("icono_" + modo) not in fila:
+                    fila["icono_" + modo] = nombre_icono
             resto = [(c, x) for c, x in zip(celdas[i_t + 3:], t[i_t + 3:]) if "column__placement" not in c["cls"]]
             if resto:      # varios lugares («World» + «Hamburg») vienen en spans separados
                 lugares = [" ".join(x.split()) for x in resto[0][0]["trozos"]]
@@ -1852,6 +1870,43 @@ def torneos_salida(lista, hoy, todo=False):
             "torneos": lista}
 
 
+def torneos_infoboxes_logos(lq, filas, infob):
+    """{url del torneo: infobox para los logos} (ver logos_respaldo): para los que no nombran logo en su infobox ni tienen
+    icono en la lista, una consulta más (50 títulos) con la página superior y la de la serie. Nunca lanza."""
+    import urllib.parse
+    faltan = [f for f in filas if f.get("url") and not logos_de_infobox(infob.get(f.get("titulo")) or {})[0]
+              and not (f.get("icono_claro") or f.get("icono_oscuro"))]
+    extra = {}
+    titulos = []
+    for f in faltan:
+        ruta = urllib.parse.unquote(f["url"].split("/ageofempires/", 1)[-1]).replace("_", " ")
+        if "/" in ruta:
+            titulos.append(ruta.rsplit("/", 1)[0])
+        serie = wiki_limpiar((infob.get(f.get("titulo")) or {}).get("series", ""))
+        if serie:
+            titulos.append(serie)
+    titulos = [x for x in dict.fromkeys(titulos) if x not in infob][:4 * LQ_TITULOS_POR_QUERY]
+    if titulos:
+        try:
+            extra = torneos_infoboxes(lq, titulos)
+        except Exception as ex:
+            log(f"logos: sin páginas de serie ({ex!r})")
+    out, origenes = {}, defaultdict(int)
+    for f in filas:
+        if not f.get("url"):
+            continue
+        ib = infob.get(f.get("titulo")) or {}
+        ruta = urllib.parse.unquote(f["url"].split("/ageofempires/", 1)[-1]).replace("_", " ")
+        superior = extra.get(ruta.rsplit("/", 1)[0]) or infob.get(ruta.rsplit("/", 1)[0]) if "/" in ruta else None
+        serie = wiki_limpiar(ib.get("series", ""))
+        r, origen = logos_respaldo(f, ib, superior, extra.get(serie) or infob.get(serie) if serie else None)
+        if r:
+            out[f["url"]] = r
+        origenes[origen or ("propio" if logos_de_infobox(r or {})[0] else "ninguno")] += 1
+    log(f"logos: origen del logo por torneo {dict(origenes)} ({len(titulos)} páginas de serie o superiores pedidas)")
+    return out
+
+
 def torneos_infoboxes(lq, titulos):
     """Wikitexto de los torneos (action=query, 50 títulos por petición) → {título como sale en la tabla: params del infobox}."""
     out = {}
@@ -1895,6 +1950,38 @@ def logos_nombre(v):
     if not v or not re.search(r"\.(png|jpe?g|gif|webp|svg)$", v, re.I) or re.search(r"[\[\]{}|<>#]", v):
         return None
     return v[0].upper() + v[1:]          # MediaWiki pone en mayúscula la primera letra del título
+
+
+LOGOS_ICONOS_IGNORADOS = ("logo filler", "age of empires default", "aoe2 icon")
+
+
+def logos_de_src(src):
+    """src de una miniatura de Liquipedia («/commons/images/thumb/9/9b/Rusaoc_cup_icon.png/50px-Rusaoc_cup_icon.png» o
+    «/commons/images/4/44/X.png») → nombre del archivo («Rusaoc cup icon.png»), o None si es el relleno «sin logo», el
+    icono del juego o una bandera («Ar hd.png»: el icono por defecto de un torneo nacional)."""
+    import re, urllib.parse
+    m = re.match(r"^/commons/images/(?:thumb/)?[0-9a-f]/[0-9a-f]{2}/([^/]+)", src or "")
+    if not m:
+        return None
+    nombre = logos_nombre(urllib.parse.unquote(m.group(1)))
+    if not nombre or re.search(r" hd\.png$", nombre, re.I) or nombre.lower().startswith(LOGOS_ICONOS_IGNORADOS):
+        return None
+    return nombre
+
+
+def logos_respaldo(fila, ib, superior, serie):
+    """El infobox para los logos de un torneo: el suyo si nombra logo; si no, el icono que la lista de torneos de
+    Liquipedia le pone (que ya hereda el de su serie), el de la página superior («T90 Titans League/6» para la Bronze
+    League) o el de la serie del infobox (|series=). Devuelve (infobox, origen) con origen None, «lista», «superior» o
+    «serie»; ({}, None) si nada nombra un logo (en Liquipedia ese torneo no tiene logo: lleva el relleno gris)."""
+    if logos_de_infobox(ib or {})[0]:
+        return ib, None
+    if fila.get("icono_claro") or fila.get("icono_oscuro"):
+        return {"image": fila.get("icono_claro") or "", "imagedark": fila.get("icono_oscuro") or ""}, "lista"
+    for origen, otro in (("superior", superior), ("serie", serie)):
+        if otro and logos_de_infobox(otro)[0]:
+            return otro, origen
+    return ib or {}, None
 
 
 def logos_de_infobox(ib):
@@ -2146,7 +2233,7 @@ def torneos():
         if not lista:
             raise RuntimeError(f"{len(filas)} filas pero ninguna en la ventana")
         historico = torneos_componer(filas, infob, hoy, previo_h or previo, todo=True)
-        ib_url = {f["url"]: infob[f["titulo"]] for f in filas if f.get("url") and infob.get(f.get("titulo"))}
+        ib_url = torneos_infoboxes_logos(lq, filas, infob)
         torneos_logos(lq, [lista, historico], ib_url)
     except Exception as ex:
         print(f"::warning title=torneos::Liquipedia no respondió bien ({ex!r}): se conserva el torneos.json anterior", flush=True)
@@ -2304,6 +2391,28 @@ def logos_probar():
                     ({"image": "", "icon": "I.png", "icondark": "Id.png"}, ("I.png", "Id.png")), ({}, (None, None))):
         if logos_de_infobox(ib) != esp:
             fallos.append(f"logos_de_infobox({ib}) = {logos_de_infobox(ib)}, se esperaba {esp}")
+    for src, esp in {"/commons/images/thumb/9/9b/Rusaoc_cup_icon.png/50px-Rusaoc_cup_icon.png": "Rusaoc cup icon.png",
+                     "/commons/images/4/44/Logo_filler_event.png": None,
+                     "/commons/images/thumb/a/a5/Ar_hd.png/50px-Ar_hd.png": None,
+                     "/commons/images/thumb/3/35/Age_of_Empires_default_allmode.png/68px-Age_of_Empires_default_allmode.png": None,
+                     "/commons/images/thumb/1/1a/Chilean_Cup_2026_allmode.webp/42px-Chilean_Cup_2026_allmode.webp.png":
+                         "Chilean Cup 2026 allmode.webp",
+                     "https://evil.com/x.png": None, "": None}.items():
+        if logos_de_src(src) != esp:
+            fallos.append(f"logos_de_src({src!r}) = {logos_de_src(src)!r}, se esperaba {esp!r}")
+    con = {"image": "Propio.png"}
+    for fila, ib, sup, serie, esp in (({}, con, None, None, (con, None)),
+                                     ({"icono_claro": "Lista.png"}, {"image": ""}, None, {"image": "Serie.png"},
+                                      ({"image": "Lista.png", "imagedark": ""}, "lista")),
+                                     ({}, {"series": "S"}, {"image": "Sup.png"}, {"image": "Serie.png"}, ({"image": "Sup.png"}, "superior")),
+                                     ({}, {"series": "S"}, None, {"image": "Serie.png"}, ({"image": "Serie.png"}, "serie")),
+                                     ({}, {"image": "<!--x.png-->"}, None, None, ({"image": "<!--x.png-->"}, None))):
+        if logos_respaldo(fila, ib, sup, serie) != esp:
+            fallos.append(f"logos_respaldo({fila}, {ib}) = {logos_respaldo(fila, ib, sup, serie)}, se esperaba {esp}")
+    iconos = [(f["nombre"], f.get("icono_claro"), f.get("icono_oscuro")) for f in torneos_tabla(m["lista_html"])]
+    if iconos != [("Rusaoc Cup 192", "Rusaoc cup icon.png", None),
+                  ("The Bastion", "The Bastion logo lightmode.png", "The Bastion logo darkmode.png"), ("CNZS Invitational 8", None, None)]:
+        fallos.append(f"iconos de la lista: {iconos}")
     if logos_ruta("Ñandú Cup – 2026 allmode.png", "abcdef0123") != "logos/torneos/nandu-cup-2026-allmode-abcdef01.png":
         fallos.append(f"ruta: {logos_ruta('Ñandú Cup – 2026 allmode.png', 'abcdef0123')}")
     try:
@@ -2329,11 +2438,15 @@ def logos_probar():
 # nunca. Las que aún no se tienen van antes que las renovaciones. Lo ya obtenido se conserva (rama data).
 # Contenido CC BY-SA 3.0, como torneos.json.
 TORNEOS_DETALLE_DIR = "torneos"
-DETALLE_VERSION = 2             # v2: «cuadros» en las fases. Un detalle de versión anterior se vuelve a pedir (también terminados)
-TORNEOS_DETALLE_POR_NOCHE = 13
-TORNEOS_DETALLE_TIEMPO_S = 7.5 * 60
+DETALLE_VERSION = 3             # v3: «tablas» y «jornadas»; v2: «cuadros». Un detalle de versión anterior se vuelve a pedir
+TORNEOS_DETALLE_POR_NOCHE = 20  # ≈31 s cada una (action=parse: <= 1 cada 30 s): ≈10 min por noche
+TORNEOS_DETALLE_TIEMPO_S = 11 * 60
+DETALLE_TABLAS_MAX = 16         # clasificaciones por página (grupos)
+DETALLE_FILAS_MAX = 40          # filas por clasificación
+DETALLE_JORNADAS_MAX_PARTIDOS = 400   # partidos de «jornadas» por página (una liga de 10 a doble vuelta: 90)
 TORNEOS_DETALLE_MUESTRA = os.path.join("pruebas", "torneo_detalle_muestra.json")
 TORNEOS_CUADROS_MUESTRA = os.path.join("pruebas", "torneo_cuadros_muestra.json")
+TORNEOS_TABLAS_MUESTRA = os.path.join("pruebas", "torneo_tablas_muestra.json")
 MESES_LARGOS = {m: i + 1 for i, m in enumerate(("january", "february", "march", "april", "may", "june", "july", "august",
                                                 "september", "october", "november", "december"))}
 
@@ -2709,7 +2822,9 @@ def _rondas_de(propio):
     return rondas
 
 
-def _fase(titulo, nivel, propio):
+def _fase(titulo, nivel, propio, completo=None):
+    """Una fase. propio = su HTML hasta la siguiente cabecera (cualquiera); completo = hasta la siguiente h2-h4 (incluye
+    las h5 de dentro, «Round 1»… de una liga), de donde salen «tablas» y «jornadas»."""
     tipo = "grupos" if "grouptable" in propio else ("bracket" if "brkts-bracket" in propio else
                                                      ("partidos" if "brkts-match" in propio else None))
     f = {"nombre": titulo[:80], "nivel": nivel}
@@ -2726,6 +2841,16 @@ def _fase(titulo, nivel, propio):
             cuadros = []
         if cuadros:
             f["cuadros"] = cuadros
+    completo = propio if completo is None else completo
+    try:
+        tablas = detalle_tablas(completo)
+        if tablas:
+            f["tablas"] = tablas
+        jornadas = detalle_jornadas(completo)
+        if jornadas:
+            f["jornadas"] = jornadas
+    except Exception as ex:                        # un HTML raro no tumba la ficha: sin tabla ni jornadas
+        log(f"detalle: tablas o jornadas de {titulo!r} ilegibles ({ex!r})")
     return f
 
 
@@ -2736,19 +2861,170 @@ def detalle_fases(secciones):
     import re
     out, dentro, nivel_res = [], False, None
     for nivel, ident, titulo, cuerpo in secciones:
+        completo = cuerpo[:10] + re.split(r'<h[234][\s>]', cuerpo[10:], maxsplit=1)[0]      # hasta la siguiente h2-h4
         if ident.lower() in ("results", "resultados"):
             dentro, nivel_res = True, nivel
             propio = cuerpo[:10] + re.split(r'<div class="mw-heading', cuerpo[10:], maxsplit=1)[0]
-            if "brkts-bracket" in propio:
-                out.append(_fase(titulo, 1, propio))
+            if "brkts-bracket" in propio or "grouptable" in completo or "brkts-matchlist" in completo:
+                out.append(_fase(titulo, 1, propio, completo))
             continue
         if not dentro:
             continue
         if nivel <= nivel_res:
             break
         propio = cuerpo[:10] + re.split(r'<div class="mw-heading', cuerpo[10:], maxsplit=1)[0] if nivel < 4 else cuerpo
-        out.append(_fase(titulo, nivel - nivel_res, propio))
+        out.append(_fase(titulo, nivel - nivel_res, propio, completo))
     return out[:30]
+
+
+# Clasificaciones y jornadas (v3). La «grouptable» de Liquipedia (Module:GroupTableLeague) es una tabla por grupo o liga: el
+# título en el primer <th> («Group A», «League Stage»), una fila por puesto (<th> con el puesto y la clase bg-up/stayup/down
+# que pinta quién pasa o baja, una casilla «grouptableslot» con bandera y nombre y luego las cifras: partidos «6-0-0» o
+# «2-1», juegos «18-4», diferencia «+14» y puntos «18p», no siempre todas). Si la tabla se puede ver «tras» cada jornada
+# (desplegable «Week 1… Week 9»), cada fila lleva data-toggle-area-content="N" y la que se enseña por defecto es la del
+# toggle-area-N que la envuelve: solo esa se guarda. Las «matchlist» (Module:MatchGroup) son las listas de partidos de cada
+# jornada o grupo: título y, por partido, los dos lados (aria-label = nombre; bandera), marcadores, ganador
+# (brkts-matchlist-slot-winner) y, en su ventanita (brkts-popup), la fecha (timer-object data-timestamp) y el Bo.
+DETALLE_ZONAS = {"bg-up": "sube", "bg-stayup": "sube", "bg-stay": "sigue", "bg-staydown": "baja", "bg-down": "baja",
+                 "bg-drop": "baja"}
+
+
+def _num(v):
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def detalle_tablas(html_txt):
+    """HTML de una fase → [{"nombre",["tras"],"filas":[{"pos","nombre",["pais"],["partidos"],["juegos"],["dif"],["puntos"],
+    ["zona"]}]}] (esquema en la cabecera). Tolerante: columnas leídas por su forma, no por su posición; [] si no hay."""
+    import re
+    html_txt = html_txt or ""
+    out = []
+    for m in re.finditer(r'<table class="[^"]*\bgrouptable\b[^"]*"[^>]*>(.*?)</table>', html_txt, re.S):
+        cuerpo = m.group(1)
+        previo = re.findall(r'toggle-area toggle-area-(\d+)"', html_txt[max(0, m.start() - 600):m.start()])
+        areas = sorted({int(a) for a in re.findall(r'data-toggle-area-content="(\d+)"', cuerpo)})
+        area = int(previo[-1]) if previo and int(previo[-1]) in areas else (areas[-1] if areas else None)
+        th0 = re.search(r"<th[^>]*>(.*?)</th>", cuerpo, re.S)
+        cab = th0.group(1) if th0 else ""
+        nombre = _html_texto(re.split(r'<div class="dropdown-box', cab, maxsplit=1)[0])
+        t = {"nombre": nombre[:60] or "Standings"}
+        if area is not None and len(areas) > 1:
+            boton = re.search(r'data-toggle-area-btn="%d"[^>]*>(.*?)</div>' % area, cab, re.S)
+            if boton and _html_texto(boton.group(1)):
+                t["tras"] = _html_texto(boton.group(1))[:30]
+        filas = []
+        for fm in re.finditer(r"<tr([^>]*)>(.*?)</tr>", cuerpo, re.S):
+            attrs, fila = fm.group(1), fm.group(2)
+            a = re.search(r'data-toggle-area-content="(\d+)"', attrs)
+            if area is not None and (not a or int(a.group(1)) != area):
+                continue
+            slot = re.search(r'<td class="grouptableslot[^"]*"[^>]*>(.*?)</td>', fila, re.S)
+            if not slot:
+                continue
+            th = re.search(r'<th([^>]*)>(.*?)</th>', fila[:slot.start()], re.S)
+            pos = _num(re.sub(r"\D", "", _html_texto(th.group(2)))) if th else None
+            # sin puesto (empatados sin desempatar, o el grupo aún sin empezar): como en Liquipedia, sin número
+            nombre_j = re.sub(r"\s*[▲▼]\d*\s*$", "", _html_texto(slot.group(1)))   # sin «▲1» (subió un puesto)
+            if not nombre_j or nombre_j.upper() in ("TBD", "TBA"):
+                continue
+            f = {"pos": pos, "nombre": nombre_j[:60]} if pos else {"nombre": nombre_j[:60]}
+            bandera = re.search(r'<span class="flag"><img [^>]*src="([^"]+)"', slot.group(1))
+            pais = partidos_pais(bandera.group(1)) if bandera else None
+            if pais:
+                f["pais"] = pais
+            ccls = re.search(r'class="([^"]*)"', th.group(1)) if th else None
+            zona = next((DETALLE_ZONAS[c] for c in (ccls.group(1).split() if ccls else []) if c in DETALLE_ZONAS), None)
+            if zona:
+                f["zona"] = zona
+            valores = [_html_texto(v) for v in re.findall(r"<td[^>]*>(.*?)</td>", fila[slot.end():], re.S)]
+            registros = []
+            for v in valores:
+                if re.fullmatch(r"-?\d+p", v):
+                    f["puntos"] = int(v[:-1])
+                elif re.fullmatch(r"[+\-−]\d+|0", v):
+                    f["dif"] = v.replace("−", "-")
+                elif re.fullmatch(r"\d+-\d+(?:-\d+)?", v):
+                    registros.append(v)
+            if registros:
+                f["partidos"] = registros[0]
+            if len(registros) > 1:
+                f["juegos"] = registros[1]
+            filas.append(f)
+            if len(filas) >= DETALLE_FILAS_MAX:
+                break
+        if filas:
+            t["filas"] = filas
+            out.append(t)
+        if len(out) >= DETALLE_TABLAS_MAX:
+            break
+    return out
+
+
+def _matchlist_lado(celda):
+    """Casilla de un lado de una matchlist → {"nombre",["pais"]} o None (TBD/vacío)."""
+    equipo = celda.buscar("team-name")
+    nombres = [" ".join(n.texto().split()) for n in celda.buscar("name")]
+    # equipo: el nombre del equipo que juega («Onimaru Capybaras»), no el de su organización (aria-label: «Onimaru Esports»)
+    nombre = (" ".join(equipo[0].texto().split()) if equipo else " & ".join(x for x in nombres if x)) or         " ".join((celda.attrs.get("aria-label") or "").split())
+    if not nombre or nombre.upper() in ("TBD", "TBA", "BYE"):
+        return None
+    lado = {"nombre": nombre[:60]}
+    if len(nombres) <= 1 and not equipo:
+        img = next((i for i in celda.imgs() if i.padre is not None and i.padre.tiene("flag")), None)
+        pais = partidos_pais(img.attrs.get("src")) if img is not None else None
+        if pais:
+            lado["pais"] = pais
+    return lado
+
+
+def detalle_jornadas(html_txt):
+    """HTML de una fase → [{"nombre","partidos":[{"j1","j2",["p1","p2"],["ganador"],["fecha"],["bo"]}]}] de sus «matchlist»
+    (esquema en la cabecera). [] si no hay."""
+    import re
+    if "brkts-matchlist" not in (html_txt or ""):
+        return []
+    raiz = _arbol_html(html_txt)
+    out, total = [], 0
+    marcador_ok = r"\d{1,3}|[WLDF]|FF"
+    for ml in raiz.buscar("brkts-matchlist"):
+        if "general-collapsible" not in ml.clases():
+            continue
+        tit = ml.buscar("general-collapsible-default-title") or ml.buscar("brkts-matchlist-title")
+        nombre = _html_texto(tit[0].texto()) if tit else ""
+        partidos = []
+        for m in ml.buscar("brkts-matchlist-match"):
+            celdas = m.buscar("brkts-matchlist-cell", parar="brkts-popup")
+            lados = [c for c in celdas if c.tiene("brkts-matchlist-opponent")]
+            marcas = [c for c in celdas if c.tiene("brkts-matchlist-score")]
+            if len(lados) != 2:
+                continue
+            pa = {"j1": _matchlist_lado(lados[0]), "j2": _matchlist_lado(lados[1])}
+            if len(marcas) == 2:
+                p1, p2 = (" ".join(x.texto().split()) for x in marcas)
+                if re.fullmatch(marcador_ok, p1) and re.fullmatch(marcador_ok, p2):
+                    pa["p1"], pa["p2"] = p1, p2
+            g1, g2 = (c.tiene("brkts-matchlist-slot-winner") for c in lados)
+            if g1 != g2:
+                pa["ganador"] = 1 if g1 else 2
+            reloj = m.buscar("timer-object")
+            ts = _num(reloj[0].attrs.get("data-timestamp")) if reloj else None
+            if ts and 946684800 < ts < 4102444800:          # 2000-2100: lo demás es un valor raro
+                pa["fecha"] = datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            bo = re.search(r"\(\s*Bo\s*(\d+)\s*\)", "".join(x.texto() for x in m.buscar("match-info-header-scoreholder-lower")))
+            if bo:
+                pa["bo"] = int(bo.group(1))
+            partidos.append(pa)
+            total += 1
+            if total >= DETALLE_JORNADAS_MAX_PARTIDOS:
+                break
+        if partidos:
+            out.append({"nombre": (nombre or f"Round {len(out) + 1}")[:60], "partidos": partidos})
+        if total >= DETALLE_JORNADAS_MAX_PARTIDOS:
+            break
+    return out
 
 
 def detalle_mapas(cuerpo):
@@ -2776,7 +3052,8 @@ def detalle_componer(html_txt, t, obtenido):
 
 
 def detalle_candidatos(historico, hoy):
-    """Torneos con detalle: S y A (todos los del histórico) y B en curso o próximos. Orden de prioridad: en curso, próximos
+    """Torneos con detalle: S y A (todos los del histórico), B en curso o próximos y C en curso (no semanales ni
+    showmatches). Orden de prioridad: en curso, próximos
     (el que empieza antes primero), terminados (el más reciente primero); dentro, primero los que no son clasificatorias ni
     showmatches."""
     def clave(t):
@@ -2785,21 +3062,24 @@ def detalle_candidatos(historico, hoy):
         fecha = t["inicio"] if est < 2 else t["fin"]
         orden = date.fromisoformat(fecha).toordinal()
         return (est, menor, orden if est < 2 else -orden, {"S": 0, "A": 1}.get(t.get("tier"), 2))
+    menores = ("Weekly", "Biweekly", "Monthly", "Showmatch")
     c = [t for t in historico if t.get("url") and t.get("inicio") and
-         (t.get("tier") in ("S", "A") or (t.get("tier") == "B" and t.get("estado") in ("en_curso", "proximo")))]
+         (t.get("tier") in ("S", "A") or (t.get("tier") == "B" and t.get("estado") in ("en_curso", "proximo")) or
+          (t.get("tier") == "C" and t.get("estado") == "en_curso" and t.get("tipo") not in menores))]
     return sorted(c, key=clave)
 
 
 def detalle_cola(candidatos, ahora_dt):
-    """[(torneo, ruta, detalle previo)] de las páginas que toca pedir: primero las que aún no se tienen (para que el
-    histórico se complete en pocas noches) y luego las renovaciones, cada grupo en el orden de prioridad de los candidatos."""
-    nuevos, renovar = [], []
+    """[(torneo, ruta, detalle previo)] de las páginas que toca pedir: primero los torneos EN CURSO (nuevos o renovaciones:
+    son los que la app enseña con los resultados del día), luego las que aún no se tienen (para que el histórico se
+    complete en pocas noches) y al final las demás renovaciones, cada grupo en el orden de prioridad de los candidatos."""
+    en_curso, nuevos, renovar = [], [], []
     for t in candidatos:
         ruta = os.path.join(TORNEOS_DETALLE_DIR, detalle_slug(t["url"]) + ".json")
         previo = leer_json(ruta, None)
         if detalle_toca(t, previo, ahora_dt):
-            (renovar if previo else nuevos).append((t, ruta, previo))
-    return nuevos + renovar
+            (en_curso if t.get("estado") == "en_curso" else renovar if previo else nuevos).append((t, ruta, previo))
+    return en_curso + nuevos + renovar
 
 
 def detalle_toca(t, previo, ahora_dt):
@@ -2924,12 +3204,13 @@ def detalle_probar():
     ahora_dt = datetime(2026, 10, 19, 5, 0, tzinfo=timezone.utc)
     base = {"url": "u", "inicio": "2026-10-01", "fin": "2026-10-30", "estado": "en_curso"}
     for t, previo, esp in ((base, None, True), (base, {"obtenido": "2026-10-18T05:00:00+00:00"}, True),
-                           (base, {"v": 2, "obtenido": "2026-10-19T01:00:00+00:00"}, False),
-                           (dict(base, estado="proximo", inicio="2026-11-20"), {"v": 2, "obtenido": "2026-10-17T05:00:00+00:00"}, False),
+                           (base, {"v": 3, "obtenido": "2026-10-19T01:00:00+00:00"}, False),
+                           (base, {"v": 2, "obtenido": "2026-10-19T01:00:00+00:00"}, True),      # v2: sin tablas ni jornadas
+                           (dict(base, estado="proximo", inicio="2026-11-20"), {"v": 3, "obtenido": "2026-10-17T05:00:00+00:00"}, False),
                            (dict(base, estado="proximo", inicio="2026-10-20"), {"obtenido": "2026-10-18T05:00:00+00:00"}, True),
                            (dict(base, estado="terminado", fin="2026-10-17"), {"obtenido": "2026-10-17T05:00:00+00:00", "estado_al_obtener": "en_curso"}, True),
                            (dict(base, estado="terminado", fin="2026-10-17"), {"obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "terminado"}, True),
-                           (dict(base, estado="terminado", fin="2026-10-17"), {"v": 2, "obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "terminado"}, False)):
+                           (dict(base, estado="terminado", fin="2026-10-17"), {"v": 3, "obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "terminado"}, False)):
         if detalle_toca(t, previo, ahora_dt) != esp:
             fallos.append(f"toca {t['estado']} {previo} → {not esp}")
     hist = [{"url": "a", "tier": "S", "estado": "terminado", "inicio": "2026-01-01", "fin": "2026-01-05"},
@@ -2937,11 +3218,14 @@ def detalle_probar():
             {"url": "c", "tier": "B", "estado": "en_curso", "inicio": "2026-10-01", "fin": "2026-10-30"},
             {"url": "d", "tier": "A", "estado": "proximo", "inicio": "2026-12-01", "fin": "2026-12-05", "tipo": "Qualifier"},
             {"url": "e", "tier": "S", "estado": "proximo", "inicio": "2026-12-10", "fin": "2026-12-15"},
-            {"url": "f", "tier": "C", "estado": "en_curso", "inicio": "2026-10-01", "fin": "2026-10-30"}]
+            {"url": "f", "tier": "C", "estado": "en_curso", "inicio": "2026-10-01", "fin": "2026-10-30"},
+            {"url": "g", "tier": "C", "estado": "en_curso", "inicio": "2026-10-01", "fin": "2026-10-30", "tipo": "Weekly"},
+            {"url": "h", "tier": "C", "estado": "proximo", "inicio": "2026-12-01", "fin": "2026-12-05"}]
     orden = [t["url"] for t in detalle_candidatos(hist, ahora_dt.date())]
-    if orden != ["c", "e", "d", "a"]:
-        fallos.append(f"candidatos {orden}, se esperaba ['c', 'e', 'd', 'a']")
-    # cola: los que aún no tienen detalle van antes que las renovaciones (c, en curso, ya tiene uno de hace un día)
+    if orden != ["c", "f", "e", "d", "a"]:          # C solo en curso y no semanal
+        fallos.append(f"candidatos {orden}, se esperaba ['c', 'f', 'e', 'd', 'a']")
+    # cola: los en curso primero (c, renovación de hace un día, y f, nuevo); luego los que aún no tienen detalle; luego
+    # las demás renovaciones
     global TORNEOS_DETALLE_DIR
     import shutil, tempfile
     dir_antes, tmp = TORNEOS_DETALLE_DIR, tempfile.mkdtemp()
@@ -2949,8 +3233,13 @@ def detalle_probar():
         TORNEOS_DETALLE_DIR = tmp
         escribir_json(os.path.join(tmp, "c.json"), {"obtenido": "2026-10-18T05:00:00+00:00", "estado_al_obtener": "en_curso"})
         cola = [t["url"] for t, _, _ in detalle_cola(detalle_candidatos(hist, ahora_dt.date()), ahora_dt)]
-        if cola != ["e", "d", "a", "c"]:
-            fallos.append(f"cola {cola}, se esperaba ['e', 'd', 'a', 'c']")
+        if cola != ["c", "f", "e", "d", "a"]:
+            fallos.append(f"cola {cola}, se esperaba ['c', 'f', 'e', 'd', 'a']")
+        escribir_json(os.path.join(tmp, "a.json"), {"v": DETALLE_VERSION, "obtenido": "2026-01-07T05:00:00+00:00",
+                                                    "estado_al_obtener": "en_curso"})
+        cola = [t["url"] for t, _, _ in detalle_cola(detalle_candidatos(hist, ahora_dt.date()), ahora_dt)]
+        if cola != ["c", "f", "e", "d", "a"]:       # a (terminado) toca una vez más: renovación, al final
+            fallos.append(f"cola con renovación {cola}, se esperaba ['c', 'f', 'e', 'd', 'a']")
     finally:
         TORNEOS_DETALLE_DIR = dir_antes
         shutil.rmtree(tmp, ignore_errors=True)
@@ -2971,9 +3260,36 @@ def detalle_probar():
     for raro in ("", "<div class=\"brkts-bracket\"><div class=\"brkts-round-header\">", "<p>sin cuadro</p>"):
         if detalle_cuadros(raro) != []:
             fallos.append(f"cuadro de {raro!r} no vacío")
+    # clasificaciones y jornadas (v3): HTML real recortado de DS_League (liga 1v1), The League (por equipos, tabla «tras»
+    # cada semana) y un grupo de la Chilean Cup sin empezar (sin puestos)
+    mt = leer_json(TORNEOS_TABLAS_MUESTRA)
+    for caso in mt["casos"]:
+        tablas, jornadas = detalle_tablas(caso["html"]), detalle_jornadas(caso["html"])
+        if tablas != caso["tablas"] or jornadas != caso["jornadas"]:
+            fallos.append(f"tablas/jornadas de {caso['url']} {caso['seccion']}: {json.dumps(tablas, ensure_ascii=False)[:200]} "
+                          f"{json.dumps(jornadas, ensure_ascii=False)[:200]}")
+    ds = detalle_tablas(mt["casos"][0]["html"])
+    if not ds or ds[0]["filas"][0] != {"pos": 1, "nombre": "Ciskhan", "pais": "FR", "zona": "sube", "dif": "+14", "puntos": 18,
+                                       "partidos": "6-0-0", "juegos": "18-4"} or len(ds[0]["filas"]) != 10 or "tras" in ds[0]:
+        fallos.append(f"tabla de DS_League: {json.dumps(ds, ensure_ascii=False)[:300]}")
+    jd = detalle_jornadas(mt["casos"][1]["html"])
+    if [j["nombre"] for j in jd] != [f"Round {i}" for i in range(1, 10)] or jd[0]["partidos"][0] != {
+            "j1": {"nombre": "Ciskhan", "pais": "FR"}, "j2": {"nombre": "VarVarus", "pais": "AR"}, "p1": "3", "p2": "0",
+            "ganador": 1, "fecha": "2026-08-19T22:00:00Z", "bo": 5}:
+        fallos.append(f"jornadas de DS_League: {json.dumps(jd[:1], ensure_ascii=False)[:300]}")
+    tl = detalle_tablas(mt["casos"][2]["html"])
+    if not tl or tl[0].get("tras") != "Week 9" or len(tl[0]["filas"]) != 9 or any("\u25b2" in f["nombre"] or "\u25bc" in f["nombre"] for f in tl[0]["filas"]):
+        fallos.append(f"tabla de The League (semana por defecto, sin ▲▼): {json.dumps(tl, ensure_ascii=False)[:300]}")
+    gc = detalle_tablas(mt["casos"][3]["html"])
+    if not gc or any("pos" in f for f in gc[0]["filas"]) or len(gc[0]["filas"]) != 4:
+        fallos.append(f"grupo sin empezar: {json.dumps(gc, ensure_ascii=False)[:300]}")
+    for raro in ("", "<table class=\"grouptable\"><tr><th>1.</th></tr></table>", "<div class=\"brkts-matchlist\"></div>"):
+        if detalle_tablas(raro) != [] or detalle_jornadas(raro) != []:
+            fallos.append(f"tablas/jornadas de {raro!r} no vacías")
     for f in fallos:
         log("FALLO", f)
-    log(f"detalle --probar: {len(m['casos'])} páginas y {len(mc['casos'])} cuadros, {len(fallos)} fallos")
+    log(f"detalle --probar: {len(m['casos'])} páginas, {len(mc['casos'])} cuadros y {len(mt['casos'])} tablas/jornadas, "
+        f"{len(fallos)} fallos")
     return not fallos
 
 
