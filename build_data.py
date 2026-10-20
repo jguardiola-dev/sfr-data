@@ -2454,7 +2454,7 @@ MESES_LARGOS = {m: i + 1 for i, m in enumerate(("january", "february", "march", 
 def _html_texto(v):
     import html as _h, re
     v = re.sub(r"<sup\b.*?</sup>", "", v or "", flags=re.S)
-    return " ".join(_h.unescape(re.sub(r"<[^>]+>", " ", v)).replace("​", "").split()).strip()
+    return " ".join(_h.unescape(re.sub(r"<[^>]+>", " ", v)).replace("\u200b", "").split()).strip()
 
 
 def detalle_slug(url):
@@ -2730,6 +2730,7 @@ def _cuadro_lado(entrada):
     import re
     nombres = [" ".join(n.texto().split()) for n in entrada.buscar("name")]
     nombre = " ".join((entrada.attrs.get("aria-label") or "").split()) or " & ".join(x for x in nombres if x)
+    nombre = nombre.replace("\u200b", "").strip()          # un hueco sin rival (TBD) trae solo un espacio de anchura cero
     marcador = "".join(" ".join(m.texto().split()) for m in entrada.buscar("brkts-opponent-score-inner")).strip()
     marcador = marcador if re.fullmatch(r"\d{1,3}|[WLDF]|FF", marcador) else None
     gano = entrada.tiene("brkts-opponent-win") or bool(entrada.buscar("brkts-opponent-win"))
@@ -2969,6 +2970,7 @@ def _matchlist_lado(celda):
     nombres = [" ".join(n.texto().split()) for n in celda.buscar("name")]
     # equipo: el nombre del equipo que juega («Onimaru Capybaras»), no el de su organización (aria-label: «Onimaru Esports»)
     nombre = (" ".join(equipo[0].texto().split()) if equipo else " & ".join(x for x in nombres if x)) or         " ".join((celda.attrs.get("aria-label") or "").split())
+    nombre = nombre.replace("\u200b", "").strip()
     if not nombre or nombre.upper() in ("TBD", "TBA", "BYE"):
         return None
     lado = {"nombre": nombre[:60]}
