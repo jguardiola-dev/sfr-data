@@ -1238,17 +1238,42 @@ def chispas_incremental(por_dia, deltas, alcance, hechos=()):
 
 
 PERFILES_BASE_TAG = None   # release de la base actual (del índice), para leer los paquetes al consolidar
+PERFILES_ESPERAS_BASE = (30, 90, 180)   # reintentos de un paquete base que falla (p. ej. HTTP 500 de GitHub), en segundos
+# Paquetes que perdieron el año en la consolidación del 2026-10-12 (11 HTTP 500 leídos como vacíos): solo guardan desde el
+# 2026-10-05. Si el índice aún no lleva «desde_shard», se siembran así y el relleno por paquetes (perfiles()) los recupera.
+PERFILES_PERDIDOS_SEMILLA = {i: "2026-10-05" for i in (20, 33, 56, 83, 120, 121, 122, 127, 146, 149, 237)}
+PERFILES_RELLENO_SHARD_DIAS = 45   # relleno por paquetes: días por noche (comparte el tope de 90 min con los días nuevos)
 
 
-def perfiles_leer_gz(nombre):
-    """Lee un archivo de la carpeta local o de la release (los paquetes base, de su release propia). None si no existe."""
+class PerfilesBaseIlegible(Exception):
+    """Un paquete de la base existente no se pudo leer: consolidar con él vacío borraría su año."""
+
+
+def perfiles_leer_gz(nombre, estricto=False):
+    """Lee un archivo de la carpeta local o de la release (los paquetes base, de su release propia). None si no existe.
+    estricto (paquetes base con release base existente): reintenta con espera y, si sigue fallando o falta (404),
+    lanza PerfilesBaseIlegible en vez de devolver None: «no existe porque no hay base» solo vale sin PERFILES_BASE_TAG."""
     for ruta in (os.path.join(PERFILES_DIR, "base", nombre), os.path.join(PERFILES_DIR, nombre)):
         if os.path.exists(ruta):
             with gzip.open(ruta, "rt", encoding="utf-8") as f:
                 return json.load(f)
     tag = PERFILES_BASE_TAG if nombre.startswith("shard-") and PERFILES_BASE_TAG else PERFILES_RELEASE
+    url = f"https://github.com/{REPO}/releases/download/{tag}/{nombre}"
+    if estricto:
+        error = None
+        for espera in (0,) + tuple(PERFILES_ESPERAS_BASE):
+            if espera: log(f"perfiles: {nombre}: reintento en {espera} s"); time.sleep(espera)
+            try:
+                raw = fetch(url, timeout=120, intentos=2)
+                if raw is None: raise PerfilesBaseIlegible(f"{nombre} no está en {tag} (404)")
+                return json.loads(gzip.decompress(raw).decode("utf-8"))
+            except PerfilesBaseIlegible:
+                raise
+            except Exception as ex:
+                error = ex; log(f"perfiles: {nombre}: {ex!r}")
+        raise PerfilesBaseIlegible(f"{nombre} de {tag}: {error!r}")
     try:
-        raw = fetch(f"https://github.com/{REPO}/releases/download/{tag}/{nombre}", timeout=120, intentos=2)
+        raw = fetch(url, timeout=120, intentos=2)
     except Exception as ex:
         log(f"perfiles: {nombre}: {ex!r}"); raw = None
     if raw is None: return None
@@ -1258,6 +1283,8 @@ def perfiles_leer_gz(nombre):
 def perfiles():
     """Base semanal + deltas diarios, formato compacto (v2).
     index.json: {"v":2, "shards", "grupos", "base_hasta", "deltas":[fechas], "dias":[...], "desde", "civs":[...], "mapas":[...], ...}
+      "desde_shard": {"N": "AAAA-MM-DD"} = paquetes cuya base NO llega a «desde» (solo guardan desde esa fecha); vacío si todos
+      cubren el año. Mientras no esté vacío, cada noche consolida con un relleno de esos paquetes (PERFILES_RELLENO_SHARD_DIAS días).
     Paquete base:  shard-NNNN.json.gz = {"j": {pid: [partida, ...]}}; delta: delta-AAAA-MM-DD-gG.json.gz = {"j": {pid: [partida, ...]}} (shard % grupos == G)
     Partida: [matchId, inicio_s, fin_s, ladderIdx, mapaIdx, [[pid, civIdx, equipo, rating, diff, won, slot/color], ...]]"""
     global perfiles_alcance_cache
@@ -1282,13 +1309,25 @@ def perfiles():
     pendientes = [d for d in candidatos if d not in hechos]
     nuevos_recientes = [d for d in pendientes if d > (estado.get("base_hasta") or "")][:PERFILES_DIAS_POR_NOCHE]   # días posteriores a la base (van a deltas o, si son muchos, a la base)
     relleno = [] if nuevos_recientes else [d for d in pendientes][:PERFILES_DIAS_POR_NOCHE]   # relleno hacia atrás (reescribe la base); una cosa por ejecución para acotar memoria
+    # cobertura real por paquete: «desde_shard» = {"N": fecha} de los paquetes que no llegan al año (los demás cubren «desde»)
+    if "desde_shard" not in estado:
+        estado["desde_shard"] = {str(i): f for i, f in PERFILES_PERDIDOS_SEMILLA.items() if i < PERFILES_SHARDS} if estado.get("base_release") else {}
+        if estado["desde_shard"]: log(f"perfiles: sembrados {len(estado['desde_shard'])} paquetes incompletos: {sorted(estado['desde_shard'])}")
+    desde_shard = {k: v for k, v in estado["desde_shard"].items() if v > candidatos[-1]}   # los que ya llegan al año, fuera
+    estado["desde_shard"] = desde_shard
+    # relleno por paquetes: días anteriores a su «desde», de más nuevo a más viejo, solo para los jugadores de esos paquetes
+    relleno_shard = []
+    if desde_shard and estado.get("base_release") and not relleno:
+        tope_rel = max(desde_shard.values())
+        relleno_shard = [d for d in candidatos if d < tope_rel and d not in nuevos_recientes][:PERFILES_RELLENO_SHARD_DIAS]
     alcance = perfiles_alcance(); perfiles_alcance_cache = alcance
     try:
         perfiles_elo_ayer(ayer)
     except Exception as ex:
         log(f"perfiles: elo_ayer: ERROR {ex!r}")
-    consolidar = bool(relleno) or (len(deltas) + len(nuevos_recientes) >= PERFILES_CONSOLIDAR_DIAS) or not estado.get("base_hasta")
-    log(f"perfiles: pendientes {len(pendientes)} (recientes {len(nuevos_recientes)}, relleno {len(relleno)}); deltas previos {len(deltas)}; consolidar={consolidar}")
+    consolidar = bool(relleno) or bool(relleno_shard) or (len(deltas) + len(nuevos_recientes) >= PERFILES_CONSOLIDAR_DIAS) or not estado.get("base_hasta")
+    log(f"perfiles: pendientes {len(pendientes)} (recientes {len(nuevos_recientes)}, relleno {len(relleno)}); deltas previos {len(deltas)}; "
+        f"paquetes incompletos {len(desde_shard)} (relleno por paquetes {len(relleno_shard)} días); consolidar={consolidar}")
     # 1) leer los volcados que tocan
     por_dia = {}   # fecha → {pid: [partida...]}
     raw_reciente = None
@@ -1305,6 +1344,21 @@ def perfiles():
             log(f"perfiles: {d}: ERROR {ex!r}"); continue
         if d == ayer: raw_reciente = (d, raw)
         log(f"perfiles: {d}: {sum(len(v) for v in por_dia[d].values()):,} filas para {len(por_dia[d]):,} jugadores")
+    # relleno por paquetes: contiguo de más nuevo a más viejo; al primer fallo o al tope se para (el «desde» sigue siendo cierto)
+    por_dia_rel, rel_hasta = {}, {}   # fecha → {pid: [partida]}; paquete → fecha más vieja ya leída sin huecos
+    if relleno_shard:
+        alcance_rel = {p for p in alcance if str(p % PERFILES_SHARDS) in desde_shard}
+        for d in relleno_shard:
+            if time.time() - inicio > 90 * 60:
+                log("perfiles: relleno por paquetes: tope de tiempo; sigue la siguiente ejecución"); break
+            try:
+                raw = fetch(DUMP + f"match-{d}.parquet", timeout=300)
+                por_dia_rel[d] = perfiles_dia(d, raw, alcance_rel) if raw is not None else {}
+            except Exception as ex:
+                log(f"perfiles: relleno por paquetes {d}: ERROR {ex!r}"); break
+            for k, f in desde_shard.items():
+                if d < f: rel_hasta[k] = d
+        log(f"perfiles: relleno por paquetes: {len(por_dia_rel)} días ({min(por_dia_rel) if por_dia_rel else '-'} → {max(por_dia_rel) if por_dia_rel else '-'}) para {len(alcance_rel):,} jugadores")
     # muestra de ayer (siempre del volcado de ayer)
     if raw_reciente is None:
         raw_ayer = fetch(DUMP + f"match-{ayer}.parquet", timeout=300)
@@ -1317,16 +1371,18 @@ def perfiles():
             perfiles_muestra(raw_reciente[0], raw_reciente[1], perfiles_nombres(pids_m))
         except Exception as ex:
             log(f"perfiles: muestra: ERROR {ex!r}")
-    if not por_dia:
+    if not por_dia and not por_dia_rel:
         log("perfiles: sin días nuevos"); return
     limite = int((datetime.now(timezone.utc) - timedelta(days=PERFILES_DIAS)).timestamp())
     def shard_de(pid): return int(pid) % PERFILES_SHARDS
     deltas_previos = list(deltas)
     chispas_base = {}   # consolidación: la chispa de cada jugador sale de su año entero
     if consolidar:
-        # 2a) reescribir la base: base anterior + deltas previos + días leídos, por paquete
+        # 2a) reescribir la base: base anterior + deltas previos + días leídos (+ relleno por paquetes), por paquete.
+        # Si un paquete de la base existente no se lee (red, HTTP 500, 404), NO se consolida: escribirlo sin él borraría su año.
+        # Se deshace lo escrito y esta noche queda en modo deltas; la siguiente lo reintenta.
         nuevos = {}   # shard → {pid: [partidas]}
-        for d, por_pid in por_dia.items():
+        for d, por_pid in list(por_dia.items()) + list(por_dia_rel.items()):
             for pid, partidas in por_pid.items():
                 nuevos.setdefault(shard_de(pid), {}).setdefault(str(pid), []).extend(partidas)
         for fecha in deltas:   # los deltas se funden en la base y desaparecen
@@ -1335,25 +1391,40 @@ def perfiles():
                 if not dj: continue
                 for pid, partidas in dj.get("j", {}).items():
                     nuevos.setdefault(shard_de(pid), {}).setdefault(pid, []).extend(partidas)
-        for i in range(PERFILES_SHARDS):
-            base = perfiles_leer_gz(f"shard-{i:04d}.json.gz") or {"j": {}}
-            jug = base.setdefault("j", {})
-            for pid, partidas in nuevos.get(i, {}).items():
-                entrada = jug.setdefault(pid, [])
-                vistos = {f[0] for f in entrada}
-                for f in partidas:
-                    if f[0] not in vistos: entrada.append(f); vistos.add(f[0])
-            for pid in list(jug.keys()):
-                if int(pid) not in alcance: del jug[pid]; continue
-                m = [f for f in jug[pid] if f[1] >= limite]; m.sort(key=lambda f: -f[1]); jug[pid] = m
-                if not m: del jug[pid]
-            try: chispas_base.update(chispas_de_base(jug))
-            except Exception as ex: log(f"perfiles: chispas del paquete {i}: ERROR {ex!r}")
-            perfiles_escribir_gz(os.path.join(PERFILES_DIR, f"shard-{i:04d}.json.gz"), {"v": 2, "j": jug})
+        escritos = []
+        try:
+            for i in range(PERFILES_SHARDS):
+                base = perfiles_leer_gz(f"shard-{i:04d}.json.gz", estricto=bool(PERFILES_BASE_TAG)) or {"j": {}}
+                jug = base.setdefault("j", {})
+                for pid, partidas in nuevos.get(i, {}).items():
+                    entrada = jug.setdefault(pid, [])
+                    vistos = {f[0] for f in entrada}
+                    for f in partidas:
+                        if f[0] not in vistos: entrada.append(f); vistos.add(f[0])
+                for pid in list(jug.keys()):
+                    if int(pid) not in alcance: del jug[pid]; continue
+                    m = [f for f in jug[pid] if f[1] >= limite]; m.sort(key=lambda f: -f[1]); jug[pid] = m
+                    if not m: del jug[pid]
+                try: chispas_base.update(chispas_de_base(jug))
+                except Exception as ex: log(f"perfiles: chispas del paquete {i}: ERROR {ex!r}")
+                ruta = os.path.join(PERFILES_DIR, f"shard-{i:04d}.json.gz")
+                perfiles_escribir_gz(ruta, {"v": 2, "j": jug}); escritos.append(ruta)
+        except PerfilesBaseIlegible as ex:
+            log(f"perfiles: AVISO base ilegible ({ex}); no se consolida esta noche: la base {PERFILES_BASE_TAG} sigue intacta, "
+                f"los días nuevos van a deltas y la próxima ejecución lo reintenta")
+            for ruta in escritos:
+                try: os.remove(ruta)
+                except OSError: pass
+            consolidar = False; chispas_base = {}; por_dia_rel = {}; rel_hasta = {}
+    if consolidar:
         for fecha in deltas:   # marcar los deltas viejos para borrarlos de la release
             for g in range(PERFILES_GRUPOS):
                 open(os.path.join(PERFILES_DIR, f"BORRAR-delta-{fecha}-g{g}.json.gz"), "w").close()
         deltas = []
+        for k, f in rel_hasta.items():   # el relleno por paquetes ya está dentro de la base nueva
+            desde_shard[k] = f
+        for k in [k for k, f in desde_shard.items() if f <= candidatos[-1]]:
+            del desde_shard[k]; log(f"perfiles: paquete {k} completo (cubre el año)")
         estado["base_hasta"] = max(hechos | set(por_dia.keys()))
         estado["base_release_anterior"] = estado.get("base_release")
         estado["base_release"] = "perfiles-base-" + estado["base_hasta"] + "-" + datetime.now(timezone.utc).strftime("%H%M")
@@ -1363,6 +1434,7 @@ def perfiles():
         with open(os.path.join(PERFILES_DIR, "BASE_TAG"), "w") as f: f.write(estado["base_release"])
         log(f"perfiles: base consolidada ({PERFILES_SHARDS} paquetes) → release {estado['base_release']}")
     else:
+        estado["base_release_anterior"] = None   # sin base nueva no hay nada que borrar
         # 2b) solo deltas: un archivo por grupo y día
         for d, por_pid in por_dia.items():
             grupos = {}
@@ -1380,9 +1452,123 @@ def perfiles():
         log(f"perfiles: chispas: ERROR {ex!r}")
     estado.update({"v": 2, "shards": PERFILES_SHARDS, "grupos": PERFILES_GRUPOS, "dias": sorted(hechos), "deltas": sorted(deltas),
                    "hasta": max(hechos), "desde": min(hechos), "alcance": len(alcance), "generado": ahora(), "motor": UA,
-                   "civs": CIVS_DIC, "mapas": MAPAS_DIC})
+                   "civs": CIVS_DIC, "mapas": MAPAS_DIC, "desde_shard": dict(sorted(desde_shard.items(), key=lambda kv: int(kv[0])))})
     escribir_json(os.path.join(PERFILES_DIR, "index.json"), estado)
-    log(f"perfiles: cobertura {estado['desde']} → {estado['hasta']} ({len(hechos)} días); base hasta {estado.get('base_hasta')}; deltas {len(deltas)}; {len(alcance):,} jugadores")
+    log(f"perfiles: cobertura {estado['desde']} → {estado['hasta']} ({len(hechos)} días); base hasta {estado.get('base_hasta')}; deltas {len(deltas)}; {len(alcance):,} jugadores; paquetes incompletos {len(desde_shard)}")
+
+
+def perfiles_probar():
+    """Prueba sin red de perfiles(): descargas simuladas (release base, deltas, volcados diarios), 8 paquetes y 3 jugadores por
+    paquete. Casos: (1) HTTP 500 en un paquete base al consolidar ⇒ no se reescribe la base, no se marca nada para borrar y los
+    días nuevos van a deltas; (1b) un 500 pasajero se reintenta; (2) relleno de paquetes incompletos noche a noche hasta cubrir
+    el año, sin duplicar partidas; (3) índice con la cobertura real («desde_shard») y semilla de los paquetes perdidos."""
+    import tempfile, shutil, re, urllib.error
+    g = globals()
+    nombres_g = ("PERFILES_DIR", "PERFILES_SHARDS", "PERFILES_PERDIDOS_SEMILLA", "PERFILES_ESPERAS_BASE", "PERFILES_BASE_TAG",
+                 "fetch", "perfiles_alcance", "perfiles_elo_ayer", "perfiles_muestra", "perfiles_nombres", "perfiles_dia")
+    guardado = {k: g[k] for k in nombres_g}
+    fallos = []
+    def ok(cond, txt):
+        if not cond: fallos.append(txt); log(f"perfiles --probar: FALLO {txt}")
+    hoy = datetime.now(timezone.utc).date()
+    dia = lambda k: (hoy - timedelta(days=k)).isoformat()
+    ts = lambda f: int(datetime.fromisoformat(f + "T12:00:00+00:00").timestamp())
+    jugadores = list(range(1000, 1024))   # 3 por paquete (pid % 8)
+    def partida(pid, f): return [pid * 1000000 + int(f.replace("-", "")) % 1000000, ts(f), ts(f) + 1800, 0, 0, [[pid, 0, 1, 1000, 5, 1, 1]]]
+    gz = lambda o: gzip.compress(json.dumps(o).encode("utf-8"))
+    remoto, fallan, pedidos = {}, set(), []
+    def fetch_falso(url, timeout=900, intentos=3):
+        nombre = url.rsplit("/", 1)[-1]; pedidos.append(url)
+        if nombre in fallan: raise urllib.error.HTTPError(url, 500, "Internal Server Error", {}, None)
+        if url.startswith(DUMP):
+            m = re.match(r"match-(\d{4}-\d{2}-\d{2})\.parquet$", nombre)
+            return m.group(1).encode() if m else None
+        return remoto.get(url.split("/releases/download/", 1)[-1])
+    def dia_falso(fecha, raw, alcance):
+        return {p: [partida(p, fecha)] for p in jugadores if p in alcance}
+    tmp = tempfile.mkdtemp(prefix="perfiles-probar-")
+    tag = "perfiles-base-viejo"
+    dias = [dia(k) for k in range(2, PERFILES_DIAS + 1)]   # falta ayer
+    deltas = [dia(k) for k in range(2, 8)]                  # 6 deltas: con ayer, toca consolidar
+    def publicar_estado(desde_shard):
+        remoto.clear()
+        est = {"v": 2, "dias": dias, "deltas": deltas, "base_hasta": dia(8), "base_release": tag, "civs": [""], "mapas": [""], "desde": min(dias)}
+        if desde_shard is not None: est["desde_shard"] = desde_shard
+        remoto[f"{PERFILES_RELEASE}/index.json"] = json.dumps(est).encode()
+        for i in range(8):
+            remoto[f"{tag}/shard-{i:04d}.json.gz"] = gz({"v": 2, "j": {str(p): [partida(p, dia(k)) for k in range(8, PERFILES_DIAS + 1)]
+                                                                     for p in jugadores if p % 8 == i}})
+        for f in deltas:
+            for gg in range(PERFILES_GRUPOS):
+                remoto[f"{PERFILES_RELEASE}/delta-{f}-g{gg}.json.gz"] = gz({"v": 2, "j": {str(p): [partida(p, f)] for p in jugadores if p % 8 % PERFILES_GRUPOS == gg}})
+    def limpiar():
+        shutil.rmtree(tmp, ignore_errors=True); os.makedirs(tmp)
+    def indice(): return leer_json(os.path.join(tmp, "index.json"), {}) or {}
+    try:
+        g.update(PERFILES_DIR=tmp, PERFILES_SHARDS=8, PERFILES_ESPERAS_BASE=(0, 0), PERFILES_PERDIDOS_SEMILLA={}, fetch=fetch_falso,
+                 perfiles_alcance=lambda: set(jugadores), perfiles_elo_ayer=lambda f: None, perfiles_muestra=lambda *a: None,
+                 perfiles_nombres=lambda p: {}, perfiles_dia=dia_falso)
+        # (1) 500 persistente en el paquete 3 al consolidar
+        publicar_estado({}); limpiar(); fallan.add("shard-0003.json.gz")
+        perfiles(); idx = indice()
+        ok(not os.path.exists(os.path.join(tmp, "BASE_TAG")), "(1) con un 500 no debe haber BASE_TAG")
+        ok(not os.path.isdir(os.path.join(tmp, "base")), "(1) con un 500 no debe haber paquetes base nuevos")
+        ok(not [f for f in os.listdir(tmp) if f.startswith(("shard-", "BORRAR-"))], "(1) con un 500 no quedan paquetes ni marcas BORRAR")
+        ok(idx.get("base_release") == tag and not idx.get("base_release_anterior"), f"(1) la base sigue siendo {tag} y no se borra nada: {idx.get('base_release')} / {idx.get('base_release_anterior')}")
+        ok(dia(1) in idx.get("deltas", []) and len(idx.get("deltas", [])) == 7, f"(1) ayer debe ir a deltas: {idx.get('deltas')}")
+        ok(os.path.exists(os.path.join(tmp, f"delta-{dia(1)}-g0.json.gz")), "(1) falta el delta de ayer")
+        n3 = sum(u.endswith("shard-0003.json.gz") for u in pedidos)
+        ok(n3 == 1 + len(PERFILES_ESPERAS_BASE), f"(1) el paquete 3 debe reintentarse: {n3} intentos")
+        # (1b) 500 pasajero (solo el primer intento): se reintenta y consolida con el año intacto
+        publicar_estado({}); limpiar(); fallan.clear()
+        primero = []
+        def fetch_pasajero(url, timeout=900, intentos=3):
+            if url.endswith("shard-0005.json.gz") and not primero:
+                primero.append(1); raise urllib.error.HTTPError(url, 500, "Internal Server Error", {}, None)
+            return fetch_falso(url, timeout, intentos)
+        g["fetch"] = fetch_pasajero
+        perfiles(); idx = indice()
+        g["fetch"] = fetch_falso
+        ok(idx.get("base_release_anterior") == tag and idx.get("deltas") == [], f"(1b) un 500 pasajero se reintenta y consolida: {idx.get('base_release_anterior')} {idx.get('deltas')}")
+        with gzip.open(os.path.join(tmp, "base", "shard-0005.json.gz"), "rt", encoding="utf-8") as f: j5 = json.load(f)["j"]
+        ok(j5 and all(len(v) >= PERFILES_DIAS - 1 for v in j5.values()), f"(1b) el paquete 5 conserva el año: {[len(v) for v in j5.values()]}")
+        # (2)+(3) paquetes 2 y 6 incompletos: solo guardan sus últimos días (como tras el 2026-10-12)
+        publicar_estado({"2": dia(14), "6": dia(14)}); limpiar()
+        for i in (2, 6):
+            remoto[f"{tag}/shard-{i:04d}.json.gz"] = gz({"v": 2, "j": {str(p): [partida(p, dia(k)) for k in range(8, 15)] for p in jugadores if p % 8 == i}})
+        noches = 0
+        while noches < 20:
+            perfiles(); noches += 1; idx = indice()
+            for f in os.listdir(tmp):   # lo que consumiría data.yml; la noche siguiente lee la base local como publicada
+                if f.startswith("BORRAR-") or f == "BASE_TAG": os.remove(os.path.join(tmp, f))
+            if noches == 1:
+                ok(idx.get("desde_shard") == {"2": dia(14 + PERFILES_RELLENO_SHARD_DIAS), "6": dia(14 + PERFILES_RELLENO_SHARD_DIAS)},
+                   f"(3) tras una noche el índice da la cobertura real: {idx.get('desde_shard')}")
+            if not idx.get("desde_shard"): break
+        esperadas = -(-(PERFILES_DIAS - 14) // PERFILES_RELLENO_SHARD_DIAS)
+        ok(noches == esperadas and idx.get("desde_shard") == {}, f"(2) relleno completo en {noches} noches (esperadas {esperadas}): {idx.get('desde_shard')}")
+        ok(idx.get("deltas") == [dia(1)] or idx.get("deltas") == [], f"(2) deltas: {idx.get('deltas')}")
+        cuenta = {}
+        for i in range(8):
+            with gzip.open(os.path.join(tmp, "base", f"shard-{i:04d}.json.gz"), "rt", encoding="utf-8") as f: ji = json.load(f)["j"]
+            for pid, v in ji.items():
+                ids = [x[0] for x in v]
+                ok(len(ids) == len(set(ids)), f"(2) paquete {i} jugador {pid}: partidas duplicadas")
+                cuenta[pid] = len(v)
+        ok(len(cuenta) == len(jugadores) and len(set(cuenta.values())) == 1 and min(cuenta.values()) >= PERFILES_DIAS - 1,
+           f"(2) los paquetes rellenados cubren el año igual que los completos: {sorted(set(cuenta.values()))}")
+        perfiles()   # completos: sin días nuevos ni relleno, la noche siguiente no consolida
+        ok(not os.path.exists(os.path.join(tmp, "BASE_TAG")) and not indice().get("desde_shard"), "(2) completo: el relleno se apaga")
+        # (3) índice sin «desde_shard» (publicado antes de este cambio) y con semilla: se siembra y empieza el relleno
+        g["PERFILES_PERDIDOS_SEMILLA"] = {3: dia(10)}
+        publicar_estado(None); limpiar()
+        perfiles(); idx = indice()
+        ok(idx.get("desde_shard") == {"3": dia(10 + PERFILES_RELLENO_SHARD_DIAS)}, f"(3) semilla aplicada y avanzada: {idx.get('desde_shard')}")
+    finally:
+        g.update(guardado)
+        shutil.rmtree(tmp, ignore_errors=True)
+    log(f"perfiles --probar: {len(fallos)} fallos")
+    return not fallos
 
 
 # ----------------------------------------------------------------------------- torneos (Liquipedia)
@@ -5652,7 +5838,7 @@ def directos_probar():
 if __name__ == "__main__":
     if "--probar" in sys.argv:          # sin red: torneos, noticias y partidos (o solo los nombrados: --probar noticias)
         pruebas = {"torneos": torneos_probar, "logos": logos_probar, "detalle": detalle_probar, "noticias": noticias_probar, "partidos": partidos_probar, "comunidad": comunidad_probar,
-                   "streamers": streamers_probar, "directos": directos_probar}
+                   "streamers": streamers_probar, "directos": directos_probar, "perfiles": perfiles_probar}
         pedidas = [a for a in sys.argv[1:] if a in pruebas] or list(pruebas)
         resultados = [pruebas[a]() for a in pedidas]
         sys.exit(0 if all(resultados) else 1)

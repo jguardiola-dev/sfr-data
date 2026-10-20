@@ -42,6 +42,7 @@ jobs:
         continue-on-error: true    # si una parte falla, se publica lo que haya salido bien y lo recuperado
       - name: publicar perfiles (releases «perfiles» y base)
         if: hashFiles('perfiles/index.json') != ''
+        continue-on-error: true    # una base incompleta corta este paso (exit 1) pero la rama data se publica igual
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -52,6 +53,10 @@ jobs:
             tag=$(cat perfiles/BASE_TAG)
             gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "$tag" --notes "Paquetes base de perfiles (aoe2radar). Almacén de datos, no una versión." --latest=false
             subir "$tag" perfiles/base/shard-*.json.gz
+            # la base nueva solo vale con sus 256 paquetes: si falta alguno no se publica el índice ni se borra nada
+            # (índice, deltas y base anterior siguen intactos y la próxima noche se reintenta la consolidación)
+            n=$(gh release view "$tag" --json assets -q '[.assets[].name | select(test("^shard-[0-9]{4}[.]json[.]gz$"))] | length')
+            if [ "$n" != "256" ]; then echo "::error::base $tag incompleta ($n/256 paquetes): no se publica el índice ni se borra la base anterior"; exit 1; fi
           fi
           for m in perfiles/BORRAR-*; do [ -e "$m" ] || continue; a=$(basename "$m"); a=${a#BORRAR-}; gh release delete-asset perfiles "$a" -y || true; rm -f "$m"; sleep 2; done
           subir perfiles $(ls perfiles/*.json.gz)
@@ -59,7 +64,10 @@ jobs:
           # la release base anterior se borra entera (una sola llamada) una vez publicado el índice nuevo
           ant=$(python3 -c "import json;print(json.load(open('perfiles/index.json')).get('base_release_anterior') or '')")
           act=$(python3 -c "import json;print(json.load(open('perfiles/index.json')).get('base_release') or '')")
-          if [ -n "$ant" ] && [ "$ant" != "$act" ]; then gh release delete "$ant" -y --cleanup-tag || true; fi
+          if [ -n "$ant" ] && [ "$ant" != "$act" ]; then
+            n=$(gh release view "$act" --json assets -q '[.assets[].name | select(test("^shard-[0-9]{4}[.]json[.]gz$"))] | length' || echo 0)
+            if [ "$n" = "256" ]; then gh release delete "$ant" -y --cleanup-tag || true; else echo "::warning::$act tiene $n/256 paquetes: no se borra $ant"; fi
+          fi
           limite=$(date -u -d "9 days ago" +%F)
           for a in $(gh release view perfiles --json assets -q '.assets[].name' | grep -E '^elo-[0-9]{4}-[0-9]{2}-[0-9]{2}\.json\.gz$'); do
             f=${a#elo-}; f=${f%.json.gz}
