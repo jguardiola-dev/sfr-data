@@ -9,6 +9,10 @@ on:
         description: "Perfiles: reparar de una pasada los huecos de huecos_shard (relleno sin límite de días)"
         type: boolean
         default: false
+      pasos:
+        description: "Solo estos pasos de build_data.py, separados por espacios (vacío = todos, como de noche). Ej.: mapas_torneo"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -31,7 +35,7 @@ jobs:
       - name: datos previos (rama data)
         run: |
           if git fetch -q --depth=1 origin data:refs/remotes/origin/data 2>/dev/null; then
-            for p in civstats logos torneos noticias ladder.json clans.json.gz dispersion.json.gz mapas.json torneos.json torneos_historico.json noticias.json partidos.json torneos_comunidad.json streamers.json directos.json; do
+            for p in civstats logos torneos noticias ladder.json clans.json.gz dispersion.json.gz mapas.json mapas_torneo.json torneos.json torneos_historico.json noticias.json partidos.json torneos_comunidad.json streamers.json directos.json; do
               git checkout origin/data -- "$p" 2>/dev/null || true
             done
             echo "recuperados de la rama data: $(ls civstats/dias 2>/dev/null | wc -l) días"
@@ -39,12 +43,16 @@ jobs:
             echo "todavía no hay rama data (primera ejecución)"
           fi
       - name: generar datos
-        run: python build_data.py
+        run: |
+          # sin «pasos» (de noche o a mano sin escribir nada), todos; con «pasos», solo los que sean nombres de paso (letras y _)
+          pasos=$(printf '%s' "$PASOS" | tr -c 'a-z_ ' ' ')
+          python build_data.py $pasos
         env:
           # app de desarrollador de Twitch (solo para streamers.json); si faltan los secretos, el paso se salta con ::notice
           TWITCH_CLIENT_ID: ${{ secrets.TWITCH_CLIENT_ID }}
           TWITCH_CLIENT_SECRET: ${{ secrets.TWITCH_CLIENT_SECRET }}
           PERFILES_REPARAR: ${{ inputs.reparar && '1' || '' }}
+          PASOS: ${{ inputs.pasos }}
         continue-on-error: true    # si una parte falla, se publica lo que haya salido bien y lo recuperado
       - name: publicar perfiles (releases «perfiles» y base)
         if: hashFiles('perfiles/index.json') != ''
@@ -88,7 +96,7 @@ jobs:
           git config user.email "bot@users.noreply.github.com"
           git checkout -q --orphan publicacion
           git rm -r -q -f --cached . 2>/dev/null || true
-          for f in ladder.json clans.json.gz dispersion.json.gz mapas.json torneos.json torneos_historico.json noticias.json partidos.json torneos_comunidad.json streamers.json directos.json; do
+          for f in ladder.json clans.json.gz dispersion.json.gz mapas.json mapas_torneo.json torneos.json torneos_historico.json noticias.json partidos.json torneos_comunidad.json streamers.json directos.json; do
             [ -f "$f" ] && git add -f "$f" || true
           done
           [ -d civstats ] && git add -f civstats || true
