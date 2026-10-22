@@ -5935,7 +5935,7 @@ def directos_probar():
 # esté en el histórico (que solo cubre el año en curso) ni tenga ficha. Esquema (v1):
 # {"v":1, "generado":ISO, "hoy":"AAAA-MM-DD", "fuente":{…Liquipedia, CC BY-SA 3.0…},
 #  "ranked":{"fecha":"AAAA-MM-DD" (día del resumen usado), "fuente":"aoe2companion…",
-#            "pools":{"rm_1v1"|"rm_team"|"ew_1v1"|"ew_team":[{"nombre","clave"}]}} | null,   (de más a menos partidas)
+#            "pools":{"rm_1v1"|"rm_team"|"ew_1v1"|"ew_team":[{"nombre","clave",["img"]}]}} | null,   (de más a menos partidas)
 #  "torneos":[{"nombre","url","tier":"S|A|B","tipo"|null,"inicio","fin","estado","modo":"1v1|2v2|…|mixto|FFA|equipos"|null,
 #              ["logo", "logo_oscuro"] (los de torneos_historico.json: {"archivo":"logos/torneos/<x>.png","fuente","credito","licencia"}),
 #              "mapas":[{"nombre" (el del juego si se conoce; si no, el de Liquipedia),"liquipedia" (tal cual),
@@ -6153,20 +6153,29 @@ def mt_img_ficha(ii, ficha, nombre):
     return {"fuente": fuente if url_https_ok(fuente) else None, "licencia": lic or None, "credito": credito[:300]}
 
 
+def mt_todos_los_mapas(out):
+    """Los dicts de mapa del archivo: los de cada torneo y los de los pools ranked (también llevan miniatura)."""
+    for t in out["torneos"]:
+        yield from t["mapas"]
+    for lista in ((out.get("ranked") or {}).get("pools") or {}).values():
+        for m in lista:
+            if isinstance(m, dict) and m.get("nombre"):
+                yield m
+
+
 def mt_imagenes(out, previo, img_detalle, pedir_paginas, pedir_imageinfo, pedir_fichas, descargar, max_descargas=MAPAS_TORNEO_IMG_MAX):
-    """Pone «img» a los mapas de out["torneos"] y rellena out["imagenes"] (ver el bloque de arriba). img_detalle:
+    """Pone «img» a los mapas de out["torneos"] y de los pools ranked y rellena out["imagenes"] (ver el bloque de arriba). img_detalle:
     {mt_norm(nombre): archivo} de las fichas; pedir_paginas(títulos) → {mt_norm(título): wikitexto}; pedir_imageinfo(archivos)
     → {archivo: imageinfo}; pedir_fichas(archivos) → {archivo: FileInfo}; descargar(url) → bytes|None. Si una petición falla,
     se queda lo que haya (los mapas sin imagen lo intentan en la pasada siguiente). Devuelve (mapas con img, mapas distintos,
     descargas)."""
     previas = (previo or {}).get("imagenes") or {}
     por_ruta = {}
-    for t in out["torneos"]:
-        for m in t["mapas"]:
-            m.pop("img", None)
-            ruta = mt_img_ruta(m["nombre"])
-            if ruta:
-                por_ruta.setdefault(ruta, []).append(m)
+    for m in mt_todos_los_mapas(out):
+        m.pop("img", None)
+        ruta = mt_img_ruta(m["nombre"])
+        if ruta:
+            por_ruta.setdefault(ruta, []).append(m)
     hechas, pendientes = {}, {}
     for ruta, ms in por_ruta.items():
         if os.path.exists(ruta) and isinstance(previas.get(ruta), dict):
@@ -6230,12 +6239,11 @@ def mt_imagenes(out, previo, img_detalle, pedir_paginas, pedir_imageinfo, pedir_
 def mt_img_podar(out):
     """Quita «img» y «imagenes» cuyo PNG no esté y borra de mapas_torneo/ los PNG que ya no usa ningún mapa. (quedan, bytes)."""
     usadas = set()
-    for t in out["torneos"]:
-        for m in t["mapas"]:
-            if m.get("img") and not os.path.exists(m["img"]):
-                m.pop("img")
-            if m.get("img"):
-                usadas.add(m["img"])
+    for m in mt_todos_los_mapas(out):
+        if m.get("img") and not os.path.exists(m["img"]):
+            m.pop("img")
+        if m.get("img"):
+            usadas.add(m["img"])
     out["imagenes"] = {r: f for r, f in (out.get("imagenes") or {}).items() if r in usadas}
     quedan = nbytes = 0
     if os.path.isdir(MAPAS_TORNEO_IMG_DIR):
@@ -6435,6 +6443,8 @@ def mt_imagenes_probar(out, img_detalle):
                 fallos.append(f"páginas pedidas: {pedidas['paginas']} (Crownwood sale de la ficha del torneo)")
             if "Crownwood AoE2 map.png" not in {a for l in pedidas["imageinfo"] for a in l}:
                 fallos.append("imageinfo sin el archivo de la ficha del torneo")
+            if not any("Haboob" in l for l in pedidas["paginas"]):
+                fallos.append(f"los mapas del pool ranked también piden su miniatura: {pedidas['paginas']}")
             # segunda pasada: lo bajado no se vuelve a pedir ni a bajar; con cupo, sigue con el resto
             pedidas.clear()
             o2 = json.loads(json.dumps(out))
@@ -6443,7 +6453,9 @@ def mt_imagenes_probar(out, img_detalle):
                 fallos.append(f"segunda pasada: {bajados2} descargas, {n2}/{total2} con imagen (antes {n})")
             if any(mt_img_ruta("Crownwood") == url for url in pedidas["descargas"]):
                 fallos.append("volvió a bajar una miniatura ya en disco")
-            rutas = {m.get("img") for t in o2["torneos"] for m in t["mapas"] if m.get("img")}
+            rutas = {m.get("img") for m in mt_todos_los_mapas(o2) if m.get("img")}
+            if not any(m.get("img") for m in o2["ranked"]["pools"]["rm_1v1"]):
+                fallos.append("el pool ranked 1v1 sin miniaturas")
             if not all(r.startswith(MAPAS_TORNEO_IMG_DIR + "/") and r.endswith(".png") and os.path.exists(r) for r in rutas):
                 fallos.append(f"rutas: {sorted(rutas)[:3]}")
             if set(o2["imagenes"]) != rutas:
