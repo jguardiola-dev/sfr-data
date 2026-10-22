@@ -84,6 +84,11 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      TORNEOS_DETALLE_POR_NOCHE páginas por noche, los torneos EN CURSO primero; en curso se renueva
                      cada noche, próximo cada 3 días, terminado una vez tras acabar. Lo anterior se conserva si una página falla.
                      Prueba sin red: python build_data.py --probar detalle. Solo este paso: python build_data.py detalle
+- mapas_torneo.json  map pools de los torneos S/A/B del último año (de las fichas de detalle ya bajadas: ninguna petición
+                     nueva a Liquipedia) y el pool ranked actual de cada cola (mapas jugados el último día de civstats/dias),
+                     para la ruleta de mapas de «Equipos». Se acumula: un torneo sigue un año después de acabar. Esquema y
+                     reglas en la sección «mapas de torneo» (más abajo). Contenido de Liquipedia: CC BY-SA 3.0.
+                     Prueba sin red: python -X utf8 -I build_data.py --probar mapas_torneo. Solo este paso: python build_data.py mapas_torneo
 - streamers.json     imagen de perfil pública de canales de Twitch (API Helix; ver streamers()). Esquema (v1):
                      {"v":1, "generado":ISO, "fuente":"Twitch (imagen de perfil pública, solo para dar crédito y enlazar al canal)",
                       "canales":{"<login>":{"nombre", "avatar_url" (https://static-cdn.jtvnw.net/…), "url":"https://twitch.tv/<login>"}},
@@ -5902,14 +5907,258 @@ def directos_probar():
     return not fallos
 
 
+# ----------------------------------------------------------------------------- mapas de torneo y pool ranked
+# mapas_torneo.json: para la ruleta de mapas de «Equipos» de la app. Sin pedir NADA nuevo a Liquipedia: los mapas salen de las
+# fichas de detalle que ya trae el paso «detalle» (torneos/<slug>.json, sección «Map Pool») y los datos del torneo de
+# torneos_historico.json; el pool ranked, del último resumen diario de partidas (civstats/dias: los mapas jugados ese día en
+# cada cola ranked son el pool en rotación, porque esas colas solo dejan jugar esos). Una sola llamada a la API del companion
+# (/maps, el catálogo con los nombres del juego) para normalizar; si falla, se sigue sin él.
+# Se ACUMULA con lo ya publicado: un torneo sigue en el archivo hasta MAPAS_TORNEO_DIAS días después de acabar aunque ya no
+# esté en el histórico (que solo cubre el año en curso) ni tenga ficha. Esquema (v1):
+# {"v":1, "generado":ISO, "hoy":"AAAA-MM-DD", "fuente":{…Liquipedia, CC BY-SA 3.0…},
+#  "ranked":{"fecha":"AAAA-MM-DD" (día del resumen usado), "fuente":"aoe2companion…",
+#            "pools":{"rm_1v1"|"rm_team"|"ew_1v1"|"ew_team":[{"nombre","clave"}]}} | null,   (de más a menos partidas)
+#  "torneos":[{"nombre","url","tier":"S|A|B","tipo"|null,"inicio","fin","estado","modo":"1v1|2v2|…|mixto|FFA|equipos"|null,
+#              "mapas":[{"nombre" (el del juego si se conoce; si no, el de Liquipedia),"liquipedia" (tal cual),
+#                        "juego":true|false (mapa del juego, no uno de autor del torneo)}]}]}
+# Orden de «torneos»: tier S, A, B; dentro, el que empieza más tarde primero. Fuera: showmatches y los que repiten (subconjunto)
+# el pool de su torneo padre (URL prefijo: «Warlords/5/Qualifier/1» bajo «Warlords/5»). Sin resultados (nada de spoilers).
+# Prueba sin red: python -X utf8 -I build_data.py --probar mapas_torneo. Solo este paso: python build_data.py mapas_torneo
+MAPAS_TORNEO = "mapas_torneo.json"
+MAPAS_TORNEO_DIAS = 365         # un torneo terminado se ofrece hasta un año después de acabar
+MAPAS_TORNEO_TIERS = ("S", "A", "B")
+MAPAS_TORNEO_MAX = 40           # mapas por torneo
+RANKED_CUOTA = 0.01             # un mapa entra en el pool ranked del día con al menos el 1 % de las partidas de esa cola
+RANKED_LADDERS = {"rm_1v1": ("rm_1v1",), "rm_team": ("rm_team", "rm_2v2", "rm_3v3", "rm_4v4"),
+                  "ew_1v1": ("ew_1v1",), "ew_team": ("ew_team", "ew_2v2", "ew_3v3", "ew_4v4")}
+
+
+def mt_norm(s):
+    """Clave para comparar nombres de mapa: sin acentos, minúsculas y solo letras y números («Coast Arena» = «Coastarena»)."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]", "", s)
+
+
+def mt_catalogo():
+    """{mapId: mapName} del catálogo de mapas del companion (una llamada); {} si falla."""
+    try:
+        raw = fetch(f"{API}/maps?language=en", timeout=60, intentos=2)
+        out = {}
+        for m in (json.loads(raw.decode("utf-8")) if raw else []):
+            if isinstance(m, dict) and isinstance(m.get("mapId"), str) and isinstance(m.get("mapName"), str) and m["mapName"].strip():
+                out[m["mapId"].strip()] = m["mapName"].strip()
+        return out
+    except Exception as ex:
+        log(f"mapas_torneo: catálogo del companion no disponible: {ex!r}")
+        return {}
+
+
+def mt_nombre_clave(clave, catalogo):
+    """Nombre visible de una clave de los volcados («rm_black-forest», «cm_pilgrims»): el del catálogo o nombre_mapa()."""
+    return catalogo.get(clave) or nombre_mapa(clave)
+
+
+def mt_indice(catalogo, claves_juego):
+    """{mt_norm(nombre): nombre del juego} con los nombres del catálogo, sus mapId sin prefijo y las claves de mapas.json."""
+    idx = {}
+    for mid, nom in sorted(catalogo.items()):
+        idx.setdefault(mt_norm(nom), nom)
+    for mid, nom in sorted(catalogo.items()):
+        idx.setdefault(mt_norm(mid.split("_", 1)[-1]), nom)
+    for k in sorted(claves_juego or ()):
+        if k and "(" not in k and "[" not in k:          # «(custom)», «(scenario)»: no son mapas del juego
+            idx.setdefault(mt_norm(k), " ".join(p[:1].upper() + p[1:] for p in k.split(" ")))
+    idx.pop("", None)
+    return idx
+
+
+def mt_ranked(dia, catalogo):
+    """Pools ranked de un resumen diario ({"fecha", "mapas": [[modo, clave, partidas]…]}): por cola, los mapas con al
+    menos RANKED_CUOTA de sus partidas, de más a menos jugados. None si el resumen no trae mapas."""
+    if not dia or not dia.get("mapas"):
+        return None
+    pools = {}
+    for lb, modos in RANKED_LADDERS.items():
+        suma = defaultdict(int)
+        for fila in dia["mapas"]:
+            if len(fila) >= 3 and fila[0] in modos and fila[1] and fila[1] != "unknown" and isinstance(fila[2], (int, float)):
+                suma[fila[1]] += fila[2]
+        total = sum(suma.values())
+        lista, vistos = [], set()
+        for clave, n in sorted(suma.items(), key=lambda x: (-x[1], x[0])):
+            nom = mt_nombre_clave(clave, catalogo)
+            if total and n / total >= RANKED_CUOTA and mt_norm(nom) not in vistos:
+                vistos.add(mt_norm(nom))
+                lista.append({"nombre": nom, "clave": clave})
+        if lista:
+            pools[lb] = lista
+    if not pools:
+        return None
+    return {"fecha": dia.get("fecha"), "fuente": "aoe2companion.com (volcado diario de partidas: mapas jugados ese día en cada cola ranked)",
+            "pools": pools}
+
+
+def mt_mapas(nombres, indice):
+    """Mapas de Liquipedia → [{"nombre","liquipedia","juego"}]: nombre del juego si se reconoce; sin repetir (por mt_norm)."""
+    out, vistos = [], set()
+    for x in nombres or ():
+        if not isinstance(x, str) or not x.strip():
+            continue
+        k = mt_norm(x)
+        if not k or k in vistos or k in ("tbd", "tba", "mappool", "maps"):
+            continue
+        vistos.add(k)
+        juego = indice.get(k)
+        out.append({"nombre": juego or x.strip(), "liquipedia": x.strip(), "juego": juego is not None})
+    return out[:MAPAS_TORNEO_MAX]
+
+
+def mt_ruta_url(url):
+    return urllib.parse.unquote(url.split("/ageofempires/", 1)[-1]).replace(" ", "_").strip("/").lower()
+
+
+def mt_quitar_repetidos(torneos):
+    """Fuera el torneo cuyo pool es un subconjunto del de otro de la lista cuya URL es un prefijo de la suya (la clasificatoria
+    o la división de una liga con los mismos mapas que la liga)."""
+    rutas = [(mt_ruta_url(t["url"]), {mt_norm(m["nombre"]) for m in t["mapas"]}) for t in torneos]
+    out = []
+    for i, t in enumerate(torneos):
+        r, ms = rutas[i]
+        if not any(j != i and r.startswith(r2 + "/") and ms <= ms2 for j, (r2, ms2) in enumerate(rutas)):
+            out.append(t)
+    return out
+
+
+def mt_torneos(historico, detalles, previos, indice, hoy):
+    """La lista «torneos»: los del histórico (tier S/A/B, sin showmatches) con mapas en su ficha, más los de la versión
+    anterior que ya no salgan (hasta MAPAS_TORNEO_DIAS días tras acabar). detalles = {url: ficha}."""
+    limite = (hoy - timedelta(days=MAPAS_TORNEO_DIAS)).isoformat()
+    por_url = {}
+    for t in previos or ():
+        if isinstance(t, dict) and t.get("url") and t.get("mapas") and t.get("inicio") and (t.get("fin") or "") >= limite:
+            por_url[t["url"]] = dict(t, mapas=mt_mapas([x.get("liquipedia") or x.get("nombre") for x in t["mapas"] if isinstance(x, dict)], indice))
+    for t in historico or ():
+        if not t.get("url") or t.get("tier") not in MAPAS_TORNEO_TIERS or t.get("tipo") == "Showmatch":
+            continue
+        if not t.get("inicio") or not t.get("fin") or t["fin"] < limite:
+            continue
+        mapas = mt_mapas((detalles.get(t["url"]) or {}).get("mapas"), indice)
+        if not mapas:
+            continue                            # sin ficha o sin «Map Pool» (si ya estaba, se queda lo de antes)
+        por_url[t["url"]] = {"nombre": t.get("nombre") or t["url"], "url": t["url"], "tier": t["tier"], "tipo": t.get("tipo"),
+                             "inicio": t["inicio"], "fin": t["fin"], "estado": t.get("estado"), "modo": t.get("formato"),
+                             "mapas": mapas}
+    for t in por_url.values():                  # los que ya no están en el histórico: su estado, con la fecha de hoy
+        if t.get("fin") and t["fin"] < hoy.isoformat():
+            t["estado"] = "terminado"
+    lista = [t for t in por_url.values() if t.get("mapas")]
+    lista.sort(key=lambda t: t["nombre"])
+    lista.sort(key=lambda t: t["inicio"], reverse=True)
+    lista.sort(key=lambda t: {"S": 0, "A": 1, "B": 2}.get(t.get("tier"), 3))
+    return mt_quitar_repetidos(lista)
+
+
+def mt_componer(historico, detalles, previo, dia, catalogo, claves_juego, hoy, generado):
+    indice = mt_indice(catalogo, claves_juego)
+    ranked = mt_ranked(dia, catalogo) or (previo or {}).get("ranked")
+    fuente = (historico or {}).get("fuente") or (previo or {}).get("fuente") or {
+        "nombre": "Liquipedia", "url": "https://liquipedia.net/ageofempires/", "licencia": "CC BY-SA 3.0",
+        "licencia_url": "https://creativecommons.org/licenses/by-sa/3.0/"}
+    fuente = {k: v for k, v in fuente.items() if k != "generado"}
+    return {"v": 1, "generado": generado, "hoy": hoy.isoformat(), "fuente": fuente, "ranked": ranked,
+            "torneos": mt_torneos((historico or {}).get("torneos"), detalles, (previo or {}).get("torneos"), indice, hoy)}
+
+
+def mapas_torneo():
+    """Paso «mapas_torneo»: escribe mapas_torneo.json (ver el bloque de arriba). Lo que falte se queda como estaba."""
+    hoy = datetime.now(timezone.utc).date()
+    previo = leer_json(MAPAS_TORNEO, None)
+    hist = leer_json(TORNEOS_HISTORICO, None) or {}
+    detalles = {}
+    for t in hist.get("torneos", []):
+        if t.get("url"):
+            d = leer_json(os.path.join(TORNEOS_DETALLE_DIR, detalle_slug(t["url"]) + ".json"), None)
+            if d:
+                detalles[t["url"]] = d
+    dias = sorted(a for a in os.listdir(DIR_DIAS) if a.endswith(".json.gz")) if os.path.isdir(DIR_DIAS) else []
+    dia = leer_json(os.path.join(DIR_DIAS, dias[-1]), None) if dias else None
+    if dia and not dia.get("fecha"):
+        dia["fecha"] = dias[-1][:10]
+    claves = (leer_json("mapas.json", {}) or {}).get("mapas", {}).keys()
+    out = mt_componer(hist, detalles, previo, dia, mt_catalogo(), claves, hoy, ahora())
+    if not out["torneos"] and previo and previo.get("torneos"):
+        print("::warning title=mapas_torneo::ningún torneo con mapas: se conserva la lista anterior", flush=True)
+        out["torneos"] = previo["torneos"]
+    if not out["ranked"]:
+        print("::warning title=mapas_torneo::sin resumen diario de partidas: no hay pool ranked", flush=True)
+    escribir_json(MAPAS_TORNEO, out)
+    pools = {k: len(v) for k, v in ((out["ranked"] or {}).get("pools") or {}).items()}
+    log(f"mapas_torneo: {len(out['torneos'])} torneos, {sum(len(t['mapas']) for t in out['torneos'])} mapas; ranked "
+        f"{(out['ranked'] or {}).get('fecha')} {pools}")
+
+
+def mapas_torneo_probar():
+    """Prueba sin red: fichas reales guardadas (las 3 de torneo_detalle_muestra.json pasadas por detalle_componer y los
+    mapas de otras fichas reales de la rama data), un resumen diario real y el catálogo real del companion recortado."""
+    m = leer_json(os.path.join("pruebas", "mapas_torneo_muestra.json"))
+    fallos = []
+    hoy = date.fromisoformat(m["hoy"])
+    detalles = {u: {"mapas": v} for u, v in m["detalles"].items()}
+    for caso in leer_json(TORNEOS_DETALLE_MUESTRA)["casos"]:          # HTML real de Liquipedia → mapas
+        d = detalle_componer(caso["html"], caso["torneo"], "2026-10-19T05:00:00+00:00")
+        detalles[caso["torneo"]["url"]] = {"mapas": d["mapas"]}
+    out = mt_componer(m["historico"], detalles, m["previo"], m["dia"], m["catalogo"], m["claves_juego"], hoy, "2026-10-22T05:00:00+00:00")
+    pools = (out["ranked"] or {}).get("pools") or {}
+    for lb, esp in m["esperado"]["ranked"].items():
+        if [x["nombre"] for x in pools.get(lb, [])] != esp:
+            fallos.append(f"ranked {lb}: {[x['nombre'] for x in pools.get(lb, [])]}, se esperaba {esp}")
+    if (out["ranked"] or {}).get("fecha") != m["dia"]["fecha"]:
+        fallos.append(f"ranked fecha {(out['ranked'] or {}).get('fecha')}")
+    urls = [t["url"].split("/ageofempires/", 1)[-1] for t in out["torneos"]]
+    if urls != m["esperado"]["orden"]:
+        fallos.append(f"orden {urls}, se esperaba {m['esperado']['orden']}")
+    por = {t["url"].split("/ageofempires/", 1)[-1]: t for t in out["torneos"]}
+    for u, esp in m["esperado"]["mapas"].items():
+        v = [[x["nombre"], x["liquipedia"], x["juego"]] for x in (por.get(u) or {}).get("mapas", [])][:len(esp)]
+        if v != esp:
+            fallos.append(f"mapas de {u}: {v}, se esperaba {esp}")
+    for u, esp in m["esperado"].get("campos", {}).items():
+        for k, val in esp.items():
+            if (por.get(u) or {}).get(k) != val:
+                fallos.append(f"{u}.{k} = {(por.get(u) or {}).get(k)!r}, se esperaba {val!r}")
+    if "generado" in out["fuente"] or out["fuente"].get("licencia") != "CC BY-SA 3.0":
+        fallos.append(f"fuente {out['fuente']}")
+    for t in out["torneos"]:
+        if any(k in t for k in ("ganador", "finalista", "resultados")):
+            fallos.append(f"{t['nombre']}: lleva resultados (spoiler)")
+    for a, b in (("Coast Arena", "Coastarena"), ("Front Line", "Frontline"), ("Festa da Pólvora", "festa da polvora")):
+        if mt_norm(a) != mt_norm(b):
+            fallos.append(f"mt_norm({a!r}) != mt_norm({b!r})")
+    # sin resumen diario ni fichas: el ranked y los torneos anteriores; sin nada: ranked None
+    o2 = mt_componer(m["historico"], {}, out, None, {}, (), hoy, "x")
+    if o2["ranked"] != out["ranked"] or [t["url"] for t in o2["torneos"]] != [t["url"] for t in out["torneos"]]:
+        fallos.append("sin día ni fichas debía conservar el ranked y los torneos anteriores")
+    if mt_componer(None, {}, None, None, {}, (), hoy, "x")["ranked"] is not None:
+        fallos.append("sin nada, ranked debía ser None")
+    # pasado el año tras acabar, fuera (aunque estuvieran en el archivo anterior)
+    o3 = mt_componer(None, {}, out, None, {}, (), hoy + timedelta(days=MAPAS_TORNEO_DIAS + 400), "x")
+    if o3["torneos"]:
+        fallos.append(f"caducados que siguen: {[t['nombre'] for t in o3['torneos']]}")
+    for f in fallos:
+        log("FALLO", f)
+    log(f"mapas_torneo --probar: {len(out['torneos'])} torneos, ranked {({k: len(v) for k, v in pools.items()})}, {len(fallos)} fallos")
+    return not fallos
+
+
 if __name__ == "__main__":
     if "--probar" in sys.argv:          # sin red: torneos, noticias y partidos (o solo los nombrados: --probar noticias)
         pruebas = {"torneos": torneos_probar, "logos": logos_probar, "detalle": detalle_probar, "noticias": noticias_probar, "partidos": partidos_probar, "comunidad": comunidad_probar,
-                   "streamers": streamers_probar, "directos": directos_probar, "perfiles": perfiles_probar}
+                   "streamers": streamers_probar, "directos": directos_probar, "perfiles": perfiles_probar, "mapas_torneo": mapas_torneo_probar}
         pedidas = [a for a in sys.argv[1:] if a in pruebas] or list(pruebas)
         resultados = [pruebas[a]() for a in pedidas]
         sys.exit(0 if all(resultados) else 1)
-    pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("detalle", detalle),
+    pasos = (("ladder", ladder), ("civstats", civstats), ("mapas", mapas), ("torneos", torneos), ("detalle", detalle), ("mapas_torneo", mapas_torneo),
              ("noticias", noticias), ("partidos", partidos), ("comunidad", comunidad), ("streamers", streamers), ("perfiles", perfiles),
              ("directos", directos))
     pedidos = [a for a in sys.argv[1:] if not a.startswith("-")]     # sin argumentos, todos (el build nocturno)
