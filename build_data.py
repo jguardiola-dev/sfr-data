@@ -84,10 +84,12 @@ En la release «perfiles» (ver perfiles()): index.json, paquetes y deltas, elo_
                      TORNEOS_DETALLE_POR_NOCHE páginas por noche, los torneos EN CURSO primero; en curso se renueva
                      cada noche, próximo cada 3 días, terminado una vez tras acabar. Lo anterior se conserva si una página falla.
                      Prueba sin red: python build_data.py --probar detalle. Solo este paso: python build_data.py detalle
-- mapas_torneo.json  map pools de los torneos S/A/B del último año (de las fichas de detalle ya bajadas: ninguna petición
-                     nueva a Liquipedia) y el pool ranked actual de cada cola (mapas jugados el último día de civstats/dias),
-                     para la ruleta de mapas de «Equipos». Se acumula: un torneo sigue un año después de acabar. Esquema y
-                     reglas en la sección «mapas de torneo» (más abajo). Contenido de Liquipedia: CC BY-SA 3.0.
+- mapas_torneo.json  map pools de los torneos S/A/B del último año (de las fichas de detalle ya bajadas) y el pool ranked
+                     actual de cada cola (mapas jugados el último día de civstats/dias), para la ruleta de mapas de «Equipos».
+                     Cada torneo lleva su «logo» (el de torneos_historico.json) y cada mapa su miniatura «img»
+                     (mapas_torneo/<mapa>.png, PNG de 128 px bajado UNA vez de Liquipedia Commons; ver mt_imagenes()). Se
+                     acumula: un torneo sigue un año después de acabar. Esquema y reglas en la sección «mapas de torneo»
+                     (más abajo). Contenido de Liquipedia: CC BY-SA 3.0; las miniaturas, con la licencia de cada archivo.
                      Prueba sin red: python -X utf8 -I build_data.py --probar mapas_torneo. Solo este paso: python build_data.py mapas_torneo
 - streamers.json     imagen de perfil pública de canales de Twitch (API Helix; ver streamers()). Esquema (v1):
                      {"v":1, "generado":ISO, "fuente":"Twitch (imagen de perfil pública, solo para dar crédito y enlazar al canal)",
@@ -2578,8 +2580,8 @@ def logos_ruta(nombre, sha1):
     return f"{LOGOS_DIR.replace(os.sep, '/')}/{base}-{(sha1 or 'sinhash')[:8]}.png"
 
 
-def logos_png(raw):
-    """Bytes de imagen → PNG de LOGOS_ALTO px de alto como mucho (y LOGOS_ANCHO_MAX de ancho), RGBA, sin metadatos."""
+def logos_png(raw, ancho=LOGOS_ANCHO_MAX, alto=LOGOS_ALTO):
+    """Bytes de imagen → PNG de «alto» px de alto como mucho (y «ancho» de ancho), RGBA, sin metadatos."""
     from PIL import Image
     Image.MAX_IMAGE_PIXELS = LOGOS_MAX_PIXELES
     im = Image.open(io.BytesIO(raw))
@@ -2587,7 +2589,7 @@ def logos_png(raw):
         raise ValueError(f"imagen enorme {im.width}x{im.height}")
     im.seek(0)
     im = im.convert("RGBA")
-    im.thumbnail((LOGOS_ANCHO_MAX, LOGOS_ALTO), Image.LANCZOS)
+    im.thumbnail((ancho, alto), Image.LANCZOS)
     out = io.BytesIO()
     im.save(out, "PNG", optimize=True)
     # paleta de 256 colores con alfa: a 96 px apenas se nota y pesa ≈4 veces menos; se queda el más pequeño
@@ -3633,6 +3635,20 @@ def detalle_mapas(cuerpo):
                               if t and len(t) <= 40))[:40]
 
 
+def detalle_mapas_img(cuerpo):
+    """«Map Pool» → {mt_norm(nombre del mapa): archivo de Liquipedia Commons de su miniatura («Crownwood AoE2 map.png»)}: de
+    los enlaces de sus tablas que envuelven una imagen (el title= del enlace es el nombre de la página del mapa). Para las
+    miniaturas de mapas_torneo.json (mt_imagenes): así no hay que pedir la página del mapa."""
+    import html as _h, re
+    out = {}
+    for titulo, src in re.findall(r'<a [^>]*title="([^"]+)"[^>]*>\s*<img [^>]*src="([^"]+)"', cuerpo or ""):
+        nombre = logos_de_src(_h.unescape(src))
+        k = mt_norm(_h.unescape(titulo))
+        if nombre and k and k not in out:
+            out[k] = nombre
+    return out
+
+
 def detalle_componer(html_txt, t, obtenido):
     """HTML de action=parse de la página de un torneo → detalle (esquema en la cabecera)."""
     sec = detalle_secciones(html_txt)
@@ -3642,6 +3658,7 @@ def detalle_componer(html_txt, t, obtenido):
          "formato": detalle_lista(detalle_seccion(sec, "format")),
          "calendario": detalle_calendario(detalle_seccion(sec, "schedule"), t.get("inicio")),
          "mapas": detalle_mapas(detalle_seccion(sec, "map_pool")),
+         "mapas_img": detalle_mapas_img(detalle_seccion(sec, "map_pool")),
          "premios": {"total_usd": total if total is not None else t.get("bolsa"), "puestos": puestos},
          "participantes": detalle_participantes(detalle_seccion(sec, "participants")),
          "fases": detalle_fases(sec),
@@ -5908,19 +5925,23 @@ def directos_probar():
 
 
 # ----------------------------------------------------------------------------- mapas de torneo y pool ranked
-# mapas_torneo.json: para la ruleta de mapas de «Equipos» de la app. Sin pedir NADA nuevo a Liquipedia: los mapas salen de las
-# fichas de detalle que ya trae el paso «detalle» (torneos/<slug>.json, sección «Map Pool») y los datos del torneo de
-# torneos_historico.json; el pool ranked, del último resumen diario de partidas (civstats/dias: los mapas jugados ese día en
-# cada cola ranked son el pool en rotación, porque esas colas solo dejan jugar esos). Una sola llamada a la API del companion
-# (/maps, el catálogo con los nombres del juego) para normalizar; si falla, se sigue sin él.
+# mapas_torneo.json: para la ruleta de mapas de «Equipos» de la app. Los mapas salen de las fichas de detalle que ya trae el
+# paso «detalle» (torneos/<slug>.json, sección «Map Pool») y los datos del torneo (y su logo) de torneos_historico.json; el
+# pool ranked, del último resumen diario de partidas (civstats/dias: los mapas jugados ese día en cada cola ranked son el pool
+# en rotación, porque esas colas solo dejan jugar esos). Una sola llamada a la API del companion (/maps, el catálogo con los
+# nombres del juego) para normalizar; si falla, se sigue sin él. A Liquipedia solo se le pide lo de las MINIATURAS de los mapas
+# nuevos (ver mt_imagenes(), más abajo: una descarga por mapa, caché por nombre en mapas_torneo/<mapa>.png).
 # Se ACUMULA con lo ya publicado: un torneo sigue en el archivo hasta MAPAS_TORNEO_DIAS días después de acabar aunque ya no
 # esté en el histórico (que solo cubre el año en curso) ni tenga ficha. Esquema (v1):
 # {"v":1, "generado":ISO, "hoy":"AAAA-MM-DD", "fuente":{…Liquipedia, CC BY-SA 3.0…},
 #  "ranked":{"fecha":"AAAA-MM-DD" (día del resumen usado), "fuente":"aoe2companion…",
 #            "pools":{"rm_1v1"|"rm_team"|"ew_1v1"|"ew_team":[{"nombre","clave"}]}} | null,   (de más a menos partidas)
 #  "torneos":[{"nombre","url","tier":"S|A|B","tipo"|null,"inicio","fin","estado","modo":"1v1|2v2|…|mixto|FFA|equipos"|null,
+#              ["logo", "logo_oscuro"] (los de torneos_historico.json: {"archivo":"logos/torneos/<x>.png","fuente","credito","licencia"}),
 #              "mapas":[{"nombre" (el del juego si se conoce; si no, el de Liquipedia),"liquipedia" (tal cual),
-#                        "juego":true|false (mapa del juego, no uno de autor del torneo)}]}]}
+#                        "juego":true|false (mapa del juego, no uno de autor del torneo),
+#                        ["img"]:"mapas_torneo/<mapa>.png" (la miniatura, si se tiene)}]}],
+#  "imagenes":{"mapas_torneo/<mapa>.png":{"fuente" (la ficha del archivo en Liquipedia Commons),"licencia","credito"}}}
 # Orden de «torneos»: tier S, A, B; dentro, el que empieza más tarde primero. Fuera: showmatches y los que repiten (subconjunto)
 # el pool de su torneo padre (URL prefijo: «Warlords/5/Qualifier/1» bajo «Warlords/5»). Sin resultados (nada de spoilers).
 # Prueba sin red: python -X utf8 -I build_data.py --probar mapas_torneo. Solo este paso: python build_data.py mapas_torneo
@@ -6049,6 +6070,9 @@ def mt_torneos(historico, detalles, previos, indice, hoy):
         por_url[t["url"]] = {"nombre": t.get("nombre") or t["url"], "url": t["url"], "tier": t["tier"], "tipo": t.get("tipo"),
                              "inicio": t["inicio"], "fin": t["fin"], "estado": t.get("estado"), "modo": t.get("formato"),
                              "mapas": mapas}
+        for c in ("logo", "logo_oscuro"):        # el logo que ya publica torneos_historico.json (mismo archivo de logos/torneos)
+            if isinstance(t.get(c), dict) and t[c].get("archivo"):
+                por_url[t["url"]][c] = t[c]
     for t in por_url.values():                  # los que ya no están en el histórico: su estado, con la fecha de hoy
         if t.get("fin") and t["fin"] < hoy.isoformat():
             t["estado"] = "terminado"
@@ -6068,6 +6092,201 @@ def mt_componer(historico, detalles, previo, dia, catalogo, claves_juego, hoy, g
     fuente = {k: v for k, v in fuente.items() if k != "generado"}
     return {"v": 1, "generado": generado, "hoy": hoy.isoformat(), "fuente": fuente, "ranked": ranked,
             "torneos": mt_torneos((historico or {}).get("torneos"), detalles, (previo or {}).get("torneos"), indice, hoy)}
+
+
+# ----- miniaturas de los mapas (Liquipedia Commons)
+# Una descarga por mapa, caché por NOMBRE (mapas_torneo/<nombre del juego en minúsculas>.png): si el PNG está en disco
+# (recuperado de la rama data) y el JSON anterior trae su ficha, no se pide nada. Para los mapas nuevos: el archivo lo nombra
+# el «Map Pool» de la ficha del torneo (mapas_img de torneos/<slug>.json) o, si esa ficha es de antes de guardarlo, el image=
+# del {{Infobox map}} de la página del mapa en Liquipedia (action=query, 50 títulos por petición, sigue redirecciones:
+# «Frontline» → «Front Line»); después imageinfo (miniatura de MAPAS_TORNEO_IMG_PX px, 50 por petición), la ficha {{FileInfo}}
+# de Commons (licencia) y como mucho MAPAS_TORNEO_IMG_MAX descargas por pasada (1 cada 2,5 s: la primera caben todas). Todo por
+# el cliente Liquipedia (User-Agent del proyecto, ritmo compartido). Liquipedia pide no enlazar sus imágenes: se publican
+# los PNG pequeños hechos con Pillow. Licencia de cada archivo en «imagenes» (minimapas del juego: casi siempre fair use).
+MAPAS_TORNEO_IMG_DIR = "mapas_torneo"
+MAPAS_TORNEO_IMG_PX = 128           # lado máximo del PNG publicado (la app los pinta a 40-96 px)
+MAPAS_TORNEO_IMG_MAX = 160          # descargas por pasada (≈150 mapas distintos el primer día)
+
+
+def mt_img_ruta(nombre):
+    """mapas_torneo/<nombre en minúsculas, solo [a-z0-9-]>.png (con «/», como va en el JSON), o None sin nombre."""
+    import unicodedata
+    base = unicodedata.normalize("NFKD", nombre or "").encode("ascii", "ignore").decode().lower()
+    base = re.sub(r"[^a-z0-9]+", "-", base).strip("-")[:60]
+    return f"{MAPAS_TORNEO_IMG_DIR}/{base}.png" if base else None
+
+
+def mt_img_de_wikitexto(texto):
+    """image= del {{Infobox map}} de la página de un mapa → nombre de archivo («Crownwood AoE2 map.png»), o None."""
+    return logos_nombre((wiki_infobox(texto) or {}).get("image", "")) if texto else None
+
+
+def mt_img_paginas(lq, titulos):
+    """{mt_norm(título pedido o final): wikitexto} de las páginas de los mapas (50 por petición; con redirecciones)."""
+    out = {}
+    titulos = list(dict.fromkeys(t for t in titulos if t and not re.search(r"[|#<>\[\]{}]", t)))
+    for k in range(0, len(titulos), LQ_TITULOS_POR_QUERY):
+        d = lq.get({"action": "query", "prop": "revisions", "rvprop": "content", "rvslots": "main", "redirects": "1",
+                    "titles": "|".join(titulos[k:k + LQ_TITULOS_POR_QUERY])})
+        q = d.get("query", {})
+        origen = _titulos_origen(q)
+        for p in q.get("pages", []):
+            revs = p.get("revisions") or []
+            if not revs or p.get("missing"):
+                continue
+            texto = revs[0].get("slots", {}).get("main", {}).get("content", "")
+            for t in {p["title"], origen.get(p["title"], p["title"])}:
+                out[mt_norm(t)] = texto
+    return out
+
+
+def mt_img_ficha(ii, ficha, nombre):
+    """La entrada de «imagenes» de un mapa: fuente (ficha del archivo en Commons), licencia y crédito."""
+    ext = (ii or {}).get("extmetadata") or {}
+    ficha = ficha or {}
+    lic = _texto_html((ext.get("LicenseShortName") or {}).get("value")) or wiki_limpiar(ficha.get("license", ""))
+    lic_txt = LOGOS_LICENCIAS.get(lic.lower().replace(" ", ""), lic) if lic else "no indicada"
+    autor = wiki_limpiar(ficha.get("author", "")) or _texto_html((ext.get("Artist") or {}).get("value"))
+    credito = f"Miniatura de {nombre}" + (f" por {autor}" if autor else "") + f", vía Liquipedia Commons; licencia: {lic_txt}"
+    credito += "." if not lic or lic.lower().startswith("cc") else "; no es CC BY-SA."
+    fuente = (ii or {}).get("descriptionurl")
+    return {"fuente": fuente if url_https_ok(fuente) else None, "licencia": lic or None, "credito": credito[:300]}
+
+
+def mt_imagenes(out, previo, img_detalle, pedir_paginas, pedir_imageinfo, pedir_fichas, descargar, max_descargas=MAPAS_TORNEO_IMG_MAX):
+    """Pone «img» a los mapas de out["torneos"] y rellena out["imagenes"] (ver el bloque de arriba). img_detalle:
+    {mt_norm(nombre): archivo} de las fichas; pedir_paginas(títulos) → {mt_norm(título): wikitexto}; pedir_imageinfo(archivos)
+    → {archivo: imageinfo}; pedir_fichas(archivos) → {archivo: FileInfo}; descargar(url) → bytes|None. Si una petición falla,
+    se queda lo que haya (los mapas sin imagen lo intentan en la pasada siguiente). Devuelve (mapas con img, mapas distintos,
+    descargas)."""
+    previas = (previo or {}).get("imagenes") or {}
+    por_ruta = {}
+    for t in out["torneos"]:
+        for m in t["mapas"]:
+            m.pop("img", None)
+            ruta = mt_img_ruta(m["nombre"])
+            if ruta:
+                por_ruta.setdefault(ruta, []).append(m)
+    hechas, pendientes = {}, {}
+    for ruta, ms in por_ruta.items():
+        if os.path.exists(ruta) and isinstance(previas.get(ruta), dict):
+            hechas[ruta] = previas[ruta]
+        else:
+            pendientes[ruta] = ms[0]
+    bajados = 0
+
+    def seguro(f, arg, que):
+        try:
+            return f(arg) or {}
+        except Exception as ex:
+            log(f"mapas_torneo: sin {que} ({ex!r})")
+            return {}
+
+    if pendientes:
+        archivos, sin = {}, []
+        for ruta, m in pendientes.items():
+            a = img_detalle.get(mt_norm(m.get("liquipedia") or "")) or img_detalle.get(mt_norm(m["nombre"]))
+            if a:
+                archivos[ruta] = a
+            else:
+                sin.append(ruta)
+        if sin:
+            paginas = seguro(pedir_paginas, [pendientes[r].get("liquipedia") or pendientes[r]["nombre"] for r in sin], "páginas de mapas")
+            for ruta in sin:
+                m = pendientes[ruta]
+                a = mt_img_de_wikitexto(paginas.get(mt_norm(m.get("liquipedia") or "")) or paginas.get(mt_norm(m["nombre"])))
+                if a:
+                    archivos[ruta] = a
+        info = seguro(pedir_imageinfo, list(dict.fromkeys(archivos.values())), "imageinfo") if archivos else {}
+        fichas = seguro(pedir_fichas, [a for a in dict.fromkeys(archivos.values()) if a in info], "fichas de Commons") if info else {}
+        for ruta, a in archivos.items():
+            ii = info.get(a)
+            if not ii:
+                continue
+            if not os.path.exists(ruta):
+                url = ii.get("thumburl") or (ii.get("url") if 0 < (ii.get("size") or 0) <= LOGOS_MAX_BYTES else None)
+                if not url or bajados >= max_descargas:
+                    continue
+                bajados += 1
+                raw = descargar(url)
+                if not raw:
+                    continue
+                try:
+                    png = logos_png(raw, MAPAS_TORNEO_IMG_PX, MAPAS_TORNEO_IMG_PX)
+                except Exception as ex:
+                    log(f"mapas_torneo: {a}: imagen ilegible ({ex!r})")
+                    continue
+                os.makedirs(os.path.dirname(ruta), exist_ok=True)
+                with open(ruta, "wb") as f:
+                    f.write(png)
+            hechas[ruta] = mt_img_ficha(ii, fichas.get(a), pendientes[ruta]["nombre"])
+    for ruta, ficha in hechas.items():
+        for m in por_ruta[ruta]:
+            m["img"] = ruta
+    out["imagenes"] = {r: hechas[r] for r in sorted(hechas)}
+    return sum(len(por_ruta[r]) for r in hechas), len(por_ruta), bajados
+
+
+def mt_img_podar(out):
+    """Quita «img» y «imagenes» cuyo PNG no esté y borra de mapas_torneo/ los PNG que ya no usa ningún mapa. (quedan, bytes)."""
+    usadas = set()
+    for t in out["torneos"]:
+        for m in t["mapas"]:
+            if m.get("img") and not os.path.exists(m["img"]):
+                m.pop("img")
+            if m.get("img"):
+                usadas.add(m["img"])
+    out["imagenes"] = {r: f for r, f in (out.get("imagenes") or {}).items() if r in usadas}
+    quedan = nbytes = 0
+    if os.path.isdir(MAPAS_TORNEO_IMG_DIR):
+        for a in os.listdir(MAPAS_TORNEO_IMG_DIR):
+            ruta = f"{MAPAS_TORNEO_IMG_DIR}/{a}"
+            if ruta not in usadas:
+                os.remove(ruta)
+            else:
+                quedan += 1
+                nbytes += os.path.getsize(ruta)
+    return quedan, nbytes
+
+
+def mt_logos_validar(out):
+    """Quita «logo»/«logo_oscuro» cuyo PNG ya no esté en logos/torneos (p. ej. torneo de hace más de un año: lo podó torneos)."""
+    for t in out["torneos"]:
+        for c in ("logo", "logo_oscuro"):
+            if t.get(c) and not os.path.exists((t[c] or {}).get("archivo") or ""):
+                t.pop(c)
+        if t.get("logo_oscuro") and not t.get("logo"):
+            t["logo"] = t.pop("logo_oscuro")
+
+
+def mapas_torneo_imagenes(out, previo, detalles):
+    """Las miniaturas de mapas_torneo.json con el cliente de Liquipedia (ver mt_imagenes). Nunca lanza."""
+    try:
+        import PIL  # noqa: F401
+    except ImportError:
+        print("::warning title=mapas_torneo::falta Pillow (pip install pillow): mapas sin miniaturas nuevas", flush=True)
+        return
+    img_detalle = {}
+    for d in detalles.values():
+        img_detalle.update({k: v for k, v in (d.get("mapas_img") or {}).items() if isinstance(v, str)})
+    lq, lqc = Liquipedia(), Liquipedia(LQ_API_COMMONS)
+    try:
+        n, total, bajados = mt_imagenes(
+            out, previo, img_detalle, lambda ts: mt_img_paginas(lq, ts),
+            lambda ns: _consultar_por_lotes(lq, ns, {"action": "query", "prop": "imageinfo", "redirects": "1",
+                                                     "iiprop": "url|size|mime|sha1|extmetadata",
+                                                     "iiurlwidth": str(MAPAS_TORNEO_IMG_PX), "iiurlheight": str(MAPAS_TORNEO_IMG_PX)},
+                                            logos_imageinfo_paginas),
+            lambda ns: _consultar_por_lotes(lqc, ns, {"action": "query", "prop": "revisions", "rvprop": "content", "rvslots": "main",
+                                                      "redirects": "1"}, logos_fichas_paginas),
+            lq.descargar)
+        log(f"mapas_torneo: miniaturas: {n} mapas con imagen, {total} mapas distintos, {bajados} descargas "
+            f"({lq.peticiones + lqc.peticiones} peticiones a Liquipedia)")
+    except Exception as ex:
+        print(f"::warning title=mapas_torneo::sin miniaturas nuevas ({ex!r})", flush=True)
+    finally:
+        lq.cerrar()
+        lqc.cerrar()
 
 
 def mapas_torneo():
@@ -6092,10 +6311,14 @@ def mapas_torneo():
         out["torneos"] = previo["torneos"]
     if not out["ranked"]:
         print("::warning title=mapas_torneo::sin resumen diario de partidas: no hay pool ranked", flush=True)
+    mt_logos_validar(out)
+    mapas_torneo_imagenes(out, previo, detalles)
+    quedan, nbytes = mt_img_podar(out)
     escribir_json(MAPAS_TORNEO, out)
     pools = {k: len(v) for k, v in ((out["ranked"] or {}).get("pools") or {}).items()}
-    log(f"mapas_torneo: {len(out['torneos'])} torneos, {sum(len(t['mapas']) for t in out['torneos'])} mapas; ranked "
-        f"{(out['ranked'] or {}).get('fecha')} {pools}")
+    log(f"mapas_torneo: {len(out['torneos'])} torneos, {sum(len(t['mapas']) for t in out['torneos'])} mapas "
+        f"({sum(1 for t in out['torneos'] for m in t['mapas'] if m.get('img'))} con miniatura: {quedan} PNG, {nbytes // 1024} KB; "
+        f"{sum(1 for t in out['torneos'] if t.get('logo'))} torneos con logo); ranked {(out['ranked'] or {}).get('fecha')} {pools}")
 
 
 def mapas_torneo_probar():
@@ -6105,9 +6328,15 @@ def mapas_torneo_probar():
     fallos = []
     hoy = date.fromisoformat(m["hoy"])
     detalles = {u: {"mapas": v} for u, v in m["detalles"].items()}
-    for caso in leer_json(TORNEOS_DETALLE_MUESTRA)["casos"]:          # HTML real de Liquipedia → mapas
+    img_detalle = {}
+    for caso in leer_json(TORNEOS_DETALLE_MUESTRA)["casos"]:          # HTML real de Liquipedia → mapas (y archivo de su miniatura)
         d = detalle_componer(caso["html"], caso["torneo"], "2026-10-19T05:00:00+00:00")
-        detalles[caso["torneo"]["url"]] = {"mapas": d["mapas"]}
+        detalles[caso["torneo"]["url"]] = {"mapas": d["mapas"], "mapas_img": d["mapas_img"]}
+        img_detalle.update(d["mapas_img"])
+        if set(d["mapas_img"]) != {mt_norm(x) for x in d["mapas"]}:
+            fallos.append(f"{caso['torneo']['url']}: mapas_img {sorted(d['mapas_img'])} no casa con mapas {d['mapas']}")
+    if img_detalle.get("crownwood") != "Crownwood AoE2 map.png" or img_detalle.get("arabia") != "Arabia AoE2DE.png":
+        fallos.append(f"mapas_img: {img_detalle.get('crownwood')!r}, {img_detalle.get('arabia')!r}")
     out = mt_componer(m["historico"], detalles, m["previo"], m["dia"], m["catalogo"], m["claves_juego"], hoy, "2026-10-22T05:00:00+00:00")
     pools = (out["ranked"] or {}).get("pools") or {}
     for lb, esp in m["esperado"]["ranked"].items():
@@ -6145,10 +6374,107 @@ def mapas_torneo_probar():
     o3 = mt_componer(None, {}, out, None, {}, (), hoy + timedelta(days=MAPAS_TORNEO_DIAS + 400), "x")
     if o3["torneos"]:
         fallos.append(f"caducados que siguen: {[t['nombre'] for t in o3['torneos']]}")
+    # logo del histórico en el torneo; sin archivo en disco, fuera
+    con_logo = [t for t in out["torneos"] if t.get("logo")]
+    if not con_logo or con_logo[0]["logo"].get("archivo") != m["esperado"]["logo"]:
+        fallos.append(f"logo: {[t.get('logo') for t in out['torneos']][:3]}")
+    mt_logos_validar(out)
+    if any(t.get("logo") for t in out["torneos"]):
+        fallos.append("logo sin PNG en disco debía quitarse")
+    # miniaturas, sin red: ficha del torneo → archivo; sin ficha → página del mapa; caché por nombre; tope de descargas; poda
+    fallos += mt_imagenes_probar(out, img_detalle)
     for f in fallos:
         log("FALLO", f)
     log(f"mapas_torneo --probar: {len(out['torneos'])} torneos, ranked {({k: len(v) for k, v in pools.items()})}, {len(fallos)} fallos")
     return not fallos
+
+
+def mt_imagenes_probar(out, img_detalle):
+    """Casos sin red de mt_imagenes/mt_img_podar en una carpeta temporal. Devuelve los fallos."""
+    global MAPAS_TORNEO_IMG_DIR
+    import tempfile
+    try:
+        from PIL import Image
+    except ImportError:
+        log("mapas_torneo --probar: sin Pillow, las miniaturas no se prueban")
+        return []
+    fallos, pedidas = [], defaultdict(list)
+    buf = io.BytesIO()
+    Image.new("RGBA", (300, 300), (10, 120, 30, 255)).save(buf, "PNG")
+    png = buf.getvalue()
+    # un mapa que no nombra ninguna ficha de torneo y cuya página tampoco existe: se queda sin miniatura
+    sin_pagina = next(m["liquipedia"] for t in out["torneos"] for m in t["mapas"] if mt_norm(m["liquipedia"]) not in img_detalle)
+
+    def paginas(titulos):
+        pedidas["paginas"].append(list(titulos))
+        return {mt_norm(t): "{{Infobox map\n|name=" + t + "\n|image=" + t.replace(" ", "_") + " AoE2 map.png\n}}" for t in titulos if t != sin_pagina}
+
+    def imageinfo(archivos):
+        pedidas["imageinfo"].append(list(archivos))
+        return {a: {"thumburl": f"https://liquipedia.net/commons/images/thumb/x/{a}/128px-{a}", "url": f"https://liquipedia.net/commons/images/x/{a}",
+                    "size": 1000, "descriptionurl": f"https://liquipedia.net/commons/File:{a.replace(' ', '_')}",
+                    "extmetadata": {"LicenseShortName": {"value": "Fair use"}}} for a in archivos}
+
+    def fichas(archivos):
+        pedidas["fichas"].append(list(archivos))
+        return {a: {"license": "fairuse", "author": "Chrazini"} for a in archivos}
+
+    def descargar(url):
+        pedidas["descargas"].append(url)
+        return png
+
+    dir_antes = MAPAS_TORNEO_IMG_DIR
+    with tempfile.TemporaryDirectory() as tmp:
+        MAPAS_TORNEO_IMG_DIR = tmp.replace(os.sep, "/")
+        try:
+            o = json.loads(json.dumps(out))
+            n, total, bajados = mt_imagenes(o, None, img_detalle, paginas, imageinfo, fichas, descargar, max_descargas=3)
+            if bajados != 3 or n == 0 or total < 20:
+                fallos.append(f"tope: {bajados} descargas, {n}/{total} con imagen")
+            if not pedidas["paginas"] or any("Crownwood" in l for l in pedidas["paginas"]):
+                fallos.append(f"páginas pedidas: {pedidas['paginas']} (Crownwood sale de la ficha del torneo)")
+            if "Crownwood AoE2 map.png" not in {a for l in pedidas["imageinfo"] for a in l}:
+                fallos.append("imageinfo sin el archivo de la ficha del torneo")
+            # segunda pasada: lo bajado no se vuelve a pedir ni a bajar; con cupo, sigue con el resto
+            pedidas.clear()
+            o2 = json.loads(json.dumps(out))
+            n2, total2, bajados2 = mt_imagenes(o2, o, img_detalle, paginas, imageinfo, fichas, descargar, max_descargas=1000)
+            if bajados2 != total2 - 3 - 1 or n2 <= n:      # sin_pagina: sin página ni ficha del torneo → sin imagen (-1)
+                fallos.append(f"segunda pasada: {bajados2} descargas, {n2}/{total2} con imagen (antes {n})")
+            if any(mt_img_ruta("Crownwood") == url for url in pedidas["descargas"]):
+                fallos.append("volvió a bajar una miniatura ya en disco")
+            rutas = {m.get("img") for t in o2["torneos"] for m in t["mapas"] if m.get("img")}
+            if not all(r.startswith(MAPAS_TORNEO_IMG_DIR + "/") and r.endswith(".png") and os.path.exists(r) for r in rutas):
+                fallos.append(f"rutas: {sorted(rutas)[:3]}")
+            if set(o2["imagenes"]) != rutas:
+                fallos.append("imagenes no casa con los img")
+            ficha = o2["imagenes"].get(mt_img_ruta("Crownwood")) or {}
+            if ficha.get("licencia") != "Fair use" or "Chrazini" not in ficha.get("credito", "") or not ficha.get("fuente", "").startswith("https://liquipedia.net/commons/File:"):
+                fallos.append(f"ficha de Crownwood: {ficha}")
+            if any(m.get("img") for t in o2["torneos"] for m in t["mapas"] if m["liquipedia"] == sin_pagina):
+                fallos.append(f"{sin_pagina} sin página ni ficha debía quedar sin img")
+            from PIL import Image as _I
+            with _I.open(mt_img_ruta("Crownwood")) as im:
+                if im.size != (MAPAS_TORNEO_IMG_PX, MAPAS_TORNEO_IMG_PX) or im.format != "PNG":
+                    fallos.append(f"PNG: {im.size} {im.format}")
+            # poda: un PNG huérfano se borra; un img sin PNG se quita
+            with open(f"{MAPAS_TORNEO_IMG_DIR}/huerfano.png", "wb") as f:
+                f.write(png)
+            os.remove(mt_img_ruta("Crownwood"))
+            quedan, nbytes = mt_img_podar(o2)
+            if os.path.exists(f"{MAPAS_TORNEO_IMG_DIR}/huerfano.png") or quedan != len(rutas) - 1 or nbytes <= 0:
+                fallos.append(f"poda: quedan {quedan}, {nbytes} bytes")
+            if any(m.get("img") for t in o2["torneos"] for m in t["mapas"] if m["liquipedia"] == "Crownwood") or mt_img_ruta("Crownwood") in o2["imagenes"]:
+                fallos.append("img sin PNG debía quitarse")
+            # una petición que falla no tumba el paso: se queda sin imagen
+            o3 = json.loads(json.dumps(out))
+            def rompe(x): raise RuntimeError("red")
+            n3, _, b3 = mt_imagenes(o3, None, {}, rompe, rompe, rompe, descargar)
+            if n3 or b3 or o3["imagenes"]:
+                fallos.append("con la red rota debía quedar sin imágenes")
+        finally:
+            MAPAS_TORNEO_IMG_DIR = dir_antes
+    return fallos
 
 
 if __name__ == "__main__":

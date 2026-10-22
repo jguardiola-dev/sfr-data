@@ -1,1062 +1,1069 @@
 {
-"nota": "Datos reales de la rama data (torneos_historico.json, torneos/*.json, civstats/dias/2026-10-19.json.gz, mapas.json) y del catálogo /api/maps del companion, recortados; «previo» es inventado (retención de un año).",
-"hoy": "2026-10-22",
-"historico": {
-"fuente": {
-"nombre": "Liquipedia",
-"url": "https://liquipedia.net/ageofempires/",
-"licencia": "CC BY-SA 3.0",
-"licencia_url": "https://creativecommons.org/licenses/by-sa/3.0/",
-"atribucion": "Datos de torneos de Liquipedia (liquipedia.net/ageofempires), licencia CC BY-SA 3.0. Este archivo se distribuye con la misma licencia.",
-"generado": "2026-10-20T10:03:18+00:00"
-},
-"torneos": [
-{
-"nombre": "Sudden Dessaster 3",
-"tier": "A",
-"tipo": null,
-"inicio": "2026-10-05",
-"fin": "2026-11-08",
-"estado": "en_curso",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/Sudden_Dessaster/3",
-"ganador": null
-},
-{
-"nombre": "Danmarksmesterskaberne 2026",
-"tier": "C",
-"tipo": null,
-"inicio": "2026-10-05",
-"fin": "2026-11-22",
-"estado": "en_curso",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/Danmarksmesterskaberne/2026",
-"ganador": null
-},
-{
-"nombre": "The League: Division 1",
-"tier": "S",
-"tipo": null,
-"inicio": "2026-08-10",
-"fin": "2026-11-28",
-"estado": "en_curso",
-"formato": "3v3",
-"url": "https://liquipedia.net/ageofempires/The_League",
-"ganador": null
-},
-{
-"nombre": "Chilean Cup 2026",
-"tier": "B",
-"tipo": null,
-"inicio": "2026-10-12",
-"fin": "2026-12-02",
-"estado": "en_curso",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/Chilean_Cup/2026",
-"ganador": null
-},
-{
-"nombre": "The Garrison 2026",
-"tier": "S",
-"tipo": null,
-"inicio": "2026-11-25",
-"fin": "2026-11-29",
-"estado": "proximo",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/The_Garrison/2026",
-"ganador": null
-},
-{
-"nombre": "Medieval Masters 2",
-"tier": "A",
-"tipo": null,
-"inicio": "2027-06-14",
-"fin": "2027-07-04",
-"estado": "proximo",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/Medieval_Masters/2",
-"ganador": null
-},
-{
-"nombre": "The League: Division 2",
-"tier": "A",
-"tipo": null,
-"inicio": "2026-08-07",
-"fin": "2026-09-18",
-"estado": "terminado",
-"formato": "3v3",
-"url": "https://liquipedia.net/ageofempires/The_League/Division_2",
-"ganador": "Old School+"
-},
-{
-"nombre": "The League: Qualifier 1",
-"tier": "S",
-"tipo": "Qualifier",
-"inicio": "2026-07-18",
-"fin": "2026-07-26",
-"estado": "terminado",
-"formato": "3v3",
-"url": "https://liquipedia.net/ageofempires/The_League/Qualifier/1",
-"ganador": null
-},
-{
-"nombre": "The League: Showmatch 3",
-"tier": "S",
-"tipo": "Showmatch",
-"inicio": "2026-07-12",
-"fin": "2026-07-12",
-"estado": "terminado",
-"formato": "3v3",
-"url": "https://liquipedia.net/ageofempires/The_League/Showmatch/3",
-"ganador": "LingYuan"
-},
-{
-"nombre": "The League: Showmatch 2",
-"tier": "S",
-"tipo": "Showmatch",
-"inicio": "2026-07-10",
-"fin": "2026-07-10",
-"estado": "terminado",
-"formato": "3v3",
-"url": "https://liquipedia.net/ageofempires/The_League/Showmatch/2",
-"ganador": "Wonders"
-},
-{
-"nombre": "Brazilian Dynasty",
-"tier": "S",
-"tipo": null,
-"inicio": "2026-07-01",
-"fin": "2026-07-05",
-"estado": "terminado",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/Brazilian_Dynasty",
-"ganador": "Hera"
-},
-{
-"nombre": "MembTV Warlords V",
-"tier": "S",
-"tipo": null,
-"inicio": "2026-05-07",
-"fin": "2026-05-24",
-"estado": "terminado",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/Warlords/5",
-"ganador": "Liereyy"
-},
-{
-"nombre": "The League: Showmatch",
-"tier": "S",
-"tipo": "Showmatch",
-"inicio": "2026-05-01",
-"fin": "2026-05-01",
-"estado": "terminado",
-"formato": "3v3",
-"url": "https://liquipedia.net/ageofempires/The_League/Showmatch",
-"ganador": "Team Vitality"
-},
-{
-"nombre": "MembTV Warlords V: Qualifier #1",
-"tier": "S",
-"tipo": "Qualifier",
-"inicio": "2026-04-25",
-"fin": "2026-04-27",
-"estado": "terminado",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/Warlords/5/Qualifier/1",
-"ganador": null
-},
-{
-"nombre": "Red Bull Wololo: Londinium Age of Empires II",
-"tier": "S",
-"tipo": null,
-"inicio": "2026-04-01",
-"fin": "2026-04-06",
-"estado": "terminado",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/Red_Bull_Wololo/Londinium/AoE2",
-"ganador": "Hera"
-},
-{
-"nombre": "T90 Titans League 5: Platinum League",
-"tier": "S",
-"tipo": null,
-"inicio": "2026-02-06",
-"fin": "2026-03-22",
-"estado": "terminado",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/T90_Titans_League/5/Platinum_League",
-"ganador": "Hera"
-},
-{
-"nombre": "T90 Titans League 5: Gold League",
-"tier": "A",
-"tipo": null,
-"inicio": "2026-01-23",
-"fin": "2026-03-02",
-"estado": "terminado",
-"formato": "1v1",
-"url": "https://liquipedia.net/ageofempires/T90_Titans_League/5/Gold_League",
-"ganador": null
-}
-]
-},
-"detalles": {
-"https://liquipedia.net/ageofempires/Sudden_Dessaster/3": [
-"Arena",
-"Canberra",
-"Hideout",
-"Holy Hollow",
-"Kerak",
-"Mauerfall",
-"Mesa Verde",
-"Monkey Island",
-"Mountain Forward",
-"Thin Ice",
-"ZeWalls"
-],
-"https://liquipedia.net/ageofempires/Danmarksmesterskaberne/2026": [
-"Sacred Springs",
-"Scandinavia",
-"Coastarena",
-"Fractal",
-"Arabia",
-"Nomad",
-"Festa da Pólvora",
-"African Waters",
-"Vulpine",
-"Monte Pascoal",
-"Fortified Clearing",
-"Socotra"
-],
-"https://liquipedia.net/ageofempires/The_League": [
-"Arabia",
-"Arena",
-"Black Forest",
-"Cape of Storms",
-"Crescent",
-"Enemy Archipelago",
-"Fortified Clearing",
-"Fortress",
-"Frontline",
-"Grand Bara",
-"Menindee",
-"Migration",
-"Nomad",
-"Team Acropolis",
-"Tres Leches"
-],
-"https://liquipedia.net/ageofempires/Chilean_Cup/2026": [
-"Arabia",
-"Arena",
-"Four Lakes",
-"African Clearing",
-"Crownwood",
-"Black Forest",
-"Isthmus",
-"Nomad",
-"Hollow Woodlands",
-"Hideout",
-"Loch Ness",
-"Steppe"
-],
-"https://liquipedia.net/ageofempires/Medieval_Masters/2": [],
-"https://liquipedia.net/ageofempires/The_League/Qualifier/1": [
-"Arabia",
-"Arena",
-"Black Forest",
-"Cape of Storms",
-"Crescent",
-"Enemy Archipelago",
-"Fortified Clearing",
-"Fortress",
-"Frontline",
-"Grand Bara",
-"Menindee",
-"Migration",
-"Nomad",
-"Team Acropolis",
-"Tres Leches"
-],
-"https://liquipedia.net/ageofempires/The_League/Showmatch/3": [
-"Cape of Storms",
-"Fortress",
-"Frontline",
-"Migration",
-"Team Acropolis"
-],
-"https://liquipedia.net/ageofempires/The_League/Showmatch/2": [
-"Crescent",
-"Fortified Clearing",
-"Grand Bara",
-"Menindee",
-"Tres Leches"
-],
-"https://liquipedia.net/ageofempires/Brazilian_Dynasty": [
-"Amazônia",
-"Araucárias",
-"Arena Costeira",
-"Fernando de Noronha",
-"Festa da Pólvora",
-"Lençóis Maranhenses",
-"Monte Pascoal",
-"Pantanal",
-"Parque do Ipiranga",
-"Serra dos Carajás",
-"Sertão",
-"Tepui",
-"Vale da Selva"
-],
-"https://liquipedia.net/ageofempires/The_League/Showmatch": [
-"Arabia",
-"Arena",
-"Black Forest",
-"Enemy Archipelago",
-"Nomad"
-],
-"https://liquipedia.net/ageofempires/Warlords/5/Qualifier/1": [
-"Crownwood",
-"Cenotes",
-"Basmo",
-"Seasons",
-"Shorelines",
-"Murkwood",
-"Cliffbound",
-"Marshwood",
-"Kilimanjaro",
-"Arena",
-"Isthmus",
-"Pacific Islands",
-"Steppe",
-"Border Dispute",
-"Morass",
-"Lowland",
-"Black Forest",
-"Crossroads",
-"Te Fiti",
-"Ring Nomad",
-"Skukuza"
-],
-"https://liquipedia.net/ageofempires/Red_Bull_Wololo/Londinium/AoE2": [
-"Blue Wells",
-"Crownwood",
-"Dorothea Quarry",
-"Glacis",
-"Hengehold",
-"Loch Ness",
-"Rampart",
-"Stonedrift",
-"Stonefront",
-"Thames",
-"Vulpine"
-],
-"https://liquipedia.net/ageofempires/T90_Titans_League/5/Platinum_League": [
-"African River",
-"Bypass",
-"Coast Arena",
-"Dzimbabwe",
-"High Tides",
-"Monocle",
-"Mudflow",
-"Northern Crossings",
-"Quarry",
-"Reverse Acropolis",
-"Seychelles",
-"Slopes",
-"Stranded",
-"Tulou",
-"Valley"
-],
-"https://liquipedia.net/ageofempires/T90_Titans_League/5/Gold_League": [
-"African River",
-"Bypass",
-"Coast Arena",
-"Dzimbabwe",
-"High Tides",
-"Monocle",
-"Mudflow",
-"Northern Crossings",
-"Quarry",
-"Reverse Acropolis",
-"Seychelles",
-"Slopes",
-"Stranded",
-"Tulou",
-"Valley"
-]
-},
-"dia": {
-"fecha": "2026-10-19",
-"mapas": [
-[
-"dm_1v1",
-"rm_coastal",
-1
-],
-[
-"dm_1v1",
-"unknown",
-13
-],
-[
-"dm_team",
-"rm_arabian_desert",
-1
-],
-[
-"dm_team",
-"unknown",
-19
-],
-[
-"ew_1v1",
-"rm_acclivity",
-78
-],
-[
-"ew_1v1",
-"rm_crownwood",
-30
-],
-[
-"ew_1v1",
-"rm_dunesprings",
-61
-],
-[
-"ew_1v1",
-"rm_glacis",
-71
-],
-[
-"ew_1v1",
-"rm_karsts",
-77
-],
-[
-"ew_1v1",
-"rm_loch_ness",
-58
-],
-[
-"ew_1v1",
-"rm_rampart",
-37
-],
-[
-"ew_1v1",
-"rm_thames",
-87
-],
-[
-"ew_1v1",
-"rm_vulpine",
-27
-],
-[
-"ew_team",
-"rm_acclivity",
-24
-],
-[
-"ew_team",
-"rm_arabia",
-30
-],
-[
-"ew_team",
-"rm_atacama",
-21
-],
-[
-"ew_team",
-"rm_enclosed",
-68
-],
-[
-"ew_team",
-"rm_frigid_lake",
-18
-],
-[
-"ew_team",
-"rm_kawasan",
-45
-],
-[
-"ew_team",
-"rm_morass",
-20
-],
-[
-"ew_team",
-"rm_northern_isles",
-23
-],
-[
-"ew_team",
-"rm_shoals",
-61
-],
-[
-"rm_1v1",
-"rm_arabia",
-8328
-],
-[
-"rm_1v1",
-"rm_arabian_desert",
-2475
-],
-[
-"rm_1v1",
-"rm_arena",
-3248
-],
-[
-"rm_1v1",
-"rm_haboob",
-1594
-],
-[
-"rm_1v1",
-"rm_michi",
-1285
-],
-[
-"rm_1v1",
-"rm_nomad",
-2134
-],
-[
-"rm_1v1",
-"rm_socotra",
-1715
-],
-[
-"rm_2v2",
-"cm_pilgrims",
-234
-],
-[
-"rm_2v2",
-"rm_arabia",
-899
-],
-[
-"rm_2v2",
-"rm_arena",
-871
-],
-[
-"rm_2v2",
-"rm_black-forest",
-544
-],
-[
-"rm_2v2",
-"rm_golden-pit",
-305
-],
-[
-"rm_2v2",
-"rm_hideout",
-384
-],
-[
-"rm_2v2",
-"rm_megarandom",
-386
-],
-[
-"rm_2v2",
-"rm_nomad",
-527
-],
-[
-"rm_2v2",
-"rm_oasis",
-308
-],
-[
-"rm_3v3",
-"cm_pilgrims",
-129
-],
-[
-"rm_3v3",
-"rm_arabia",
-314
-],
-[
-"rm_3v3",
-"rm_arena",
-454
-],
-[
-"rm_3v3",
-"rm_black-forest",
-301
-],
-[
-"rm_3v3",
-"rm_golden-pit",
-165
-],
-[
-"rm_3v3",
-"rm_hideout",
-172
-],
-[
-"rm_3v3",
-"rm_megarandom",
-191
-],
-[
-"rm_3v3",
-"rm_nomad",
-294
-],
-[
-"rm_3v3",
-"rm_oasis",
-164
-],
-[
-"rm_4v4",
-"cm_pilgrims",
-272
-],
-[
-"rm_4v4",
-"rm_arabia",
-233
-],
-[
-"rm_4v4",
-"rm_arena",
-1308
-],
-[
-"rm_4v4",
-"rm_black-forest",
-876
-],
-[
-"rm_4v4",
-"rm_golden-pit",
-260
-],
-[
-"rm_4v4",
-"rm_hideout",
-449
-],
-[
-"rm_4v4",
-"rm_megarandom",
-296
-],
-[
-"rm_4v4",
-"rm_nomad",
-574
-],
-[
-"rm_4v4",
-"rm_oasis",
-335
-]
-]
-},
-"catalogo": {
-"rm_arabia": "Arabia",
-"rm_black-forest": "Black Forest",
-"rm_coastal": "Coastal",
-"rm_fortress": "Fortress",
-"rm_migration": "Migration",
-"rm_scandinavia": "Scandinavia",
-"rm_arena": "Arena",
-"rm_oasis": "Oasis",
-"rm_nomad": "Nomad",
-"cm_pilgrims": "Pilgrims",
-"cm_seasons": "Seasons",
-"rm_cenotes": "Cenotes",
-"rm_golden-pit": "Golden Pit",
-"rm_hideout": "Hideout",
-"rm_steppe": "Steppe",
-"rm_valley": "Valley",
-"rm_megarandom": "MegaRandom",
-"rm_kilimanjaro": "Kilimanjaro",
-"rm_socotra": "Socotra",
-"sm_enemy-archipelago": "Enemy Archipelago",
-"sm_front-line": "Front Line",
-"rm_pacific-islands": "Pacific Islands",
-"rm_four-lakes": "Four Lakes",
-"rm_african_clearing": "African Clearing",
-"rm_atacama": "Atacama",
-"rm_crossroads": "Crossroads",
-"rm_michi": "Michi",
-"rm_acclivity": "Acclivity",
-"rm_frigid_lake": "Frigid Lake",
-"rm_lowland": "Lowland",
-"rm_northern_isles": "Northern Isles",
-"rm_enclosed": "Enclosed",
-"rm_haboob": "Haboob",
-"rm_kawasan": "Kawasan",
-"rm_sacred_springs": "Sacred Springs",
-"rm_morass": "Morass",
-"rm_shoals": "Shoals",
-"rm_cliffbound": "Cliffbound",
-"rm_isthmus": "Isthmus",
-"rm_dunesprings": "Dunesprings",
-"rm_hollow_woodlands": "Hollow Woodlands",
-"rm_karsts": "Karsts",
-"rm_fortified_clearing": "Fortified Clearing",
-"rm_border_dispute": "Border Dispute",
-"rm_stranded": "Stranded",
-"rm_murkwood": "Murkwood",
-"rm_crownwood": "Crownwood",
-"rm_dorothea_quarry": "Dorothea Quarry",
-"rm_glacis": "Glacis",
-"rm_hengehold": "Hengehold",
-"rm_loch_ness": "Loch Ness",
-"rm_rampart": "Rampart",
-"rm_stonefront": "Stonefront",
-"rm_thames": "Thames",
-"rm_vulpine": "Vulpine",
-"rm_arabian_desert": "Arabian Desert"
-},
-"claves_juego": [
-"7v1 survival villager 1,1 (scenario)",
-"[c32] [7v1]long_night4_v063s (scenario)",
-"[cba][-requiem-][v6] (scenario)",
-"a2g s10 - copenhagen (custom)",
-"acclivity",
-"african clearing",
-"amazon tunnel",
-"arabia",
-"arabian desert",
-"arena",
-"atacama",
-"baltic",
-"bamboo nothing - scorpyon de (custom)",
-"bamboo nothing_paren_v4 (custom)",
-"bamboo nothing_paren_v4_nohills (custom)",
-"black forest",
-"border dispute",
-"ca v3.94 (scenario)",
-"canals",
-"castle blood fair v1-5 (scenario)",
-"cba 6x v2026_2_3 team (scenario)",
-"cba hero royal 4v4 big_ytri (original heroes) (scenario)",
-"cba_=req=_v325 (scenario)",
-"cba_=req=_v326 (scenario)",
-"cba_=req=_v327 (scenario)",
-"cba_=req=_v328 (scenario)",
-"cba_=req=_v328 team free 2x2x2x2 (scenario)",
-"cba_=requiem=_v220 (scenario)",
-"cba_=requiem=_v284 (scenario)",
-"cba_=requiem=_v292 (scenario)",
-"cba_=requiem=v 292 (scenario)",
-"cba_=requlem=_v292    (scenario)",
-"cba_=requlem=_v292 (scenario)",
-"cdo - haboob (custom)",
-"cdo - immersion (custom)",
-"cdo - monte pascoal (custom)",
-"china",
-"cm_canals",
-"cm_paradise-island",
-"cm_pilgrims",
-"coastal forest",
-"crownwood",
-"default0 (scenario)",
-"dunesprings",
-"enclosed",
-"fast villager defense 2026 club de v853 (scenario)",
-"forest nothing de (custom)",
-"forest nothing de ballista (custom)",
-"forest_nothing_ultra_small_fixed (custom)",
-"fortress",
-"four lakes",
-"frigid lake",
-"full (scenario)",
-"glacis",
-"glade",
-"golden pit",
-"golden swamp",
-"haboob",
-"hideout",
-"karsts",
-"kawasan",
-"kingte(promax)v2.3 (scenario)",
-"land nomad",
-"loch ness",
-"lombardia",
-"mama del aba (scenario)",
-"megarandom",
-"michi",
-"migration",
-"mired",
-"morass",
-"mountain dunes",
-"nomad",
-"nomad blood auto v3.2 (scenario)",
-"northern isles",
-"oasis",
-"paradise island",
-"pilgrims",
-"rage forest 2026 (custom)",
-"rampart",
-"ravines",
-"rm_acclivity",
-"rm_african_clearing",
-"rm_amazon_tunnels",
-"rm_arabia",
-"rm_arabian_desert",
-"rm_arena",
-"rm_atacama",
-"rm_baltic",
-"rm_black-forest",
-"rm_border_dispute",
-"rm_coastal_forest",
-"rm_crownwood",
-"rm_dunesprings",
-"rm_enclosed",
-"rm_fortress",
-"rm_four-lakes",
-"rm_frigid_lake",
-"rm_glacis",
-"rm_glade",
-"rm_golden-pit",
-"rm_golden-swamp",
-"rm_haboob",
-"rm_hideout",
-"rm_karsts",
-"rm_kawasan",
-"rm_land_nomad",
-"rm_loch_ness",
-"rm_lombardia",
-"rm_megarandom",
-"rm_michi",
-"rm_migration",
-"rm_mired",
-"rm_morass",
-"rm_mountain_dunes",
-"rm_nomad",
-"rm_northern_isles",
-"rm_oasis",
-"rm_rampart",
-"rm_ravines",
-"rm_scandinavia",
-"rm_serengeti",
-"rm_shoals",
-"rm_shrubland",
-"rm_socotra",
-"rm_thames",
-"rm_vulpine",
-"rm_yucatan",
-"rwm_china",
-"scandinavia",
-"serengeti",
-"shoals",
-"shrubland",
-"socotra",
-"tamerlane: amir of transoxiana (coop)",
-"tamerlane: gurkhan of persia (coop)",
-"tamerlane: scourge of the levant (coop)",
-"tamerlane: sultan of hindustan (coop)",
-"thames",
-"unknown",
-"vulpine",
-"wet woods v3.0.3 (custom)",
-"yucatan"
-],
-"previo": {
-"v": 1,
-"torneos": [
-{
-"nombre": "Torneo de 2025 aún dentro del año",
-"url": "https://liquipedia.net/ageofempires/Prueba/2025",
-"tier": "S",
-"tipo": null,
-"inicio": "2025-11-01",
-"fin": "2025-12-01",
-"estado": "en_curso",
-"modo": "2v2",
-"mapas": [
-{
-"nombre": "Arabia",
-"liquipedia": "Arabia",
-"juego": true
-},
-{
-"nombre": "Coastarena",
-"liquipedia": "Coastarena",
-"juego": false
-}
-]
-},
-{
-"nombre": "Torneo caducado",
-"url": "https://liquipedia.net/ageofempires/Prueba/Vieja",
-"tier": "S",
-"tipo": null,
-"inicio": "2025-08-01",
-"fin": "2025-09-01",
-"estado": "terminado",
-"modo": "1v1",
-"mapas": [
-{
-"nombre": "Arena",
-"liquipedia": "Arena",
-"juego": true
-}
-]
-}
-]
-},
-"esperado": {
-"ranked": {
-"rm_1v1": [
-"Arabia",
-"Arena",
-"Arabian Desert",
-"Nomad",
-"Socotra",
-"Haboob",
-"Michi"
-],
-"rm_team": [
-"Arena",
-"Black Forest",
-"Arabia",
-"Nomad",
-"Hideout",
-"MegaRandom",
-"Oasis",
-"Golden Pit",
-"Pilgrims"
-]
-},
-"orden": [
-"The_Garrison/2026",
-"The_League",
-"Brazilian_Dynasty",
-"Warlords/5",
-"Warlords/5/Qualifier/1",
-"Red_Bull_Wololo/Londinium/AoE2",
-"T90_Titans_League/5/Platinum_League",
-"Prueba/2025",
-"Sudden_Dessaster/3",
-"T90_Titans_League/5/Gold_League",
-"Chilean_Cup/2026"
-],
-"mapas": {
-"The_League": [
-[
-"Arabia",
-"Arabia",
-true
-],
-[
-"Arena",
-"Arena",
-true
-],
-[
-"Black Forest",
-"Black Forest",
-true
-],
-[
-"Cape of Storms",
-"Cape of Storms",
-false
-],
-[
-"Crescent",
-"Crescent",
-false
-],
-[
-"Enemy Archipelago",
-"Enemy Archipelago",
-true
-],
-[
-"Fortified Clearing",
-"Fortified Clearing",
-true
-],
-[
-"Fortress",
-"Fortress",
-true
-],
-[
-"Front Line",
-"Frontline",
-true
-]
-],
-"Brazilian_Dynasty": [
-[
-"Amazônia",
-"Amazônia",
-false
-],
-[
-"Araucárias",
-"Araucárias",
-false
-]
-],
-"Warlords/5": [
-[
-"Crownwood",
-"Crownwood",
-true
-],
-[
-"Cenotes",
-"Cenotes",
-true
-],
-[
-"Basmo",
-"Basmo",
-false
-]
-],
-"Prueba/2025": [
-[
-"Arabia",
-"Arabia",
-true
-],
-[
-"Coastarena",
-"Coastarena",
-false
-]
-]
-},
-"campos": {
-"The_League": {
-"tier": "S",
-"modo": "3v3",
-"estado": "en_curso",
-"inicio": "2026-08-10"
-},
-"Prueba/2025": {
-"estado": "terminado",
-"modo": "2v2"
-},
-"The_Garrison/2026": {
-"estado": "proximo",
-"modo": "1v1"
-}
-}
-}
+ "nota": "Datos reales de la rama data (torneos_historico.json, torneos/*.json, civstats/dias/2026-10-19.json.gz, mapas.json) y del catálogo /api/maps del companion, recortados; «previo» es inventado (retención de un año).",
+ "hoy": "2026-10-22",
+ "historico": {
+  "fuente": {
+   "nombre": "Liquipedia",
+   "url": "https://liquipedia.net/ageofempires/",
+   "licencia": "CC BY-SA 3.0",
+   "licencia_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+   "atribucion": "Datos de torneos de Liquipedia (liquipedia.net/ageofempires), licencia CC BY-SA 3.0. Este archivo se distribuye con la misma licencia.",
+   "generado": "2026-10-20T10:03:18+00:00"
+  },
+  "torneos": [
+   {
+    "nombre": "Sudden Dessaster 3",
+    "tier": "A",
+    "tipo": null,
+    "inicio": "2026-10-05",
+    "fin": "2026-11-08",
+    "estado": "en_curso",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/Sudden_Dessaster/3",
+    "ganador": null
+   },
+   {
+    "nombre": "Danmarksmesterskaberne 2026",
+    "tier": "C",
+    "tipo": null,
+    "inicio": "2026-10-05",
+    "fin": "2026-11-22",
+    "estado": "en_curso",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/Danmarksmesterskaberne/2026",
+    "ganador": null
+   },
+   {
+    "nombre": "The League: Division 1",
+    "tier": "S",
+    "tipo": null,
+    "inicio": "2026-08-10",
+    "fin": "2026-11-28",
+    "estado": "en_curso",
+    "formato": "3v3",
+    "url": "https://liquipedia.net/ageofempires/The_League",
+    "ganador": null
+   },
+   {
+    "nombre": "Chilean Cup 2026",
+    "tier": "B",
+    "tipo": null,
+    "inicio": "2026-10-12",
+    "fin": "2026-12-02",
+    "estado": "en_curso",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/Chilean_Cup/2026",
+    "ganador": null
+   },
+   {
+    "nombre": "The Garrison 2026",
+    "tier": "S",
+    "tipo": null,
+    "inicio": "2026-11-25",
+    "fin": "2026-11-29",
+    "estado": "proximo",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/The_Garrison/2026",
+    "ganador": null
+   },
+   {
+    "nombre": "Medieval Masters 2",
+    "tier": "A",
+    "tipo": null,
+    "inicio": "2027-06-14",
+    "fin": "2027-07-04",
+    "estado": "proximo",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/Medieval_Masters/2",
+    "ganador": null
+   },
+   {
+    "nombre": "The League: Division 2",
+    "tier": "A",
+    "tipo": null,
+    "inicio": "2026-08-07",
+    "fin": "2026-09-18",
+    "estado": "terminado",
+    "formato": "3v3",
+    "url": "https://liquipedia.net/ageofempires/The_League/Division_2",
+    "ganador": "Old School+"
+   },
+   {
+    "nombre": "The League: Qualifier 1",
+    "tier": "S",
+    "tipo": "Qualifier",
+    "inicio": "2026-07-18",
+    "fin": "2026-07-26",
+    "estado": "terminado",
+    "formato": "3v3",
+    "url": "https://liquipedia.net/ageofempires/The_League/Qualifier/1",
+    "ganador": null
+   },
+   {
+    "nombre": "The League: Showmatch 3",
+    "tier": "S",
+    "tipo": "Showmatch",
+    "inicio": "2026-07-12",
+    "fin": "2026-07-12",
+    "estado": "terminado",
+    "formato": "3v3",
+    "url": "https://liquipedia.net/ageofempires/The_League/Showmatch/3",
+    "ganador": "LingYuan"
+   },
+   {
+    "nombre": "The League: Showmatch 2",
+    "tier": "S",
+    "tipo": "Showmatch",
+    "inicio": "2026-07-10",
+    "fin": "2026-07-10",
+    "estado": "terminado",
+    "formato": "3v3",
+    "url": "https://liquipedia.net/ageofempires/The_League/Showmatch/2",
+    "ganador": "Wonders"
+   },
+   {
+    "nombre": "Brazilian Dynasty",
+    "tier": "S",
+    "tipo": null,
+    "inicio": "2026-07-01",
+    "fin": "2026-07-05",
+    "estado": "terminado",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/Brazilian_Dynasty",
+    "ganador": "Hera"
+   },
+   {
+    "nombre": "MembTV Warlords V",
+    "tier": "S",
+    "tipo": null,
+    "inicio": "2026-05-07",
+    "fin": "2026-05-24",
+    "estado": "terminado",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/Warlords/5",
+    "ganador": "Liereyy",
+    "logo": {
+     "archivo": "logos/torneos/membtv-warlords-5-allmode-e386f95b.png",
+     "fuente": "https://liquipedia.net/commons/File:MembTV_Warlords_5_allmode.png",
+     "credito": "Logo de MembTV Warlords V © MembTV. Vía Liquipedia Commons; licencia: uso legítimo (fair use); no es CC BY-SA.",
+     "licencia": "fairuse"
+    }
+   },
+   {
+    "nombre": "The League: Showmatch",
+    "tier": "S",
+    "tipo": "Showmatch",
+    "inicio": "2026-05-01",
+    "fin": "2026-05-01",
+    "estado": "terminado",
+    "formato": "3v3",
+    "url": "https://liquipedia.net/ageofempires/The_League/Showmatch",
+    "ganador": "Team Vitality"
+   },
+   {
+    "nombre": "MembTV Warlords V: Qualifier #1",
+    "tier": "S",
+    "tipo": "Qualifier",
+    "inicio": "2026-04-25",
+    "fin": "2026-04-27",
+    "estado": "terminado",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/Warlords/5/Qualifier/1",
+    "ganador": null
+   },
+   {
+    "nombre": "Red Bull Wololo: Londinium Age of Empires II",
+    "tier": "S",
+    "tipo": null,
+    "inicio": "2026-04-01",
+    "fin": "2026-04-06",
+    "estado": "terminado",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/Red_Bull_Wololo/Londinium/AoE2",
+    "ganador": "Hera"
+   },
+   {
+    "nombre": "T90 Titans League 5: Platinum League",
+    "tier": "S",
+    "tipo": null,
+    "inicio": "2026-02-06",
+    "fin": "2026-03-22",
+    "estado": "terminado",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/T90_Titans_League/5/Platinum_League",
+    "ganador": "Hera"
+   },
+   {
+    "nombre": "T90 Titans League 5: Gold League",
+    "tier": "A",
+    "tipo": null,
+    "inicio": "2026-01-23",
+    "fin": "2026-03-02",
+    "estado": "terminado",
+    "formato": "1v1",
+    "url": "https://liquipedia.net/ageofempires/T90_Titans_League/5/Gold_League",
+    "ganador": null
+   }
+  ]
+ },
+ "detalles": {
+  "https://liquipedia.net/ageofempires/Sudden_Dessaster/3": [
+   "Arena",
+   "Canberra",
+   "Hideout",
+   "Holy Hollow",
+   "Kerak",
+   "Mauerfall",
+   "Mesa Verde",
+   "Monkey Island",
+   "Mountain Forward",
+   "Thin Ice",
+   "ZeWalls"
+  ],
+  "https://liquipedia.net/ageofempires/Danmarksmesterskaberne/2026": [
+   "Sacred Springs",
+   "Scandinavia",
+   "Coastarena",
+   "Fractal",
+   "Arabia",
+   "Nomad",
+   "Festa da Pólvora",
+   "African Waters",
+   "Vulpine",
+   "Monte Pascoal",
+   "Fortified Clearing",
+   "Socotra"
+  ],
+  "https://liquipedia.net/ageofempires/The_League": [
+   "Arabia",
+   "Arena",
+   "Black Forest",
+   "Cape of Storms",
+   "Crescent",
+   "Enemy Archipelago",
+   "Fortified Clearing",
+   "Fortress",
+   "Frontline",
+   "Grand Bara",
+   "Menindee",
+   "Migration",
+   "Nomad",
+   "Team Acropolis",
+   "Tres Leches"
+  ],
+  "https://liquipedia.net/ageofempires/Chilean_Cup/2026": [
+   "Arabia",
+   "Arena",
+   "Four Lakes",
+   "African Clearing",
+   "Crownwood",
+   "Black Forest",
+   "Isthmus",
+   "Nomad",
+   "Hollow Woodlands",
+   "Hideout",
+   "Loch Ness",
+   "Steppe"
+  ],
+  "https://liquipedia.net/ageofempires/Medieval_Masters/2": [],
+  "https://liquipedia.net/ageofempires/The_League/Qualifier/1": [
+   "Arabia",
+   "Arena",
+   "Black Forest",
+   "Cape of Storms",
+   "Crescent",
+   "Enemy Archipelago",
+   "Fortified Clearing",
+   "Fortress",
+   "Frontline",
+   "Grand Bara",
+   "Menindee",
+   "Migration",
+   "Nomad",
+   "Team Acropolis",
+   "Tres Leches"
+  ],
+  "https://liquipedia.net/ageofempires/The_League/Showmatch/3": [
+   "Cape of Storms",
+   "Fortress",
+   "Frontline",
+   "Migration",
+   "Team Acropolis"
+  ],
+  "https://liquipedia.net/ageofempires/The_League/Showmatch/2": [
+   "Crescent",
+   "Fortified Clearing",
+   "Grand Bara",
+   "Menindee",
+   "Tres Leches"
+  ],
+  "https://liquipedia.net/ageofempires/Brazilian_Dynasty": [
+   "Amazônia",
+   "Araucárias",
+   "Arena Costeira",
+   "Fernando de Noronha",
+   "Festa da Pólvora",
+   "Lençóis Maranhenses",
+   "Monte Pascoal",
+   "Pantanal",
+   "Parque do Ipiranga",
+   "Serra dos Carajás",
+   "Sertão",
+   "Tepui",
+   "Vale da Selva"
+  ],
+  "https://liquipedia.net/ageofempires/The_League/Showmatch": [
+   "Arabia",
+   "Arena",
+   "Black Forest",
+   "Enemy Archipelago",
+   "Nomad"
+  ],
+  "https://liquipedia.net/ageofempires/Warlords/5/Qualifier/1": [
+   "Crownwood",
+   "Cenotes",
+   "Basmo",
+   "Seasons",
+   "Shorelines",
+   "Murkwood",
+   "Cliffbound",
+   "Marshwood",
+   "Kilimanjaro",
+   "Arena",
+   "Isthmus",
+   "Pacific Islands",
+   "Steppe",
+   "Border Dispute",
+   "Morass",
+   "Lowland",
+   "Black Forest",
+   "Crossroads",
+   "Te Fiti",
+   "Ring Nomad",
+   "Skukuza"
+  ],
+  "https://liquipedia.net/ageofempires/Red_Bull_Wololo/Londinium/AoE2": [
+   "Blue Wells",
+   "Crownwood",
+   "Dorothea Quarry",
+   "Glacis",
+   "Hengehold",
+   "Loch Ness",
+   "Rampart",
+   "Stonedrift",
+   "Stonefront",
+   "Thames",
+   "Vulpine"
+  ],
+  "https://liquipedia.net/ageofempires/T90_Titans_League/5/Platinum_League": [
+   "African River",
+   "Bypass",
+   "Coast Arena",
+   "Dzimbabwe",
+   "High Tides",
+   "Monocle",
+   "Mudflow",
+   "Northern Crossings",
+   "Quarry",
+   "Reverse Acropolis",
+   "Seychelles",
+   "Slopes",
+   "Stranded",
+   "Tulou",
+   "Valley"
+  ],
+  "https://liquipedia.net/ageofempires/T90_Titans_League/5/Gold_League": [
+   "African River",
+   "Bypass",
+   "Coast Arena",
+   "Dzimbabwe",
+   "High Tides",
+   "Monocle",
+   "Mudflow",
+   "Northern Crossings",
+   "Quarry",
+   "Reverse Acropolis",
+   "Seychelles",
+   "Slopes",
+   "Stranded",
+   "Tulou",
+   "Valley"
+  ]
+ },
+ "dia": {
+  "fecha": "2026-10-19",
+  "mapas": [
+   [
+    "dm_1v1",
+    "rm_coastal",
+    1
+   ],
+   [
+    "dm_1v1",
+    "unknown",
+    13
+   ],
+   [
+    "dm_team",
+    "rm_arabian_desert",
+    1
+   ],
+   [
+    "dm_team",
+    "unknown",
+    19
+   ],
+   [
+    "ew_1v1",
+    "rm_acclivity",
+    78
+   ],
+   [
+    "ew_1v1",
+    "rm_crownwood",
+    30
+   ],
+   [
+    "ew_1v1",
+    "rm_dunesprings",
+    61
+   ],
+   [
+    "ew_1v1",
+    "rm_glacis",
+    71
+   ],
+   [
+    "ew_1v1",
+    "rm_karsts",
+    77
+   ],
+   [
+    "ew_1v1",
+    "rm_loch_ness",
+    58
+   ],
+   [
+    "ew_1v1",
+    "rm_rampart",
+    37
+   ],
+   [
+    "ew_1v1",
+    "rm_thames",
+    87
+   ],
+   [
+    "ew_1v1",
+    "rm_vulpine",
+    27
+   ],
+   [
+    "ew_team",
+    "rm_acclivity",
+    24
+   ],
+   [
+    "ew_team",
+    "rm_arabia",
+    30
+   ],
+   [
+    "ew_team",
+    "rm_atacama",
+    21
+   ],
+   [
+    "ew_team",
+    "rm_enclosed",
+    68
+   ],
+   [
+    "ew_team",
+    "rm_frigid_lake",
+    18
+   ],
+   [
+    "ew_team",
+    "rm_kawasan",
+    45
+   ],
+   [
+    "ew_team",
+    "rm_morass",
+    20
+   ],
+   [
+    "ew_team",
+    "rm_northern_isles",
+    23
+   ],
+   [
+    "ew_team",
+    "rm_shoals",
+    61
+   ],
+   [
+    "rm_1v1",
+    "rm_arabia",
+    8328
+   ],
+   [
+    "rm_1v1",
+    "rm_arabian_desert",
+    2475
+   ],
+   [
+    "rm_1v1",
+    "rm_arena",
+    3248
+   ],
+   [
+    "rm_1v1",
+    "rm_haboob",
+    1594
+   ],
+   [
+    "rm_1v1",
+    "rm_michi",
+    1285
+   ],
+   [
+    "rm_1v1",
+    "rm_nomad",
+    2134
+   ],
+   [
+    "rm_1v1",
+    "rm_socotra",
+    1715
+   ],
+   [
+    "rm_2v2",
+    "cm_pilgrims",
+    234
+   ],
+   [
+    "rm_2v2",
+    "rm_arabia",
+    899
+   ],
+   [
+    "rm_2v2",
+    "rm_arena",
+    871
+   ],
+   [
+    "rm_2v2",
+    "rm_black-forest",
+    544
+   ],
+   [
+    "rm_2v2",
+    "rm_golden-pit",
+    305
+   ],
+   [
+    "rm_2v2",
+    "rm_hideout",
+    384
+   ],
+   [
+    "rm_2v2",
+    "rm_megarandom",
+    386
+   ],
+   [
+    "rm_2v2",
+    "rm_nomad",
+    527
+   ],
+   [
+    "rm_2v2",
+    "rm_oasis",
+    308
+   ],
+   [
+    "rm_3v3",
+    "cm_pilgrims",
+    129
+   ],
+   [
+    "rm_3v3",
+    "rm_arabia",
+    314
+   ],
+   [
+    "rm_3v3",
+    "rm_arena",
+    454
+   ],
+   [
+    "rm_3v3",
+    "rm_black-forest",
+    301
+   ],
+   [
+    "rm_3v3",
+    "rm_golden-pit",
+    165
+   ],
+   [
+    "rm_3v3",
+    "rm_hideout",
+    172
+   ],
+   [
+    "rm_3v3",
+    "rm_megarandom",
+    191
+   ],
+   [
+    "rm_3v3",
+    "rm_nomad",
+    294
+   ],
+   [
+    "rm_3v3",
+    "rm_oasis",
+    164
+   ],
+   [
+    "rm_4v4",
+    "cm_pilgrims",
+    272
+   ],
+   [
+    "rm_4v4",
+    "rm_arabia",
+    233
+   ],
+   [
+    "rm_4v4",
+    "rm_arena",
+    1308
+   ],
+   [
+    "rm_4v4",
+    "rm_black-forest",
+    876
+   ],
+   [
+    "rm_4v4",
+    "rm_golden-pit",
+    260
+   ],
+   [
+    "rm_4v4",
+    "rm_hideout",
+    449
+   ],
+   [
+    "rm_4v4",
+    "rm_megarandom",
+    296
+   ],
+   [
+    "rm_4v4",
+    "rm_nomad",
+    574
+   ],
+   [
+    "rm_4v4",
+    "rm_oasis",
+    335
+   ]
+  ]
+ },
+ "catalogo": {
+  "rm_arabia": "Arabia",
+  "rm_black-forest": "Black Forest",
+  "rm_coastal": "Coastal",
+  "rm_fortress": "Fortress",
+  "rm_migration": "Migration",
+  "rm_scandinavia": "Scandinavia",
+  "rm_arena": "Arena",
+  "rm_oasis": "Oasis",
+  "rm_nomad": "Nomad",
+  "cm_pilgrims": "Pilgrims",
+  "cm_seasons": "Seasons",
+  "rm_cenotes": "Cenotes",
+  "rm_golden-pit": "Golden Pit",
+  "rm_hideout": "Hideout",
+  "rm_steppe": "Steppe",
+  "rm_valley": "Valley",
+  "rm_megarandom": "MegaRandom",
+  "rm_kilimanjaro": "Kilimanjaro",
+  "rm_socotra": "Socotra",
+  "sm_enemy-archipelago": "Enemy Archipelago",
+  "sm_front-line": "Front Line",
+  "rm_pacific-islands": "Pacific Islands",
+  "rm_four-lakes": "Four Lakes",
+  "rm_african_clearing": "African Clearing",
+  "rm_atacama": "Atacama",
+  "rm_crossroads": "Crossroads",
+  "rm_michi": "Michi",
+  "rm_acclivity": "Acclivity",
+  "rm_frigid_lake": "Frigid Lake",
+  "rm_lowland": "Lowland",
+  "rm_northern_isles": "Northern Isles",
+  "rm_enclosed": "Enclosed",
+  "rm_haboob": "Haboob",
+  "rm_kawasan": "Kawasan",
+  "rm_sacred_springs": "Sacred Springs",
+  "rm_morass": "Morass",
+  "rm_shoals": "Shoals",
+  "rm_cliffbound": "Cliffbound",
+  "rm_isthmus": "Isthmus",
+  "rm_dunesprings": "Dunesprings",
+  "rm_hollow_woodlands": "Hollow Woodlands",
+  "rm_karsts": "Karsts",
+  "rm_fortified_clearing": "Fortified Clearing",
+  "rm_border_dispute": "Border Dispute",
+  "rm_stranded": "Stranded",
+  "rm_murkwood": "Murkwood",
+  "rm_crownwood": "Crownwood",
+  "rm_dorothea_quarry": "Dorothea Quarry",
+  "rm_glacis": "Glacis",
+  "rm_hengehold": "Hengehold",
+  "rm_loch_ness": "Loch Ness",
+  "rm_rampart": "Rampart",
+  "rm_stonefront": "Stonefront",
+  "rm_thames": "Thames",
+  "rm_vulpine": "Vulpine",
+  "rm_arabian_desert": "Arabian Desert"
+ },
+ "claves_juego": [
+  "7v1 survival villager 1,1 (scenario)",
+  "[c32] [7v1]long_night4_v063s (scenario)",
+  "[cba][-requiem-][v6] (scenario)",
+  "a2g s10 - copenhagen (custom)",
+  "acclivity",
+  "african clearing",
+  "amazon tunnel",
+  "arabia",
+  "arabian desert",
+  "arena",
+  "atacama",
+  "baltic",
+  "bamboo nothing - scorpyon de (custom)",
+  "bamboo nothing_paren_v4 (custom)",
+  "bamboo nothing_paren_v4_nohills (custom)",
+  "black forest",
+  "border dispute",
+  "ca v3.94 (scenario)",
+  "canals",
+  "castle blood fair v1-5 (scenario)",
+  "cba 6x v2026_2_3 team (scenario)",
+  "cba hero royal 4v4 big_ytri (original heroes) (scenario)",
+  "cba_=req=_v325 (scenario)",
+  "cba_=req=_v326 (scenario)",
+  "cba_=req=_v327 (scenario)",
+  "cba_=req=_v328 (scenario)",
+  "cba_=req=_v328 team free 2x2x2x2 (scenario)",
+  "cba_=requiem=_v220 (scenario)",
+  "cba_=requiem=_v284 (scenario)",
+  "cba_=requiem=_v292 (scenario)",
+  "cba_=requiem=v 292 (scenario)",
+  "cba_=requlem=_v292    (scenario)",
+  "cba_=requlem=_v292 (scenario)",
+  "cdo - haboob (custom)",
+  "cdo - immersion (custom)",
+  "cdo - monte pascoal (custom)",
+  "china",
+  "cm_canals",
+  "cm_paradise-island",
+  "cm_pilgrims",
+  "coastal forest",
+  "crownwood",
+  "default0 (scenario)",
+  "dunesprings",
+  "enclosed",
+  "fast villager defense 2026 club de v853 (scenario)",
+  "forest nothing de (custom)",
+  "forest nothing de ballista (custom)",
+  "forest_nothing_ultra_small_fixed (custom)",
+  "fortress",
+  "four lakes",
+  "frigid lake",
+  "full (scenario)",
+  "glacis",
+  "glade",
+  "golden pit",
+  "golden swamp",
+  "haboob",
+  "hideout",
+  "karsts",
+  "kawasan",
+  "kingte(promax)v2.3 (scenario)",
+  "land nomad",
+  "loch ness",
+  "lombardia",
+  "mama del aba (scenario)",
+  "megarandom",
+  "michi",
+  "migration",
+  "mired",
+  "morass",
+  "mountain dunes",
+  "nomad",
+  "nomad blood auto v3.2 (scenario)",
+  "northern isles",
+  "oasis",
+  "paradise island",
+  "pilgrims",
+  "rage forest 2026 (custom)",
+  "rampart",
+  "ravines",
+  "rm_acclivity",
+  "rm_african_clearing",
+  "rm_amazon_tunnels",
+  "rm_arabia",
+  "rm_arabian_desert",
+  "rm_arena",
+  "rm_atacama",
+  "rm_baltic",
+  "rm_black-forest",
+  "rm_border_dispute",
+  "rm_coastal_forest",
+  "rm_crownwood",
+  "rm_dunesprings",
+  "rm_enclosed",
+  "rm_fortress",
+  "rm_four-lakes",
+  "rm_frigid_lake",
+  "rm_glacis",
+  "rm_glade",
+  "rm_golden-pit",
+  "rm_golden-swamp",
+  "rm_haboob",
+  "rm_hideout",
+  "rm_karsts",
+  "rm_kawasan",
+  "rm_land_nomad",
+  "rm_loch_ness",
+  "rm_lombardia",
+  "rm_megarandom",
+  "rm_michi",
+  "rm_migration",
+  "rm_mired",
+  "rm_morass",
+  "rm_mountain_dunes",
+  "rm_nomad",
+  "rm_northern_isles",
+  "rm_oasis",
+  "rm_rampart",
+  "rm_ravines",
+  "rm_scandinavia",
+  "rm_serengeti",
+  "rm_shoals",
+  "rm_shrubland",
+  "rm_socotra",
+  "rm_thames",
+  "rm_vulpine",
+  "rm_yucatan",
+  "rwm_china",
+  "scandinavia",
+  "serengeti",
+  "shoals",
+  "shrubland",
+  "socotra",
+  "tamerlane: amir of transoxiana (coop)",
+  "tamerlane: gurkhan of persia (coop)",
+  "tamerlane: scourge of the levant (coop)",
+  "tamerlane: sultan of hindustan (coop)",
+  "thames",
+  "unknown",
+  "vulpine",
+  "wet woods v3.0.3 (custom)",
+  "yucatan"
+ ],
+ "previo": {
+  "v": 1,
+  "torneos": [
+   {
+    "nombre": "Torneo de 2025 aún dentro del año",
+    "url": "https://liquipedia.net/ageofempires/Prueba/2025",
+    "tier": "S",
+    "tipo": null,
+    "inicio": "2025-11-01",
+    "fin": "2025-12-01",
+    "estado": "en_curso",
+    "modo": "2v2",
+    "mapas": [
+     {
+      "nombre": "Arabia",
+      "liquipedia": "Arabia",
+      "juego": true
+     },
+     {
+      "nombre": "Coastarena",
+      "liquipedia": "Coastarena",
+      "juego": false
+     }
+    ]
+   },
+   {
+    "nombre": "Torneo caducado",
+    "url": "https://liquipedia.net/ageofempires/Prueba/Vieja",
+    "tier": "S",
+    "tipo": null,
+    "inicio": "2025-08-01",
+    "fin": "2025-09-01",
+    "estado": "terminado",
+    "modo": "1v1",
+    "mapas": [
+     {
+      "nombre": "Arena",
+      "liquipedia": "Arena",
+      "juego": true
+     }
+    ]
+   }
+  ]
+ },
+ "esperado": {
+  "ranked": {
+   "rm_1v1": [
+    "Arabia",
+    "Arena",
+    "Arabian Desert",
+    "Nomad",
+    "Socotra",
+    "Haboob",
+    "Michi"
+   ],
+   "rm_team": [
+    "Arena",
+    "Black Forest",
+    "Arabia",
+    "Nomad",
+    "Hideout",
+    "MegaRandom",
+    "Oasis",
+    "Golden Pit",
+    "Pilgrims"
+   ]
+  },
+  "orden": [
+   "The_Garrison/2026",
+   "The_League",
+   "Brazilian_Dynasty",
+   "Warlords/5",
+   "Warlords/5/Qualifier/1",
+   "Red_Bull_Wololo/Londinium/AoE2",
+   "T90_Titans_League/5/Platinum_League",
+   "Prueba/2025",
+   "Sudden_Dessaster/3",
+   "T90_Titans_League/5/Gold_League",
+   "Chilean_Cup/2026"
+  ],
+  "mapas": {
+   "The_League": [
+    [
+     "Arabia",
+     "Arabia",
+     true
+    ],
+    [
+     "Arena",
+     "Arena",
+     true
+    ],
+    [
+     "Black Forest",
+     "Black Forest",
+     true
+    ],
+    [
+     "Cape of Storms",
+     "Cape of Storms",
+     false
+    ],
+    [
+     "Crescent",
+     "Crescent",
+     false
+    ],
+    [
+     "Enemy Archipelago",
+     "Enemy Archipelago",
+     true
+    ],
+    [
+     "Fortified Clearing",
+     "Fortified Clearing",
+     true
+    ],
+    [
+     "Fortress",
+     "Fortress",
+     true
+    ],
+    [
+     "Front Line",
+     "Frontline",
+     true
+    ]
+   ],
+   "Brazilian_Dynasty": [
+    [
+     "Amazônia",
+     "Amazônia",
+     false
+    ],
+    [
+     "Araucárias",
+     "Araucárias",
+     false
+    ]
+   ],
+   "Warlords/5": [
+    [
+     "Crownwood",
+     "Crownwood",
+     true
+    ],
+    [
+     "Cenotes",
+     "Cenotes",
+     true
+    ],
+    [
+     "Basmo",
+     "Basmo",
+     false
+    ]
+   ],
+   "Prueba/2025": [
+    [
+     "Arabia",
+     "Arabia",
+     true
+    ],
+    [
+     "Coastarena",
+     "Coastarena",
+     false
+    ]
+   ]
+  },
+  "campos": {
+   "The_League": {
+    "tier": "S",
+    "modo": "3v3",
+    "estado": "en_curso",
+    "inicio": "2026-08-10"
+   },
+   "Prueba/2025": {
+    "estado": "terminado",
+    "modo": "2v2"
+   },
+   "The_Garrison/2026": {
+    "estado": "proximo",
+    "modo": "1v1"
+   }
+  },
+  "logo": "logos/torneos/membtv-warlords-5-allmode-e386f95b.png"
+ }
 }

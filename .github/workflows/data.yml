@@ -35,7 +35,7 @@ jobs:
       - name: datos previos (rama data)
         run: |
           if git fetch -q --depth=1 origin data:refs/remotes/origin/data 2>/dev/null; then
-            for p in civstats logos torneos noticias ladder.json clans.json.gz dispersion.json.gz mapas.json mapas_torneo.json torneos.json torneos_historico.json noticias.json partidos.json torneos_comunidad.json streamers.json directos.json; do
+            for p in civstats logos mapas_torneo torneos noticias ladder.json clans.json.gz dispersion.json.gz mapas.json mapas_torneo.json torneos.json torneos_historico.json noticias.json partidos.json torneos_comunidad.json streamers.json directos.json; do
               git checkout origin/data -- "$p" 2>/dev/null || true
             done
             echo "recuperados de la rama data: $(ls civstats/dias 2>/dev/null | wc -l) días"
@@ -101,6 +101,7 @@ jobs:
           done
           [ -d civstats ] && git add -f civstats || true
           [ -d logos ] && git add -f logos || true
+          [ -d mapas_torneo ] && git add -f mapas_torneo || true
           [ -d torneos ] && git add -f torneos || true
           [ -d noticias ] && git add -f noticias || true
           git commit -q -m "datos $(date -u '+%F %H:%M UTC')" || { echo "nada que publicar"; exit 0; }
