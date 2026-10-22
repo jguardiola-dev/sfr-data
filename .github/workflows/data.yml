@@ -64,7 +64,8 @@ jobs:
             n=$(gh release view "$tag" --json assets -q '[.assets[].name | select(test("^shard-[0-9]{4}[.]json[.]gz$"))] | length')
             if [ "$n" != "256" ]; then echo "::error::base $tag incompleta ($n/256 paquetes): no se publica el índice ni se borra la base anterior"; exit 1; fi
           fi
-          subir perfiles $(ls perfiles/*.json.gz)
+          # sin las marcas BORRAR-* (también acaban en .json.gz, están vacías y GitHub las rechaza con «Bad Content-Length»)
+          subir perfiles $(ls perfiles/*.json.gz | grep -v '/BORRAR-')
           gh release upload perfiles perfiles/index.json --clobber
           # los deltas ya fundidos se borran solo cuando el índice nuevo (que ya no los lista) está publicado
           for m in perfiles/BORRAR-*; do [ -e "$m" ] || continue; a=$(basename "$m"); a=${a#BORRAR-}; gh release delete-asset perfiles "$a" -y || true; rm -f "$m"; sleep 2; done
