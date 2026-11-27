@@ -4397,6 +4397,7 @@ PARTIDOS_DIAS_FUTURO = 7         # próximos 7 días
 PARTIDOS_EN_CURSO_MAX_H = 12     # sin terminar y empezado hace más de 12 h = nadie lo cerró en la wiki: fuera
 PARTIDOS_MUESTRA = os.path.join("pruebas", "partidos_muestra.json")
 PARTIDOS_DIA_MUESTRA = os.path.join("pruebas", "partidos_dia_muestra.json")
+PARTIDOS_TARJETAS_MUESTRA = os.path.join("pruebas", "partidos_tarjetas_muestra.json")
 PARTIDOS_GAME = "Age of Empires II"
 PARTIDOS_FASES_VACIAS = {"results", "resultados"}    # ancla genérica de la página: no es una fase
 
@@ -4458,6 +4459,7 @@ def partidos_stream(href):
 
 def partidos_html(html_txt):
     """HTML de action=parse → {"proximos": [bloques], "recientes": [bloques], "errores": [sección]} (sin filtrar).
+    Lee los dos HTML del ticker: el de «match-info» (hasta noviembre de 2026) y el de tarjetas «match-ticker-card».
     Bloque: {"ts", "terminado", "rivales":[{"nombres":[…], "paises":[…], "equipo":bool, "gana":bool}], "marcador":[…],
              "bo", "torneo_txt", "href", "streams":[…]}."""
     from html.parser import HTMLParser
@@ -4473,6 +4475,7 @@ def partidos_html(html_txt):
             self.m = None         # partido en curso
             self.txt = None       # texto que se está recogiendo: (papel, [trozos])
             self.titulo = None    # title del enlace dentro del nombre
+            self.omitir = False   # dentro de un trozo del nombre que no se recoge
 
         def handle_starttag(self, tag, attrs):
             a = {k: (v or "") for k, v in attrs}
@@ -4485,7 +4488,7 @@ def partidos_html(html_txt):
             elif self.seccion and ("error" in cls or "scribunto-error" in cls):
                 if self.seccion not in self.errores:
                     self.errores.append(self.seccion)
-            elif self.seccion and tag == "div" and "match-info" in cls:
+            elif self.seccion and tag == "div" and ("match-info" in cls or "match-ticker-card" in cls):
                 self.m = {"ts": None, "sin_hora": False, "terminado": self.seccion == "recientes", "rivales": [],
                           "marcador": [], "bo": None, "torneo_txt": None, "href": None, "streams": []}
                 self.secciones[self.seccion].append(self.m)
@@ -4499,6 +4502,19 @@ def partidos_html(html_txt):
                 elif tag == "div" and "match-info-header-opponent" in cls:
                     self.m["rivales"].append({"nombres": [], "paises": [], "equipo": False,
                                               "gana": "match-info-header-winner" in cls})
+                elif tag == "div" and "match-ticker-card__opponent" in cls:      # tarjetas: el marcador es su <div> sin clase
+                    self.m["rivales"].append({"nombres": [], "paises": [], "equipo": False, "gana": "winner" in cls})
+                    papel = "rival"
+                elif tag == "div" and "match-ticker-card__header" in cls:        # tarjetas: el Bo-N es su <div> sin clase
+                    papel = "cabecera"
+                elif tag == "div" and not cls and self.pila and self.pila[-1][1] == "rival":
+                    papel = "marcador"
+                elif tag == "div" and not cls and self.pila and self.pila[-1][1] == "cabecera":
+                    papel = "bo"
+                elif tag == "div" and self.txt and self.txt[0] == "nombre" and ("team-shortname" in cls or "team-bracketname" in cls):
+                    papel, self.omitir = "omitir", True      # equipo: nombre corto y de cuadro, fuera; vale el completo
+                elif tag == "div" and self.txt and self.txt[0] == "nombre" and "team-name" in cls:
+                    self.titulo = None                       # el texto tal cual, no el título de su página
                 elif tag == "div" and "block-team" in cls and self.m["rivales"]:
                     self.m["rivales"][-1]["equipo"] = True
                 elif tag == "div" and "block-player" in cls and self.m["rivales"]:
@@ -4516,7 +4532,7 @@ def partidos_html(html_txt):
                     papel = "marcador"
                 elif tag == "span" and "match-info-header-scoreholder-lower" in cls:
                     papel = "bo"
-                elif tag == "span" and "match-info-tournament-name" in cls:
+                elif tag == "span" and ("match-info-tournament-name" in cls or "match-ticker-card-tournament-name" in cls):
                     papel = "torneo"
                 elif tag == "a" and any(p == "torneo" for _, p in self.pila) and not self.m["href"]:
                     self.m["href"] = a.get("href")
@@ -4547,6 +4563,9 @@ def partidos_html(html_txt):
             if papel == "seccion":
                 self.seccion, self.m = None, None
                 return
+            if papel == "omitir":
+                self.omitir = False
+                return
             if not papel or not self.txt or self.txt[0] != papel or self.m is None:
                 return
             texto = " ".join("".join(self.txt[1]).split())
@@ -4570,7 +4589,7 @@ def partidos_html(html_txt):
                     self.m["ts"], self.m["sin_hora"] = ts, True
 
         def handle_data(self, data):
-            if self.txt is not None:
+            if self.txt is not None and not self.omitir:
                 self.txt[1].append(data)
 
     p = P()
@@ -4832,9 +4851,9 @@ def partidos_probar_dia():
     return fallos
 
 
-def partidos_probar():
-    """Prueba sin red: HTML del ticker guardado (recortado) con una hora fija, y casos límite."""
-    m = leer_json(PARTIDOS_MUESTRA)
+def partidos_probar_muestra(ruta):
+    """Una muestra del ticker ({"ahora","html","esperado","fuera","total"}) → (lista, fallos, secciones)."""
+    m = leer_json(ruta)
     ahora_dt = datetime.fromisoformat(m["ahora"].replace("Z", "+00:00"))
     sec = partidos_html(m["html"])
     lista = partidos_componer(sec, ahora_dt)
@@ -4871,6 +4890,35 @@ def partidos_probar():
         fallos.append("alguna hora no va en UTC con Z")
     if len({(p["torneo_url"], p["inicio"], p["j1"], p["j2"]) for p in lista}) != len(lista):
         fallos.append("hay partidos duplicados")
+    for p in lista:
+        log(f"  {p['estado']:9} {p['inicio']}  {p.get('formato') or '-':4} {p['j1']} vs {p['j2']}  · {p['torneo']}"
+            f"{' · ' + p['fase'] if p.get('fase') else ''}")
+    return lista, fallos, sec
+
+
+def partidos_probar_tarjetas():
+    """El ticker de tarjetas («match-ticker-card», desde noviembre de 2026): HTML real recortado. Devuelve los fallos."""
+    lista, fallos, sec = partidos_probar_muestra(PARTIDOS_TARJETAS_MUESTRA)
+    prox, rec = sec["proximos"], sec["recientes"]
+    if len(prox) != 6 or len(rec) != 3 or any(b["ts"] is None or len(b["rivales"]) != 2 or not b["href"] for b in prox + rec):
+        return fallos + [f"tarjetas: {len(prox)}+{len(rec)} bloques o alguno incompleto"]
+    if not prox[0]["sin_hora"] or prox[0]["ts"] != 1795737600 or not prox[0]["streams"] or prox[1]["sin_hora"]:
+        fallos.append("tarjetas: solo día (con su botón de stream) o con hora mal")
+    if [len(r["nombres"]) for r in prox[2]["rivales"]] != [3, 3]:                # 3v3 sin equipo, con <hr> entre los rivales
+        fallos.append(f"tarjetas: 3v3 {prox[2]['rivales']}")
+    if partidos_lado(prox[5]["rivales"][0]) != ("TBD", None):                    # rival literal («Loser WB Final»)
+        fallos.append(f"tarjetas: rival literal {prox[5]['rivales'][0]}")
+    eq = rec[2]                                                                  # equipos: nombre completo, marcador y ganador
+    if [r["nombres"] for r in eq["rivales"]] != [["Team Harry"], ["Team Tricky"]] or eq["marcador"] != ["0", "3"] \
+            or [r["gana"] for r in eq["rivales"]] != [False, True]:
+        fallos.append(f"tarjetas: equipos {eq}")
+    return fallos
+
+
+def partidos_probar():
+    """Prueba sin red: HTML del ticker guardado (recortado) con una hora fija, y casos límite."""
+    lista, fallos, _ = partidos_probar_muestra(PARTIDOS_MUESTRA)
+    ahora_dt = datetime.fromisoformat(leer_json(PARTIDOS_MUESTRA)["ahora"].replace("Z", "+00:00"))
     vacio = partidos_html("<p>nada</p>")
     if vacio["proximos"] or vacio["recientes"] or partidos_componer(vacio, ahora_dt) != []:
         fallos.append("HTML sin ticker debería dar [] (y partidos() no escribe)")
@@ -4887,9 +4935,7 @@ def partidos_probar():
                      "/x/Eu_hd.png": None, "/x/Flag.png": None}.items():
         if partidos_pais(src) != esp:
             fallos.append(f"país {src} → {partidos_pais(src)}, se esperaba {esp}")
-    for p in lista:
-        log(f"  {p['estado']:9} {p['inicio']}  {p.get('formato') or '-':4} {p['j1']} vs {p['j2']}  · {p['torneo']}"
-            f"{' · ' + p['fase'] if p.get('fase') else ''}")
+    fallos += partidos_probar_tarjetas()
     for f in fallos:
         log("FALLO", f)
     fallos += partidos_probar_dia()
