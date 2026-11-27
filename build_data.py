@@ -4771,6 +4771,8 @@ def partidos():
             raise RuntimeError(f"error de Lua en {sec['errores']}")
         if not sec["proximos"] and not sec["recientes"]:
             raise RuntimeError("el ticker no trae ningún partido")
+        if os.environ.get("PARTIDOS_LEIDO"):     # partidos.yml: el ticker se ha leído (aunque luego nada caiga en la ventana)
+            open(os.environ["PARTIDOS_LEIDO"], "w").close()
         # ticker lleno y su último partido aún dentro de la ventana → puede faltar alguno (se publica igual)
         t0 = ahora_dt.timestamp()
         for k, lim, dentro in (("proximos", PARTIDOS_LIMITE_PROXIMOS, lambda ts: ts <= t0 + PARTIDOS_DIAS_HORIZONTE * 86400),

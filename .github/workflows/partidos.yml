@@ -50,6 +50,8 @@ jobs:
           fi
       - name: generar partidos.json
         run: python build_data.py partidos
+        env:
+          PARTIDOS_LEIDO: ${{ runner.temp }}/partidos_leido   # lo crea partidos() si el ticker se lee bien
         continue-on-error: true    # si falla, partidos() ya deja el anterior y avisa
       - name: generar torneos_comunidad.json (gamenex.gg)
         run: python build_data.py comunidad
@@ -93,3 +95,24 @@ jobs:
           git commit -q -m "partidos $(date -u '+%F %H:%M UTC')" || { echo "nada que publicar"; exit 0; }
           git push -q origin HEAD:data     # avance normal, sin --force: si la rama cambió entre medias, falla y no pisa nada
           echo "partidos.json (y torneos_comunidad.json) publicado en la rama data"
+      - name: avisar si partidos.json lleva más de 30 h sin regenerarse
+        # los pasos de arriba nunca fallan (se conserva el anterior): sin esto, un ticker roto pasa en verde días enteros.
+        # Si esta pasada leyó el ticker (aunque no escribiera: nada en la ventana), no hay nada roto. Si no, se mira la
+        # edad del partidos.json que queda (el anterior de la rama data): un fallo suelto de Liquipedia no avisa.
+        if: steps.previo.outputs.hay_data == '1' && hashFiles('partidos.json') != ''
+        run: |
+          if [ -f "$RUNNER_TEMP/partidos_leido" ]; then echo "el ticker se ha leído en esta pasada"; exit 0; fi
+          python3 - <<'EOF'
+          import json, sys
+          from datetime import datetime, timezone
+          try:
+              g = json.load(open("partidos.json", encoding="utf-8"))["generado"]
+              horas = (datetime.now(timezone.utc) - datetime.fromisoformat(g.replace("Z", "+00:00"))).total_seconds() / 3600
+          except Exception as ex:
+              print(f"::error title=partidos::partidos.json sin «generado» legible ({ex!r})")
+              sys.exit(1)
+          print(f"partidos.json generado hace {horas:.1f} h")
+          if horas > 30:
+              print(f"::error title=partidos::partidos.json lleva {horas / 24:.1f} días sin regenerarse: mirar el aviso del paso «generar partidos.json»")
+              sys.exit(1)
+          EOF
